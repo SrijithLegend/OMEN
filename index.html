@@ -16,11 +16,17 @@ h1{margin:0;font-size:clamp(2.4rem,7vw,4rem);line-height:1}
 .tag{margin:.5rem 0 0;color:var(--mute)}
 label{display:block;margin:0 0 10px;color:var(--mute);font-size:.8rem}
 .sand label{color:#777}
-select,input{display:block;width:100%;margin-top:6px;padding:12px 14px;border:2px solid transparent;border-radius:14px;background:var(--field);color:#fff;font:600 1rem/1.2 Inter,system-ui,sans-serif;letter-spacing:-.01em;font-variant-numeric:tabular-nums;transition:border-color .15s,background .15s;outline:0}
-select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:40px;text-overflow:ellipsis;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8' fill='none' stroke='%23ff6a2b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center}
-select:hover,input:hover{border-color:#ff6a2b66}select:focus,input:focus{border-color:var(--orange)}
-.sand select,.sand input{background-color:#ececee;color:var(--ink)}.sand select:focus,.sand input:focus{background-color:#fff}
-option,optgroup{background:var(--ink);color:#fff;font:500 .95rem Inter,system-ui,sans-serif}optgroup{color:var(--orange);font-weight:700}option{color:#fff}
+select,input,.dd>button{display:block;text-align:left;cursor:pointer;width:100%;margin-top:6px;padding:12px 14px;border:2px solid transparent;border-radius:14px;background:var(--field);color:#fff;font:600 1rem/1.2 Inter,system-ui,sans-serif;letter-spacing:-.01em;font-variant-numeric:tabular-nums;transition:border-color .15s,background .15s;outline:0}
+select{display:none}input{cursor:text}.dd>button{padding-right:40px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8' fill='none' stroke='%23ff6a2b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center}
+input::placeholder,.dd .ph{color:#999;font-weight:500}
+input:hover,.dd>button:hover{border-color:#ff6a2b66}input:focus,.dd>button:focus,.dd.open>button{border-color:var(--orange)}
+.dd{position:relative}
+.dd .panel{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 6px);max-height:18rem;overflow:auto;padding:8px;border-radius:18px;background:var(--ink);box-shadow:0 14px 40px #0005;display:none}
+.dd.open .panel{display:block}
+.panel h6{margin:10px 8px 4px;font:700 .7rem Inter,system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--orange)}.panel h6:first-child{margin-top:4px}
+.panel div{padding:9px 12px;border-radius:10px;color:#fff;font:500 .95rem Inter,system-ui;cursor:pointer}
+.panel div:hover{background:#ffffff1f}.panel div.sel{background:var(--orange);color:var(--ink);font-weight:700}
+.sand input,.sand .dd>button{background-color:#ececee;color:var(--ink)}.sand input:focus,.sand .dd>button:focus,.sand .dd.open>button{background-color:#fff}.sand input::placeholder,.sand .dd .ph{color:#999}
 .big{font-size:2.2rem;line-height:1.05;margin:.2rem 0}
 .stat{display:flex;flex-direction:column;justify-content:space-between;min-height:8rem}
 .stat b{font-size:1.9rem;line-height:1}
@@ -63,20 +69,20 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
   <div class="card stat"><span class=lab>Max users</span><b id=su></b><small>sessions that fit</small></div>
 
   <div class="card sand s2"><span class=lab>Setup</span>
-    <label>Use case <select id=uc></select></label>
-    <label>Model <select id=m></select></label>
-    <label>Quantization <select id=q></select></label>
-    <label>GPU <select id=g></select></label></div>
+    <label>Use case <select id=uc data-ph="Any use case"></select></label>
+    <label>Model <select id=m data-ph="Choose a model"></select></label>
+    <label>Quantization <select id=q data-ph="Choose quantization"></select></label>
+    <label>GPU <select id=g data-ph="Choose a GPU"></select></label></div>
   <div class="card"><span class=lab>Workload</span>
-    <label>Context (tokens) <input id=c type=number min=1 value=8192></label><div class=pills data-for=c></div>
-    <label style="margin-top:16px">Users <input id=u type=number min=1 value=4></label><div class=pills data-for=u></div></div>
+    <label>Context (tokens) <input id=c type=number min=1 placeholder="e.g. 8192"></label><div class=pills data-for=c></div>
+    <label style="margin-top:16px">Users <input id=u type=number min=1 placeholder="e.g. 4"></label><div class=pills data-for=u></div></div>
   <div class="card stat sand"><span class=lab>Cost per user-hour</span><b id=sc></b><small>GPU price / users that fit</small></div>
 
   <div class="card s4"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
 
   <div class="card s2"><span class=lab>Assumptions (editable)</span>
-    <div class=two><label>Overhead GiB <input id=ov type=number step=0.1 value=1.5></label>
-    <label>GPU price $/hr <input id=pr type=number step=0.01></label></div>
+    <div class=two><label>Overhead GiB <input id=ov type=number step=0.1 placeholder="1.5"></label>
+    <label>GPU price $/hr <input id=pr type=number step=0.01 placeholder="auto from GPU"></label></div>
     <details><summary>How this is estimated</summary><ul id=asm></ul></details></div>
   <div class="card sand s2 meas" id=meas></div>
 </div>
@@ -97,24 +103,55 @@ const LOGOS = {Meta: "meta", "Mistral AI": "mistralai", "Alibaba (Qwen)": "aliba
 const KV_BYTES = 2; // fp16 KV cache
 
 const $ = id => document.getElementById(id);
-const groups = (by, keep = () => true) => Object.entries(by).map(([k, o]) => [k, Object.keys(o).filter(keep)])
+const BLANK = '<option value="" hidden></option>';
+const groups = (by, keep = () => true) => BLANK + Object.entries(by).map(([k, o]) => [k, Object.keys(o).filter(keep)])
   .filter(([, names]) => names.length).map(([k, names]) =>
   `<optgroup label="${k}">${names.map(n => `<option>${n}</option>`).join("")}</optgroup>`).join("");
-const inUseCase = n => $("uc").value == "All" || (MODEL_USE_CASES[n] || ["General"]).includes($("uc").value);
+const inUseCase = n => !$("uc").value || $("uc").value == "All" || (MODEL_USE_CASES[n] || ["General"]).includes($("uc").value);
 function fillModels() { // list only models for the chosen use case, keep the current pick if still listed
   const prev = $("m").value; $("m").innerHTML = groups(MODELS_BY_CREATOR, inUseCase);
   if ([...$("m").options].some(o => o.value == prev)) $("m").value = prev;
 }
-$("uc").innerHTML = ["All", ...Object.keys(USE_CASE_CONTEXT)].map(n => `<option>${n}</option>`).join("");
+$("uc").innerHTML = BLANK + ["All", ...Object.keys(USE_CASE_CONTEXT)].map(n => `<option>${n}</option>`).join("");
 fillModels(); $("q").innerHTML = groups(QUANTS_BY_FAMILY); $("g").innerHTML = groups(GPUS_BY_VENDOR);
-$("q").value = "fp16 / bf16"; $("g").value = "RTX 4090 24GB";
-$("m").value = "Llama-3.1-8B";
+
+// Custom dropdown: the hidden <select> keeps the value and events, the panel is built from its options on open.
+const dds = [...document.querySelectorAll("select")].map(sel => {
+  const dd = document.createElement("div"), btn = document.createElement("button"), panel = document.createElement("div");
+  dd.className = "dd"; btn.type = "button"; panel.className = "panel"; dd.append(btn, panel); sel.after(dd);
+  const close = () => dd.classList.remove("open");
+  btn.onclick = () => { const was = dd.classList.contains("open"); dds.forEach(d => d.close()); if (was) return;
+    panel.innerHTML = [...sel.children].map(o => o.tagName == "OPTGROUP" ? `<h6>${o.label}</h6>` + [...o.children].map(item).join("") : item(o)).join("");
+    dd.classList.add("open"); panel.querySelector(".sel")?.scrollIntoView({block: "nearest"}); };
+  const item = o => o.value ? `<div data-v="${o.value}"${o.value == sel.value ? " class=sel" : ""}>${o.value}</div>` : "";
+  panel.onclick = e => { const v = e.target.dataset.v; if (v === undefined) return; sel.value = v; close(); sel.dispatchEvent(new Event("input")); };
+  const sync = () => { btn.innerHTML = sel.value ? sel.value : `<span class=ph>${sel.dataset.ph}</span>`; };
+  return { close, sync };
+});
+document.addEventListener("click", e => { if (!e.target.closest(".dd")) dds.forEach(d => d.close()); });
+document.addEventListener("keydown", e => { if (e.key == "Escape") dds.forEach(d => d.close()); });
 
 // Minimum GPUs: (weights + users*KV) / VRAM, rounded up. Ignores per-GPU overhead and interconnect losses.
 const minGpus = (q, p, kv, users, gib) => Math.ceil((p * 1e9 * QUANTS[q] / 2 ** 30 + users * kv) / gib);
 
+function heroHtml() {
+  const m = $("m").value; if (!m) return `<div><b>Choose a model</b><small>to see its details here</small></div>`;
+  const cr = Object.keys(MODELS_BY_CREATOR).find(k => m in MODELS_BY_CREATOR[k]), slug = LOGOS[cr];
+  return (slug ? `<img src="https://cdn.simpleicons.org/${slug}/fff" alt="${cr}" onerror="this.outerHTML='<div class=mono>${cr[0]}</div>'">` : `<div class=mono>${cr[0]}</div>`)
+    + `<div><b>${m}</b><small>${cr}</small></div>`;
+}
 function render() {
-  const [p, L, h, d, act] = MODELS[$("m").value], [gib, bw] = GPUS[$("g").value], usd = +$("pr").value, ov = +$("ov").value;
+  dds.forEach(d => d.sync());
+  document.querySelectorAll(".pills button").forEach(b => b.classList.toggle("on", $(b.parentNode.dataset.for).value == b.dataset.v));
+  history.replaceState(null, "", "?" + new URLSearchParams(IDS.filter(i => $(i).value).map(i => [i, $(i).value])));
+  $("hero").innerHTML = heroHtml();
+  if (!($("m").value && $("q").value && $("g").value && +$("c").value > 0 && +$("u").value > 0)) { // blank form: show prompt, no numbers
+    $("vc").className = "card r2"; $("vt").textContent = "Pick your setup"; $("vs").textContent = "Choose a model, quantization and GPU, then set context and users.";
+    $("conf").textContent = ""; for (const i of ["sw", "skv", "su", "st", "sc"]) $(i).textContent = "-";
+    $("sth").textContent = "single-user decode"; $("bar").innerHTML = ""; $("leg").innerHTML = "";
+    $("meas").innerHTML = `<span class=lab>Measured vs predicted</span><b class=n>-</b><p>Complete the setup to compare against measured runs.</p>`; return;
+  }
+  const [p, L, h, d, act] = MODELS[$("m").value], [gib, bw] = GPUS[$("g").value], usd = +$("pr").value, ov = $("ov").value === "" ? 1.5 : +$("ov").value;
   const users = +$("u").value;
   const r = fit(p, QUANTS[$("q").value], L, h, d, KV_BYTES, +$("c").value, gib, bw, usd, ov, act);
   const ok = r.users >= users;
@@ -131,9 +168,6 @@ function render() {
   $("vt").textContent = (ok ? "Fits " : "Does not fit ") + users + " users";
   $("vs").textContent = `Headroom ${r.free.toFixed(1)} GiB before KV.` + (ok ? "" :
     ` Needs at least ${minGpus("fp16 / bf16", p, r.kv, users, gib)} x this GPU in fp16, or ${minGpus("GPTQ / AWQ int4", p, r.kv, users, gib)} in int4 (minimums: ignore per-GPU overhead and interconnect losses).`);
-  const cr = Object.keys(MODELS_BY_CREATOR).find(k => $("m").value in MODELS_BY_CREATOR[k]), slug = LOGOS[cr];
-  $("hero").innerHTML = (slug ? `<img src="https://cdn.simpleicons.org/${slug}/fff" alt="${cr}" onerror="this.outerHTML='<div class=mono>${cr[0]}</div>'">` : `<div class=mono>${cr[0]}</div>`)
-    + `<div><b>${$("m").value}</b><small>${cr}</small></div>`;
   $("conf").textContent = run ? "Speed MEASURED, rest estimated" : "Estimated";
   $("sw").textContent = r.weights.toFixed(1) + " GiB";
   $("skv").textContent = r.kv.toFixed(2) + " GiB";
@@ -144,9 +178,8 @@ function render() {
   const issue = JSON.stringify({ model: $("m").value, quant: $("q").value, gpu: $("g").value, context: +$("c").value, users: 1, engine: "", tok_s: 0, source: "" }, null, 2);
   $("meas").innerHTML = `<span class=lab>Measured vs predicted</span>` + (run ? `<b class=n>${run.tok_s} tok/s</b><p>measured on ${run.engine} vs predicted ceiling ${Math.round(r.tok)} (predicted is ${(r.tok / run.tok_s).toFixed(2)}x measured). <a href="${run.source}">source</a></p>` : `<b class=n>No data yet</b><p>Nobody has measured this model, quant and GPU combination.</p>`)
     + `<div class=cta><span>${run ? "Got a different result?" : "Ran this on real hardware?"} Add your tokens/s.</span><a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + $("m").value + " on " + $("g").value)}&body=${encodeURIComponent(FENCE + "json\n" + issue + "\n" + FENCE)}">Submit your measured run &rarr;</a></div>`;
-  history.replaceState(null, "", "?" + new URLSearchParams(IDS.map(i => [i, $(i).value])));
 }
-const setPrice = () => $("pr").value = GPUS[$("g").value][2];
+const setPrice = () => $("pr").value = $("g").value ? GPUS[$("g").value][2] : "";
 const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32]};
 document.querySelectorAll(".pills").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id].map(v => `<button type=button data-v=${v}>${id == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
 document.querySelectorAll(".pills button").forEach(b => b.onclick = () => { $(b.parentNode.dataset.for).value = b.dataset.v; render(); });
