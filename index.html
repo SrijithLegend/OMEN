@@ -8,7 +8,7 @@
 body{margin:0;background:var(--bg);color:#fff;font:15px/1.4 Inter,system-ui,sans-serif;padding:16px}
 .grid{max-width:72rem;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;grid-auto-flow:dense}
 .card{background:var(--ink);border-radius:22px;padding:18px;min-width:0}
-.s2{grid-column:span 2}.s4{grid-column:span 4}.r2{grid-row:span 2}
+.s2{grid-column:span 2}.s3{grid-column:span 3}.s4{grid-column:span 4}.r2{grid-row:span 2}
 small,.lab{color:var(--mute);font-size:.8rem}.lab{display:block;margin-bottom:10px}.stat .lab{margin:0}
 .sand{background:var(--white);color:var(--ink)}.sand .lab,.sand small{color:#777}
 h1,.big,.stat b,.hero b{font-family:Inter,system-ui,sans-serif;font-weight:900;letter-spacing:-.03em}
@@ -43,6 +43,9 @@ input:hover,.dd>button:hover{border-color:#ff6a2b66}input:focus,.dd>button:focus
 .bar b{position:absolute;top:-6px;bottom:-6px;width:3px;background:#fff;border-radius:2px}
 .chip{display:inline-block;margin:0 12px 4px 0;font-size:.82rem;color:var(--mute)}.chip:before{content:"";display:inline-block;width:.7rem;height:.7rem;border-radius:50%;margin-right:6px;background:var(--c)}
 a{color:inherit;font-weight:700}
+label em{display:inline-grid;place-items:center;width:1.3rem;height:1.3rem;margin-right:6px;border-radius:50%;background:var(--ink);color:#fff;font:700 .7rem Inter,system-ui;font-style:normal}.card:not(.sand) label em{background:var(--orange);color:var(--ink)}
+#go{display:block;width:100%;margin-top:18px;padding:15px;border:0;border-radius:16px;background:var(--orange);color:var(--ink);font:900 1.05rem Inter,system-ui;letter-spacing:-.01em;cursor:pointer;transition:filter .15s,transform .1s}
+#go:hover{filter:brightness(1.08)}#go:active{transform:scale(.99)}
 input[type=number]{appearance:textfield;-moz-appearance:textfield}input::-webkit-inner-spin-button,input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
 .pills button{border:0;border-radius:99px;padding:5px 11px;background:var(--field);color:var(--mute);font:600 .78rem Inter,system-ui;cursor:pointer}
@@ -56,7 +59,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 .cta span{font-size:.85rem;color:var(--mute);max-width:26ch}
 .cta a{padding:10px 18px;border-radius:99px;background:var(--orange);color:var(--ink);text-decoration:none;white-space:nowrap}
 .cta a:hover{filter:brightness(1.08)}
-@media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.s4,.s2{grid-column:span 2}.r2{grid-row:auto}}
+@media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.s4,.s3,.s2{grid-column:span 2}.two{grid-template-columns:1fr}.r2{grid-row:auto}}
 </style>
 <div class=grid>
   <div class="card stat sand"><span class=lab>Weights</span><b id=sw></b><small>fixed cost of loading</small></div>
@@ -68,14 +71,16 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
   <div class="card hero s2 r2" id=hero></div>
   <div class="card stat"><span class=lab>Max users</span><b id=su></b><small>sessions that fit</small></div>
 
-  <div class="card sand s2"><span class=lab>Setup</span>
-    <label>Use case <select id=uc data-ph="Any use case"></select></label>
-    <label>Model <select id=m data-ph="Choose a model"></select></label>
-    <label>Quantization <select id=q data-ph="Choose quantization"></select></label>
-    <label>GPU <select id=g data-ph="Choose a GPU"></select></label></div>
-  <div class="card"><span class=lab>Workload</span>
-    <label>Context (tokens) <input id=c type=number min=1 placeholder="e.g. 8192"></label><div class=pills data-for=c></div>
-    <label style="margin-top:16px">Users <input id=u type=number min=1 placeholder="e.g. 4"></label><div class=pills data-for=u></div></div>
+  <div class="card sand s3"><span class=lab>Setup</span>
+    <div class=two>
+      <label><em>1</em> Use case <select id=uc data-ph="Any use case"></select></label>
+      <label><em>2</em> Model <select id=m data-ph="Choose a model"></select></label>
+      <label><em>3</em> Quantization <select id=q data-ph="Choose quantization"></select></label>
+      <label><em>4</em> GPU <select id=g data-ph="Choose a GPU"></select></label>
+      <div><label><em>5</em> Context (tokens) <input id=c type=number min=1 placeholder="e.g. 8192"></label><div class=pills data-for=c></div></div>
+      <div><label><em>6</em> Users <input id=u type=number min=1 placeholder="e.g. 4"></label><div class=pills data-for=u></div></div>
+    </div>
+    <button type=button id=go>Calculate &rarr;</button></div>
   <div class="card stat sand"><span class=lab>Cost per user-hour</span><b id=sc></b><small>GPU price / users that fit</small></div>
 
   <div class="card s4"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
@@ -124,9 +129,11 @@ const dds = [...document.querySelectorAll("select")].map(sel => {
     panel.innerHTML = [...sel.children].map(o => o.tagName == "OPTGROUP" ? `<h6>${o.label}</h6>` + [...o.children].map(item).join("") : item(o)).join("");
     dd.classList.add("open"); panel.querySelector(".sel")?.scrollIntoView({block: "nearest"}); };
   const item = o => o.value ? `<div data-v="${o.value}"${o.value == sel.value ? " class=sel" : ""}>${o.value}</div>` : "";
-  panel.onclick = e => { const v = e.target.dataset.v; if (v === undefined) return; sel.value = v; close(); sel.dispatchEvent(new Event("input")); };
+  panel.onclick = e => { const v = e.target.dataset.v; if (v === undefined) return; sel.value = v; close(); sel.dispatchEvent(new Event("input"));
+    const next = dds[dds.findIndex(d => d.sel == sel) + 1];
+    if (next && !next.sel.value) next.btn.click(); else if (sel.id == "g" && !$("c").value) $("c").focus(); };
   const sync = () => { btn.innerHTML = sel.value ? sel.value : `<span class=ph>${sel.dataset.ph}</span>`; };
-  return { close, sync };
+  return { close, sync, sel, btn };
 });
 document.addEventListener("click", e => { if (!e.target.closest(".dd")) dds.forEach(d => d.close()); });
 document.addEventListener("keydown", e => { if (e.key == "Escape") dds.forEach(d => d.close()); });
@@ -140,16 +147,19 @@ function heroHtml() {
   return (slug ? `<img src="https://cdn.simpleicons.org/${slug}/fff" alt="${cr}" onerror="this.outerHTML='<div class=mono>${cr[0]}</div>'">` : `<div class=mono>${cr[0]}</div>`)
     + `<div><b>${m}</b><small>${cr}</small></div>`;
 }
+let calculated = false;
 function render() {
   dds.forEach(d => d.sync());
   document.querySelectorAll(".pills button").forEach(b => b.classList.toggle("on", $(b.parentNode.dataset.for).value == b.dataset.v));
   history.replaceState(null, "", "?" + new URLSearchParams(IDS.filter(i => $(i).value).map(i => [i, $(i).value])));
   $("hero").innerHTML = heroHtml();
-  if (!($("m").value && $("q").value && $("g").value && +$("c").value > 0 && +$("u").value > 0)) { // blank form: show prompt, no numbers
-    $("vc").className = "card r2"; $("vt").textContent = "Pick your setup"; $("vs").textContent = "Choose a model, quantization and GPU, then set context and users.";
+  const missing = [["m", "model"], ["q", "quantization"], ["g", "GPU"], ["c", "context"], ["u", "users"]].filter(([i]) => !(i == "c" || i == "u" ? +$(i).value > 0 : $(i).value)).map(x => x[1]);
+  if (!calculated || missing.length) { // blank or not yet calculated: show prompt, no numbers
+    $("vc").className = "card r2"; $("vt").textContent = calculated ? "Almost there" : "Pick your setup";
+    $("vs").textContent = calculated ? "Still needed: " + missing.join(", ") + "." : "Fill in the setup, then press Calculate.";
     $("conf").textContent = ""; for (const i of ["sw", "skv", "su", "st", "sc"]) $(i).textContent = "-";
     $("sth").textContent = "single-user decode"; $("bar").innerHTML = ""; $("leg").innerHTML = "";
-    $("meas").innerHTML = `<span class=lab>Measured vs predicted</span><b class=n>-</b><p>Complete the setup to compare against measured runs.</p>`; return;
+    $("meas").innerHTML = `<span class=lab>Measured vs predicted</span><p>Calculate a setup to compare it against measured runs.</p>`; return;
   }
   const [p, L, h, d, act] = MODELS[$("m").value], [gib, bw] = GPUS[$("g").value], usd = +$("pr").value, ov = $("ov").value === "" ? 1.5 : +$("ov").value;
   const users = +$("u").value;
@@ -176,7 +186,7 @@ function render() {
   $("sth").textContent = r.users ? "single-user decode ceiling" : "doesn't fit";
   $("sc").textContent = r.users ? "$" + r.cost.toFixed(3) : "n/a (doesn't fit)";
   const issue = JSON.stringify({ model: $("m").value, quant: $("q").value, gpu: $("g").value, context: +$("c").value, users: 1, engine: "", tok_s: 0, source: "" }, null, 2);
-  $("meas").innerHTML = `<span class=lab>Measured vs predicted</span>` + (run ? `<b class=n>${run.tok_s} tok/s</b><p>measured on ${run.engine} vs predicted ceiling ${Math.round(r.tok)} (predicted is ${(r.tok / run.tok_s).toFixed(2)}x measured). <a href="${run.source}">source</a></p>` : `<b class=n>No data yet</b><p>Nobody has measured this model, quant and GPU combination.</p>`)
+  $("meas").innerHTML = `<span class=lab>Measured vs predicted</span>` + (run ? `<b class=n>${run.tok_s} tok/s</b><p>measured on ${run.engine} vs predicted ceiling ${Math.round(r.tok)} (predicted is ${(r.tok / run.tok_s).toFixed(2)}x measured). <a href="${run.source}">source</a></p>` : ``)
     + `<div class=cta><span>${run ? "Got a different result?" : "Ran this on real hardware?"} Add your tokens/s.</span><a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + $("m").value + " on " + $("g").value)}&body=${encodeURIComponent(FENCE + "json\n" + issue + "\n" + FENCE)}">Submit your measured run &rarr;</a></div>`;
 }
 const setPrice = () => $("pr").value = $("g").value ? GPUS[$("g").value][2] : "";
@@ -184,10 +194,14 @@ const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32]};
 document.querySelectorAll(".pills").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id].map(v => `<button type=button data-v=${v}>${id == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
 document.querySelectorAll(".pills button").forEach(b => b.onclick = () => { $(b.parentNode.dataset.for).value = b.dataset.v; render(); });
 document.querySelectorAll("select,input").forEach(e => e.oninput = render);
+const go = () => { calculated = true; render(); $("vc").scrollIntoView({behavior: "smooth", block: "center"}); };
+$("go").onclick = go;
+document.querySelectorAll("input").forEach(e => e.onkeydown = ev => { if (ev.key == "Enter") go(); });
 $("g").addEventListener("input", () => { setPrice(); render(); });
 $("uc").oninput = () => { fillModels(); if ($("uc").value != "All") $("c").value = USE_CASE_CONTEXT[$("uc").value]; render(); };
 setPrice();
 const P = new URLSearchParams(location.search);
+calculated = P.has("m");
 if (P.has("uc")) { $("uc").value = P.get("uc"); fillModels(); } // filter first so the model can be set
 for (const [k, v] of P) if (IDS.includes(k) && k != "uc") $(k).value = v; // shared link
 render();
