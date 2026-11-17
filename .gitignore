@@ -1,0 +1,14 @@
+# Local tooling
+.agents/
+.claude/
+skills-lock.json
+
+# OS / editor / temp
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+_x.js
+node_modules/
+__pycache__/
