@@ -1,13 +1,14 @@
 <!doctype html>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OMEN</title>
-<style>body{font:16px system-ui;max-width:32rem;margin:2rem auto;padding:0 1rem}label{display:block;margin:.5rem 0}input,select{width:100%;padding:.3rem}pre{background:#eee;padding:1rem;white-space:pre-wrap}</style>
+<style>body{font:16px system-ui;max-width:32rem;margin:2rem auto;padding:0 1rem}label{display:block;margin:.5rem 0}input,select{width:100%;padding:.3rem}pre{background:#eee;padding:1rem;white-space:pre-wrap}.bar{position:relative;display:flex;height:2rem;background:#ddd;border-radius:4px;margin:1rem 0 .25rem}.bar i{display:block;height:100%}.bar b{position:absolute;top:-4px;bottom:-4px;width:2px;background:#000}#leg{font-size:.85rem}</style>
 <h1>OMEN: GPU fit calculator</h1>
 <label>Model <select id=m></select></label>
 <label>Quantization <select id=q></select></label>
 <label>GPU <select id=g></select></label>
 <label>Context (tokens) <input id=c type=number value=8192></label>
 <label>Users <input id=u type=number value=4></label>
+<div class=bar id=bar></div><div id=leg></div>
 <pre id=out></pre>
 <script src="models.js"></script>
 <script src="quants.js"></script>
@@ -44,6 +45,10 @@ function render() {
   const [p, L, h, d, act] = MODELS[$("m").value], [gib, bw, usd] = GPUS[$("g").value];
   const r = fit(p, QUANTS[$("q").value], L, h, d, KV_BYTES, +$("c").value, gib, bw, usd, 1.5, act);
   const ok = r.users >= +$("u").value;
+  const need = r.weights + 1.5 + r.kv * +$("u").value, scale = Math.max(gib, need), pc = x => (100 * x / scale) + "%";
+  const seg = (x, c) => `<i style="width:${pc(x)};background:${c}"></i>`;
+  $("bar").innerHTML = seg(r.weights, "#4a6fa5") + seg(r.kv * +$("u").value, "#e0a030") + seg(1.5, "#888") + `<b style="left:${pc(gib)}"></b>`;
+  $("leg").textContent = `blue weights ${r.weights.toFixed(1)} | orange KV for ${$("u").value} users ${(r.kv * $("u").value).toFixed(1)} | gray overhead 1.5 | black line = GPU limit ${gib} GiB` + (need > gib ? " | OVER LIMIT" : "");
   $("out").textContent =
 `Verdict:        ${ok ? "FITS" : "DOES NOT FIT"} ${$("u").value} users (headroom ${r.free.toFixed(1)} GiB before KV)
 Weights:        ${r.weights.toFixed(1)} GiB
