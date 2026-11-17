@@ -26,6 +26,10 @@ select,input{display:block;width:100%;margin-top:4px;padding:10px 12px;border:0;
 .lilac{background:var(--lilac)}
 #vc.ok{background:var(--lime);color:var(--ink)}#vc.ok .lab,#vc.ok small{color:#4a5a00}
 #vc.no{background:var(--coral);color:var(--ink)}#vc.no .lab,#vc.no small{color:#5a0f12}
+.hero{display:flex;align-items:center;gap:18px;background:radial-gradient(circle at 30% 30%,#3a2c9e,var(--purple))}
+.hero img,.hero .mono{width:5.5rem;height:5.5rem;flex:none;padding:1.1rem;border-radius:50%;background:#fff3}
+.hero .mono{display:grid;place-items:center;font:900 2.2rem system-ui;padding:0}
+.hero b{display:block;font:900 1.6rem/1.1 system-ui}.hero small{color:#cfc8ff}
 .badge{display:inline-block;margin-top:.6rem;padding:3px 10px;border-radius:99px;background:#0003;font-size:.78rem}
 .bar{position:relative;display:flex;height:2.4rem;background:var(--field);border-radius:12px;margin:14px 0 10px;overflow:visible}
 .bar i{display:block;height:100%}.bar i:first-child{border-radius:12px 0 0 12px}
@@ -38,6 +42,8 @@ a{color:inherit;font-weight:700}
   <div class="card s2"><h1>O<span>M</span>EN</h1><p class=tag>Will it fit? How fast? What does it cost? GPU fit calculator for open models.</p></div>
 
   <div class="card s2 r2" id=vc><span class=lab>Verdict</span><div class=big id=vt></div><div id=vs></div><span class=badge id=conf></span></div>
+
+  <div class="card hero s2" id=hero></div>
 
   <div class="card s2 r2"><span class=lab>Setup</span>
     <label>Use case <select id=uc></select></label>
@@ -77,6 +83,7 @@ const QUANTS = Object.assign({}, ...Object.values(QUANTS_BY_FAMILY));
 const GPUS = Object.assign({}, ...Object.values(GPUS_BY_VENDOR));
 const FENCE = "\x60\x60\x60"; // markdown code fence
 const IDS = ["uc", "m", "q", "g", "c", "u", "ov", "pr"]; // inputs stored in the URL
+const LOGOS = {Meta: "meta", "Mistral AI": "mistralai", "Alibaba (Qwen)": "alibabacloud", Google: "google", Microsoft: "microsoft", DeepSeek: "deepseek", OpenAI: "openai"}; // simple-icons slugs
 const KV_BYTES = 2; // fp16 KV cache
 
 const $ = id => document.getElementById(id);
@@ -113,6 +120,9 @@ function render() {
   $("vt").textContent = (ok ? "Fits " : "Does not fit ") + users + " users";
   $("vs").textContent = `Headroom ${r.free.toFixed(1)} GiB before KV.` + (ok ? "" :
     ` Needs at least ${minGpus("fp16 / bf16", p, r.kv, users, gib)} x this GPU in fp16, or ${minGpus("GPTQ / AWQ int4", p, r.kv, users, gib)} in int4 (minimums: ignore per-GPU overhead and interconnect losses).`);
+  const cr = Object.keys(MODELS_BY_CREATOR).find(k => $("m").value in MODELS_BY_CREATOR[k]), slug = LOGOS[cr];
+  $("hero").innerHTML = (slug ? `<img src="https://cdn.simpleicons.org/${slug}/white" alt="${cr}" onerror="this.outerHTML='<div class=mono>${cr[0]}</div>'">` : `<div class=mono>${cr[0]}</div>`)
+    + `<div><b>${$("m").value}</b><small>${cr}</small></div>`;
   $("conf").textContent = run ? "Speed MEASURED, rest estimated" : "Estimated";
   $("sw").textContent = r.weights.toFixed(1) + " GiB";
   $("skv").textContent = r.kv.toFixed(2) + " GiB";
