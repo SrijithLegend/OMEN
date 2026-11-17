@@ -43,6 +43,15 @@ input:hover,.dd>button:hover{border-color:#ff6a2b66}input:focus,.dd>button:focus
 .bar b{position:absolute;top:-6px;bottom:-6px;width:3px;background:#fff;border-radius:2px}
 .chip{display:inline-block;margin:0 12px 4px 0;font-size:.82rem;color:var(--mute)}.chip:before{content:"";display:inline-block;width:.7rem;height:.7rem;border-radius:50%;margin-right:6px;background:var(--c)}
 a{color:inherit;font-weight:700}
+.tabs{max-width:72rem;margin:0 auto 12px;display:flex;gap:8px}
+.tabs button{border:0;border-radius:99px;padding:11px 20px;background:var(--white);color:var(--ink);font:700 .95rem Inter,system-ui;cursor:pointer;transition:filter .15s}
+.tabs button:hover{filter:brightness(.95)}.tabs button.on{background:var(--ink);color:#fff}
+.grid[hidden]{display:none}
+.term b{display:block;font-size:1.6rem;line-height:1.1;margin-bottom:8px}.term p{margin:0 0 10px;font-size:1rem;line-height:1.5}
+.term small{display:block;padding:10px 12px;border-radius:12px;background:#ffffff14;font-size:.85rem;line-height:1.4}.sand.term small{background:#0000000d}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.steps div{padding:14px;border-radius:16px;background:#ffffff14;font-size:.95rem;line-height:1.4}
+.steps em{display:grid;place-items:center;width:1.7rem;height:1.7rem;margin-bottom:8px;border-radius:50%;background:var(--orange);color:var(--ink);font:900 .85rem Inter,system-ui;font-style:normal}
+.go2{display:inline-block;margin-top:16px;padding:12px 20px;border:0;border-radius:99px;background:var(--orange);color:var(--ink);font:900 .95rem Inter,system-ui;cursor:pointer}
 label em{display:inline-grid;place-items:center;width:1.3rem;height:1.3rem;margin-right:6px;border-radius:50%;background:var(--ink);color:#fff;font:700 .7rem Inter,system-ui;font-style:normal}.card:not(.sand) label em{background:var(--orange);color:var(--ink)}
 #go{display:block;width:100%;margin-top:18px;padding:15px;border:0;border-radius:16px;background:var(--orange);color:var(--ink);font:900 1.05rem Inter,system-ui;letter-spacing:-.01em;cursor:pointer;transition:filter .15s,transform .1s}
 #go:hover{filter:brightness(1.08)}#go:active{transform:scale(.99)}
@@ -59,9 +68,15 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 .cta span{font-size:.85rem;color:var(--mute);max-width:26ch}
 .cta a{padding:10px 18px;border-radius:99px;background:var(--orange);color:var(--ink);text-decoration:none;white-space:nowrap}
 .cta a:hover{filter:brightness(1.08)}
-@media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.s4,.s3,.s2{grid-column:span 2}.two{grid-template-columns:1fr}.r2{grid-row:auto}}
+@media(max-width:760px){.steps{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.s4,.s3,.s2{grid-column:span 2}.two{grid-template-columns:1fr}.r2{grid-row:auto}}
 </style>
-<div class=grid>
+<nav class=tabs><button class=on data-tab=calc>GPU calculator</button><button data-tab=learn>New here? Plain-English guide</button></nav>
+<div class=grid id=learn hidden>
+  <div class="card s4"><h1>Plain English</h1><p class=tag>Never run an AI model yourself? Here is every term OMEN uses, with no jargon.</p>
+    <div class=steps><div><em>1</em>Pick the AI model you want to run.</div><div><em>2</em>Pick the graphics card (GPU) you have or want to rent.</div><div><em>3</em>Say how much text and how many people, then press Calculate.</div></div>
+    <button class=go2 data-tab=calc>Open the calculator &rarr;</button></div>
+</div>
+<div class=grid id=calc>
   <div class="card sand s4"><span class=lab>Setup</span>
     <div class=two>
       <label><em>1</em> Use case <select id=uc data-ph="Any use case"></select></label>
@@ -99,6 +114,31 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 <script src="measured.js"></script>
 <script src="fit.js"></script>
 <script>
+const TERMS = [
+  ["GPU", "The graphics card. It does the heavy maths an AI model needs, much faster than a normal processor.", "Example: an RTX 4090 or an H100."],
+  ["VRAM", "The GPU's own memory. The whole model has to sit in it to run quickly, like a workbench: if your project is bigger than the bench, it will not fit.", "Example: a 24 GiB card has 24 GiB of VRAM."],
+  ["Model and parameters", "A model is the AI itself. Parameters are its learned numbers, and more of them usually means smarter but heavier. 8B means 8 billion.", "Example: Llama-3.1-8B has 8 billion parameters."],
+  ["Weights", "The model's parameters stored in memory. This is the fixed cost of loading it, whether one person or a hundred use it.", "Example: an 8B model in fp16 is about 15 GiB."],
+  ["Quantization", "Shrinking the model by storing each number with fewer bits. It uses much less memory for a small loss in quality, like compressing a photo.", "Example: int4 is roughly a quarter the size of fp16."],
+  ["fp16 / int8 / int4", "How many bits each parameter uses: 16, 8 or 4. Fewer bits means smaller and faster, but slightly less accurate.", "Example: int4 (GPTQ / AWQ) fits big models on small cards."],
+  ["Token", "A small piece of text, about three quarters of a word. Models read and write in tokens.", "Example: 'Hello there' is about 2 tokens."],
+  ["Context length", "How much text the model can keep in mind at once: your question, the chat so far and its answer. Longer means more memory.", "Example: 8K tokens is about a 15 page document."],
+  ["KV cache", "The model's short-term memory of the conversation. It grows with context length, and every user needs their own copy.", "Example: 4 users with long chats can need more memory than the weights."],
+  ["Users (concurrency)", "How many people are using the model at the same moment. Each one needs their own KV cache.", "Example: 'Max users' is how many fit before you run out of VRAM."],
+  ["Overhead", "Memory the system itself needs, such as the GPU's working space, that is not the model or the chat. OMEN assumes 1.5 GiB, and you can change it.", "Example: a few hundred MB to a couple of GiB."],
+  ["Memory bandwidth", "How fast the GPU can read its own memory. For generating text this is the main speed limit, because it reads the whole model for each token.", "Example: 1008 GB/s on an RTX 4090."],
+  ["Tokens per second (tok/s)", "How fast the model writes. Around 10 feels like reading speed, and higher feels instant. OMEN shows the ceiling, the best case.", "Example: 60 tok/s is a fast chat reply."],
+  ["Decode", "The step where the model writes its answer one token at a time. It is limited by memory bandwidth, which is why OMEN uses it to estimate speed.", "Example: a single-user decode ceiling."],
+  ["MoE (mixture of experts)", "A model that holds many specialist blocks but uses only a few per token. It needs lots of memory but runs faster than its size suggests.", "Example: Mixtral 8x7B."],
+  ["Headroom", "Memory left over after loading the weights, before any chats are added. More headroom means more users or longer context.", "Example: 8 GiB of headroom on a 24 GiB card."],
+  ["Estimated vs measured", "Estimated numbers come from maths. Measured numbers come from someone actually running the model. Measured is more trustworthy, so you can submit yours.", "Example: the Measured vs predicted card."]
+];
+const g = id => document.getElementById(id);
+g("learn").insertAdjacentHTML("beforeend", TERMS.map(([t, d, e], i) => `<div class="card term s2 ${i % 2 ? "" : "sand"}"><span class=lab>Term ${i + 1}</span><b>${t}</b><p>${d}</p><small>${e}</small></div>`).join(""));
+document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x.dataset.tab == b.dataset.tab));
+  g("calc").hidden = b.dataset.tab != "calc"; g("learn").hidden = b.dataset.tab != "learn"; scrollTo(0, 0);
+});
 const MODELS = Object.assign({}, ...Object.values(MODELS_BY_CREATOR));
 const QUANTS = Object.assign({}, ...Object.values(QUANTS_BY_FAMILY));
 const GPUS = Object.assign({}, ...Object.values(GPUS_BY_VENDOR));
