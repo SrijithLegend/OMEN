@@ -9,12 +9,10 @@
 <label>Context (tokens) <input id=c type=number value=8192></label>
 <label>Users <input id=u type=number value=4></label>
 <pre id=out></pre>
+<script src="models.js"></script>
 <script>
-// All specs are from memory = ESTIMATED. Verify before trusting.
-const MODELS = { // params_b, layers, kv_heads, head_dim, [active_params_b if MoE]
-  "Llama-3.2-3B": [3.21, 28, 8, 128], "Mistral-7B": [7.24, 32, 8, 128],
-  "Qwen2.5-7B": [7.62, 28, 4, 128], "Llama-3-8B": [8.03, 32, 8, 128],
-  "Llama-3-70B": [70.6, 80, 8, 128], "Mixtral-8x7B (MoE)": [46.7, 32, 8, 128, 12.9] };
+// GPU specs are from memory = ESTIMATED. Verify before trusting.
+const MODELS = Object.assign({}, ...Object.values(MODELS_BY_CREATOR));
 const QUANTS = { fp16: 2, int8: 1, int4: 0.57 }; // bytes per weight
 const GPUS = { // gib, GB/s, assumed $/hr
   "RTX 4090": [24, 1008, 0.40], "A100 80GB": [80, 2039, 1.80], "H100 80GB": [80, 3350, 3.00] };
@@ -32,9 +30,10 @@ function fit(params_b, bytes_per_param, layers, kv_heads, head_dim, kv_bytes,
 }
 
 const $ = id => document.getElementById(id);
-for (const [id, o] of [["m", MODELS], ["q", QUANTS], ["g", GPUS]])
-  $(id).innerHTML = Object.keys(o).map(k => `<option>${k}</option>`).join("");
-$("m").value = "Llama-3-8B";
+const opts = o => Object.keys(o).map(k => `<option>${k}</option>`).join("");
+$("m").innerHTML = Object.entries(MODELS_BY_CREATOR).map(([c, o]) => `<optgroup label="${c}">${opts(o)}</optgroup>`).join("");
+$("q").innerHTML = opts(QUANTS); $("g").innerHTML = opts(GPUS);
+$("m").value = "Llama-3.1-8B";
 
 function render() {
   const [p, L, h, d, act] = MODELS[$("m").value], [gib, bw, usd] = GPUS[$("g").value];
