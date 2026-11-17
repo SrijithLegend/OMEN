@@ -1,0 +1,54 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OMEN</title>
+<style>body{font:16px system-ui;max-width:32rem;margin:2rem auto;padding:0 1rem}label{display:block;margin:.5rem 0}input,select{width:100%;padding:.3rem}pre{background:#eee;padding:1rem}</style>
+<h1>OMEN: GPU fit calculator</h1>
+<label>Model <select id=m></select></label>
+<label>Quantization <select id=q></select></label>
+<label>GPU <select id=g></select></label>
+<label>Context (tokens) <input id=c type=number value=8192></label>
+<label>Users <input id=u type=number value=4></label>
+<pre id=out></pre>
+<script>
+// All specs are from memory = ESTIMATED. Verify before trusting.
+const MODELS = { // params_b, layers, kv_heads, head_dim
+  "Llama-3.2-3B": [3.21, 28, 8, 128], "Mistral-7B": [7.24, 32, 8, 128],
+  "Qwen2.5-7B": [7.62, 28, 4, 128], "Llama-3-8B": [8.03, 32, 8, 128],
+  "Llama-3-70B": [70.6, 80, 8, 128] };
+const QUANTS = { fp16: 2, int8: 1, int4: 0.57 }; // bytes per weight
+const GPUS = { // gib, GB/s, assumed $/hr
+  "RTX 4090": [24, 1008, 0.40], "A100 80GB": [80, 2039, 1.80], "H100 80GB": [80, 3350, 3.00] };
+const KV_BYTES = 2; // fp16 KV cache
+
+function fit(params_b, bytes_per_param, layers, kv_heads, head_dim, kv_bytes,
+             context, gpu_gib, gpu_bw_gbs, gpu_usd_hr, overhead_gib = 1.5) {
+  const weights = params_b * 1e9 * bytes_per_param / 2 ** 30;
+  const kv = 2 * layers * kv_heads * head_dim * kv_bytes * context / 2 ** 30;
+  const free = gpu_gib - weights - overhead_gib;
+  const users = Math.max(0, Math.floor(free / kv));
+  return { weights, kv, free, users, fits: free >= kv,
+    tok: gpu_bw_gbs * 1e9 / (params_b * 1e9 * bytes_per_param),
+    cost: users ? gpu_usd_hr / users : null };
+}
+
+const $ = id => document.getElementById(id);
+for (const [id, o] of [["m", MODELS], ["q", QUANTS], ["g", GPUS]])
+  $(id).innerHTML = Object.keys(o).map(k => `<option>${k}</option>`).join("");
+$("m").value = "Llama-3-8B";
+
+function render() {
+  const [p, L, h, d] = MODELS[$("m").value], [gib, bw, usd] = GPUS[$("g").value];
+  const r = fit(p, QUANTS[$("q").value], L, h, d, KV_BYTES, +$("c").value, gib, bw, usd);
+  const ok = r.users >= +$("u").value;
+  $("out").textContent =
+`Verdict:        ${ok ? "FITS" : "DOES NOT FIT"} ${$("u").value} users (headroom ${r.free.toFixed(1)} GiB before KV)
+Weights:        ${r.weights.toFixed(1)} GiB
+KV per user:    ${r.kv.toFixed(2)} GiB
+Max users:      ${r.users}
+Tokens/s max:   ${Math.round(r.tok)} (single-user ceiling)
+Cost/user-hour: ${r.cost ? "$" + r.cost.toFixed(3) : "n/a"}
+Confidence:     estimated`;
+}
+document.querySelectorAll("select,input").forEach(e => e.oninput = render);
+render();
+</script>
