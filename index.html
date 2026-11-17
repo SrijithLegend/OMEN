@@ -62,15 +62,6 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.s4,.s3,.s2{grid-column:span 2}.two{grid-template-columns:1fr}.r2{grid-row:auto}}
 </style>
 <div class=grid>
-  <div class="card stat sand"><span class=lab>Weights</span><b id=sw></b><small>fixed cost of loading</small></div>
-  <div class="card stat"><span class=lab>KV cache / user</span><b id=skv></b><small>grows with context</small></div>
-  <div class="card stat sand"><span class=lab>Tokens/s ceiling</span><b id=st></b><small id=sth>single-user decode</small></div>
-  <div class="card r2" id=vc><span class=lab>Verdict</span><div class=big id=vt></div><div id=vs></div><span class=badge id=conf></span></div>
-
-  <div class="card r2"><h1>OMEN</h1><p class=tag>Will it fit? How fast? What does it cost? GPU fit calculator for open models.</p></div>
-  <div class="card hero s2 r2" id=hero></div>
-  <div class="card stat"><span class=lab>Max users</span><b id=su></b><small>sessions that fit</small></div>
-
   <div class="card sand s3"><span class=lab>Setup</span>
     <div class=two>
       <label><em>1</em> Use case <select id=uc data-ph="Any use case"></select></label>
@@ -81,6 +72,15 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
       <div><label><em>6</em> Users <input id=u type=number min=1 placeholder="e.g. 4"></label><div class=pills data-for=u></div></div>
     </div>
     <button type=button id=go>Calculate &rarr;</button></div>
+  <div class="card stat sand"><span class=lab>Weights</span><b id=sw></b><small>fixed cost of loading</small></div>
+  <div class="card stat"><span class=lab>KV cache / user</span><b id=skv></b><small>grows with context</small></div>
+  <div class="card stat sand"><span class=lab>Tokens/s ceiling</span><b id=st></b><small id=sth>single-user decode</small></div>
+  <div class="card r2" id=vc><span class=lab>Verdict</span><div class=big id=vt></div><div id=vs></div><span class=badge id=conf></span></div>
+
+  <div class="card r2"><h1>OMEN</h1><p class=tag>Will it fit? How fast? What does it cost? GPU fit calculator for open models.</p></div>
+  <div class="card hero s2 r2" id=hero></div>
+  <div class="card stat"><span class=lab>Max users</span><b id=su></b><small>sessions that fit</small></div>
+
   <div class="card stat sand"><span class=lab>Cost per user-hour</span><b id=sc></b><small>GPU price / users that fit</small></div>
 
   <div class="card s4"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
