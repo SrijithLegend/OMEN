@@ -59,7 +59,7 @@ label em{display:inline-grid;place-items:center;width:1.3rem;height:1.3rem;margi
 input[type=number]{appearance:textfield;-moz-appearance:textfield}input::-webkit-inner-spin-button,input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
 .pills button{border:0;border-radius:99px;padding:5px 11px;background:var(--field);color:var(--mute);font:600 .78rem Inter,system-ui;cursor:pointer}
-.pills button:hover{color:#fff}.pills button.on{background:var(--orange);color:var(--ink)}
+.sand .pills button{background:#ececee;color:#555}.sand .pills button:hover{color:var(--ink)}.pills button:hover{color:#fff}.pills button.on,.sand .pills button.on{background:var(--orange);color:var(--ink)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 details{margin-top:6px}summary{cursor:pointer;color:var(--mute);font-size:.8rem}
 details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;line-height:1.5}
@@ -249,5 +249,6 @@ const P = new URLSearchParams(location.search);
 calculated = P.has("m");
 if (P.has("uc")) { $("uc").value = P.get("uc"); fillModels(); } // filter first so the model can be set
 for (const [k, v] of P) if (IDS.includes(k) && k != "uc") $(k).value = v; // shared link
+if (P.has("g") && !P.has("pr")) setPrice(); // link without a price: use the GPU's default
 render();
 </script>
