@@ -70,7 +70,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 .cta a:hover{filter:brightness(1.08)}
 @media(max-width:760px){.steps{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.s4,.s3,.s2{grid-column:span 2}.two{grid-template-columns:1fr}.r2{grid-row:auto}}
 </style>
-<nav class=tabs><button class=on data-tab=calc>GPU calculator</button><button data-tab=learn>New here? Plain-English guide</button></nav>
+<nav class=tabs><button class=on data-tab=calc>GPU calculator</button><button data-tab=learn>Guide</button></nav>
 <div class=grid id=learn hidden>
   <div class="card s4"><h1>Plain English</h1><p class=tag>Never run an AI model yourself? Here is every term OMEN uses, with no jargon.</p>
     <div class=steps><div><em>1</em>Pick the AI model you want to run.</div><div><em>2</em>Pick the graphics card (GPU) you have or want to rent.</div><div><em>3</em>Say how much text and how many people, then press Calculate.</div></div>
@@ -145,6 +145,8 @@ const GPUS = Object.assign({}, ...Object.values(GPUS_BY_VENDOR));
 const FENCE = "\x60\x60\x60"; // markdown code fence
 const IDS = ["uc", "m", "q", "g", "c", "u", "ov", "pr"]; // inputs stored in the URL
 const LOGOS = {Meta: "meta", "Mistral AI": "mistralai", "Alibaba (Qwen)": "alibabacloud", Google: "google", Microsoft: "microsoft", DeepSeek: "deepseek", OpenAI: "openai"}; // simple-icons slugs
+const OLD_ICONS = ["openai", "microsoft"]; // dropped from the latest simple-icons, served from v9 (black SVG, inverted to white)
+const iconUrl = s => OLD_ICONS.includes(s) ? `https://cdn.jsdelivr.net/npm/simple-icons@9.21.0/icons/${s}.svg` : `https://cdn.simpleicons.org/${s}/fff`;
 const KV_BYTES = 2; // fp16 KV cache
 
 const $ = id => document.getElementById(id);
@@ -183,8 +185,8 @@ const minGpus = (q, p, kv, users, gib) => Math.ceil((p * 1e9 * QUANTS[q] / 2 ** 
 
 function heroHtml() {
   const m = $("m").value; if (!m) return `<div><b>Choose a model</b><small>to see its details here</small></div>`;
-  const cr = Object.keys(MODELS_BY_CREATOR).find(k => m in MODELS_BY_CREATOR[k]), slug = LOGOS[cr];
-  return (slug ? `<img src="https://cdn.simpleicons.org/${slug}/fff" alt="${cr}" onerror="this.outerHTML='<div class=mono>${cr[0]}</div>'">` : `<div class=mono>${cr[0]}</div>`)
+  const cr = Object.keys(MODELS_BY_CREATOR).find(k => m in MODELS_BY_CREATOR[k]), slug = LOGOS[cr] || (/\(HF\)/.test(m) ? "huggingface" : "");
+  return (slug ? `<img src="${iconUrl(slug)}" alt="${cr}"${OLD_ICONS.includes(slug) ? ' style="filter:invert(1)"' : ""} onerror="this.outerHTML='<div class=mono>${cr[0]}</div>'">` : `<div class=mono>${cr[0]}</div>`)
     + `<div><b>${m}</b><small>${cr}</small></div>`;
 }
 let calculated = false;
