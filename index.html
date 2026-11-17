@@ -16,9 +16,11 @@ h1{margin:0;font-size:clamp(2.4rem,7vw,4rem);line-height:1}
 .tag{margin:.5rem 0 0;color:var(--mute)}
 label{display:block;margin:0 0 10px;color:var(--mute);font-size:.8rem}
 .sand label{color:#777}
-select,input{display:block;width:100%;margin-top:4px;padding:10px 12px;border:0;border-radius:12px;background:var(--field);color:#fff;font:inherit}
-.sand select,.sand input{background:#ececee;color:var(--ink)}
-option,optgroup{background:var(--ink);color:#fff}
+select,input{display:block;width:100%;margin-top:6px;padding:12px 14px;border:2px solid transparent;border-radius:14px;background:var(--field);color:#fff;font:600 1rem/1.2 Inter,system-ui,sans-serif;letter-spacing:-.01em;font-variant-numeric:tabular-nums;transition:border-color .15s,background .15s;outline:0}
+select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:40px;text-overflow:ellipsis;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8' fill='none' stroke='%23ff6a2b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center}
+select:hover,input:hover{border-color:#ff6a2b66}select:focus,input:focus{border-color:var(--orange)}
+.sand select,.sand input{background-color:#ececee;color:var(--ink)}.sand select:focus,.sand input:focus{background-color:#fff}
+option,optgroup{background:var(--ink);color:#fff;font:500 .95rem Inter,system-ui,sans-serif}optgroup{color:var(--orange);font-weight:700}option{color:#fff}
 .big{font-size:2.2rem;line-height:1.05;margin:.2rem 0}
 .stat{display:flex;flex-direction:column;justify-content:space-between;min-height:8rem}
 .stat b{font-size:1.9rem;line-height:1}
