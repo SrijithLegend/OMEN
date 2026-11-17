@@ -11,7 +11,7 @@ OMEN is a GPU fit calculator for open AI models. Pick a model, a graphics card a
 - **Memory breakdown**: weights, per-user chat memory (KV cache) and overhead, drawn against your GPU's limit.
 - **Speed ceiling**: the best-case tokens per second for one user.
 - **Cost per user-hour**: the GPU price divided by the users that fit.
-- **Plenty of choices**: open models from Meta, Mistral, Qwen, Google, Microsoft, DeepSeek, OpenAI and others, filterable by use case (code, vision, legal, finance, medical, math), many quantization formats, and a list of GPUs.
+- **Plenty of choices**: open models from Meta, Mistral, Qwen, Google, Microsoft, DeepSeek, OpenAI and others, filterable by use case (code, vision, finance, math and reasoning), many quantization formats, and a list of GPUs.
 - **A plain-English Guide tab** that explains every term (VRAM, quantization, KV cache and more) for people new to running models.
 - **Shareable links**: your setup is stored in the page URL.
 
@@ -54,6 +54,7 @@ Real measurements beat estimates. If you have run a model, open the calculator f
 |---|---|
 | `index.html` | The whole app (page, styles, logic) |
 | `fit.js` | The fit calculation |
+| `scripts/gen-models.js` | Rebuilds `models.js` from each model's Hugging Face `config.json` (`node scripts/gen-models.js`) |
 | `models.js`, `quants.js`, `gpus.js`, `memtypes.js`, `usecases.js` | Data tables |
 | `measured.js` | Community-measured runs |
 | `test.js` | Checks the calculation: `node test.js` |

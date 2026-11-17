@@ -147,7 +147,7 @@ const FENCE = "\x60\x60\x60"; // markdown code fence
 const IDS = ["uc", "m", "q", "g", "c", "u", "ov", "pr"]; // inputs stored in the URL
 const LOGOS = {Meta: "meta", "Mistral AI": "mistralai", "Alibaba (Qwen)": "alibabacloud", Google: "google", Microsoft: "microsoft", DeepSeek: "deepseek", OpenAI: "openai"}; // simple-icons slugs
 const OLD_ICONS = ["openai", "microsoft"]; // dropped from the latest simple-icons, served from v9 (black SVG, inverted to white)
-const FAVS = [[/OLMo/, "allenai.org"], [/Falcon/, "tii.ae"], [/^Yi-/, "01.ai"], [/InternLM/, "internlm.intern-ai.org.cn"], [/StarCoder/, "bigcode-project.org"], [/SaulLM/, "equall.ai"], [/Fin-R1/, "sufe.edu.cn"], [/OpenBioLLM/, "saama.com"], [/Meditron/, "epfl.ch"], [/LLaVA/, "llava-vl.github.io"]]; // org sites, logo via favicon service
+const FAVS = [[/OLMo/, "allenai.org"], [/Falcon/, "tii.ae"], [/^Yi-/, "01.ai"], [/InternLM/, "internlm.intern-ai.org.cn"], [/StarCoder/, "bigcode-project.org"], [/Fin-R1/, "sufe.edu.cn"]]; // org sites, logo via favicon service
 const iconUrl = s => OLD_ICONS.includes(s) ? `https://cdn.jsdelivr.net/npm/simple-icons@9.21.0/icons/${s}.svg` : `https://cdn.simpleicons.org/${s}/fff`;
 const KV_BYTES = 2; // fp16 KV cache
 
@@ -186,11 +186,11 @@ document.addEventListener("keydown", e => { if (e.key == "Escape") dds.forEach(d
 const minGpus = (q, p, kv, users, gib) => Math.ceil((p * 1e9 * QUANTS[q] / 2 ** 30 + users * kv) / gib);
 
 function heroHtml() {
-  const m = $("m").value; if (!m) return `<div><b>Choose a model</b><small>to see its details here</small></div>`;
-  const cr = Object.keys(MODELS_BY_CREATOR).find(k => m in MODELS_BY_CREATOR[k]), slug = LOGOS[cr] || (/\(HF\)/.test(m) ? "huggingface" : /Kimi/.test(m) ? "kimi" : /AdaptLLM/.test(m) ? "microsoft" : ""), fav = (FAVS.find(([r]) => r.test(m)) || [])[1];
-  if (!slug && fav) return `<img class=fav src="https://www.google.com/s2/favicons?domain=${fav}&sz=128" alt="${m}" onerror="this.outerHTML='<div class=mono>${cr[0]}</div>'"><div><b>${m}</b><small>${cr}</small></div>`;
+  const m = $("m").value, SRC_LINK = MODEL_SOURCES[m] ? ` · <a href="${MODEL_SOURCES[m]}" target=_blank rel=noopener>source</a>` : ""; if (!m) return `<div><b>Choose a model</b><small>to see its details here</small></div>`;
+  const cr = Object.keys(MODELS_BY_CREATOR).find(k => m in MODELS_BY_CREATOR[k]), slug = LOGOS[cr] || (/\(HF\)/.test(m) ? "huggingface" : /Kimi/.test(m) ? "kimi" : ""), fav = (FAVS.find(([r]) => r.test(m)) || [])[1];
+  if (!slug && fav) return `<img class=fav src="https://www.google.com/s2/favicons?domain=${fav}&sz=128" alt="${m}" onerror="this.outerHTML='<div class=mono>${cr[0]}</div>'"><div><b>${m}</b><small>${cr}${SRC_LINK}</small></div>`;
   return (slug ? `<img src="${iconUrl(slug)}" alt="${cr}"${OLD_ICONS.includes(slug) ? ' style="filter:invert(1)"' : ""} onerror="this.outerHTML='<div class=mono>${cr[0]}</div>'">` : `<div class=mono>${cr[0]}</div>`)
-    + `<div><b>${m}</b><small>${cr}</small></div>`;
+    + `<div><b>${m}</b><small>${cr}${SRC_LINK}</small></div>`;
 }
 let calculated = false;
 function render() {
@@ -212,7 +212,7 @@ function render() {
   const ok = r.users >= users;
   const run = RUNS.find(x => x.model == $("m").value && x.quant == $("q").value && x.gpu == $("g").value);
   const need = r.weights + ov + r.kv * users, scale = Math.max(gib, need), pc = x => (100 * x / scale) + "%";
-  $("asm").innerHTML = [`Overhead: CUDA context and activations, not part of weights or KV.`, `GPU: ${gib} GiB VRAM, ${bw} GB/s (vendor datasheet, from memory).`, `Price is assumed, not a quote.`, `Model config (layers, KV heads, head dim) from Hugging Face config.json, see models.js.`, `KV cache assumed fp16.`, `Speed = bandwidth / weight bytes read per token (active params for MoE).`].map(t => `<li>${t}</li>`).join("");
+  $("asm").innerHTML = [`Overhead: CUDA context and activations, not part of weights or KV.`, `GPU: ${gib} GiB VRAM, ${bw} GB/s (vendor datasheet, from memory).`, `Price is assumed, not a quote.`, `Model config (layers, KV heads, head dim) from Hugging Face config.json, see models.js.`, `KV cache assumed fp16.`, ...(/MLA/.test($("m").value) ? ["MLA model: the head size fed to the KV formula is an effective value matching its compressed cache, not a literal one."] : []), `Speed = bandwidth / weight bytes read per token (active params for MoE).`].map(t => `<li>${t}</li>`).join("");
   document.querySelectorAll(".pills button").forEach(b => b.classList.toggle("on", $(b.parentNode.dataset.for).value == b.dataset.v));
   const seg = (x, c) => `<i style="width:${pc(x)};background:${c}"></i>`;
   $("bar").innerHTML = seg(r.weights, "#ff6a2b") + seg(r.kv * users, "#ffffffcc") + seg(ov, "#ffffff55") + `<b style="left:${pc(gib)}"></b>`;
