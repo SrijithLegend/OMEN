@@ -1,21 +1,69 @@
 <!doctype html>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OMEN</title>
-<style>body{font:16px system-ui;max-width:32rem;margin:2rem auto;padding:0 1rem}label{display:block;margin:.5rem 0}input,select{width:100%;padding:.3rem}pre{background:#eee;padding:1rem;white-space:pre-wrap}.bar{position:relative;display:flex;height:2rem;background:#ddd;border-radius:4px;margin:1rem 0 .25rem}.bar i{display:block;height:100%}.bar b{position:absolute;top:-4px;bottom:-4px;width:2px;background:#000}#leg{font-size:.85rem}</style>
-<h1>OMEN: GPU fit calculator</h1>
-<label>Use case <select id=uc></select></label>
-<label>Model <select id=m></select></label>
-<label>Quantization <select id=q></select></label>
-<label>GPU <select id=g></select></label>
-<label>Context (tokens) <input id=c type=number value=8192></label>
-<label>Users <input id=u type=number value=4></label>
-<details open><summary>Assumptions (editable)</summary>
-<label>Overhead GiB (CUDA context, activations) <input id=ov type=number step=0.1 value=1.5></label>
-<label>GPU price $/hr <input id=pr type=number step=0.01></label>
-<p id=asm></p></details>
-<div class=bar id=bar></div><div id=leg></div>
-<pre id=out></pre>
-<div id=meas></div>
+<style>
+:root{color-scheme:dark;--bg:#0c0c0e;--dark:#17171a;--field:#26262b;--lilac:#e9e4ff;--purple:#5b3df5;--lime:#d8ff3e;--orange:#ff7a3d;--coral:#ff5a5f;--paper:#f4f4ee;--ink:#0c0c0e;--mute:#9a9aa3}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--paper);font:15px/1.4 system-ui,sans-serif;padding:16px}
+.grid{max-width:72rem;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;grid-auto-flow:dense}
+.card{background:var(--dark);border-radius:22px;padding:18px;min-width:0}
+.s2{grid-column:span 2}.s4{grid-column:span 4}.r2{grid-row:span 2}
+small,.lab{color:var(--mute);font-size:.8rem}.lab{display:block;margin-bottom:10px}.stat .lab{margin:0}
+.lt .lab,.lt small{color:#55556a}
+.lt{color:var(--ink)}
+h1{margin:0;font:900 clamp(2.4rem,7vw,4rem)/1 Georgia,serif;letter-spacing:-.03em}
+h1 span{color:#6d86ff}
+.tag{margin:.5rem 0 0;color:var(--mute)}
+label{display:block;margin:0 0 10px;color:var(--mute);font-size:.8rem}
+select,input{display:block;width:100%;margin-top:4px;padding:10px 12px;border:0;border-radius:12px;background:var(--field);color:var(--paper);font:inherit}
+.lt select,.lt input{background:#fff;color:var(--ink)}
+.big{font:900 2.4rem/1.05 system-ui;margin:.2rem 0}
+.stat{display:flex;flex-direction:column;justify-content:space-between;min-height:8rem}
+.stat b{font:800 2rem/1 system-ui}
+.purple{background:var(--purple)}.purple .lab,.purple small{color:#cfc8ff}
+.lime{background:var(--lime);color:var(--ink)}.lime .lab,.lime small{color:#4a5a00}
+.orange{background:var(--orange);color:var(--ink)}.orange .lab,.orange small{color:#5a2300}
+.lilac{background:var(--lilac)}
+#vc.ok{background:var(--lime);color:var(--ink)}#vc.ok .lab,#vc.ok small{color:#4a5a00}
+#vc.no{background:var(--coral);color:var(--ink)}#vc.no .lab,#vc.no small{color:#5a0f12}
+.badge{display:inline-block;margin-top:.6rem;padding:3px 10px;border-radius:99px;background:#0003;font-size:.78rem}
+.bar{position:relative;display:flex;height:2.4rem;background:var(--field);border-radius:12px;margin:14px 0 10px;overflow:visible}
+.bar i{display:block;height:100%}.bar i:first-child{border-radius:12px 0 0 12px}
+.bar b{position:absolute;top:-6px;bottom:-6px;width:3px;background:var(--paper);border-radius:2px}
+.chip{display:inline-block;margin:0 12px 4px 0;font-size:.82rem;color:var(--mute)}.chip:before{content:"";display:inline-block;width:.7rem;height:.7rem;border-radius:50%;margin-right:6px;background:var(--c)}
+a{color:inherit;font-weight:700}
+@media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.s4,.s2{grid-column:span 2}.r2{grid-row:auto}}
+</style>
+<div class=grid>
+  <div class="card s2"><h1>O<span>M</span>EN</h1><p class=tag>Will it fit? How fast? What does it cost? GPU fit calculator for open models.</p></div>
+
+  <div class="card s2 r2" id=vc><span class=lab>Verdict</span><div class=big id=vt></div><div id=vs></div><span class=badge id=conf></span></div>
+
+  <div class="card s2 r2"><span class=lab>Setup</span>
+    <label>Use case <select id=uc></select></label>
+    <label>Model <select id=m></select></label>
+    <label>Quantization <select id=q></select></label>
+    <label>GPU <select id=g></select></label></div>
+
+  <div class="card lilac lt s2"><span class=lab>Workload</span>
+    <label>Context (tokens) <input id=c type=number value=8192></label>
+    <label>Users <input id=u type=number value=4></label></div>
+
+  <div class="card purple stat"><span class=lab>Weights</span><b id=sw></b><small>fixed cost of loading the model</small></div>
+  <div class="card orange stat"><span class=lab>KV cache / user</span><b id=skv></b><small>grows with context</small></div>
+  <div class="card lilac lt stat"><span class=lab>Max users</span><b id=su></b><small>sessions that fit</small></div>
+  <div class="card lime stat"><span class=lab>Tokens/s ceiling</span><b id=st></b><small id=sth>single-user decode</small></div>
+  <div class="card stat s2"><span class=lab>Cost per user-hour</span><b id=sc></b><small>GPU price / users that fit</small></div>
+
+  <div class="card s4"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
+
+  <div class="card s2"><span class=lab>Assumptions (editable)</span>
+    <label>Overhead GiB (CUDA context, activations) <input id=ov type=number step=0.1 value=1.5></label>
+    <label>GPU price $/hr <input id=pr type=number step=0.01></label>
+    <small id=asm></small></div>
+
+  <div class="card lime s2" id=meas></div>
+</div>
 <script src="models.js"></script>
 <script src="usecases.js"></script>
 <script src="quants.js"></script>
@@ -50,25 +98,30 @@ const minGpus = (q, p, kv, users, gib) => Math.ceil((p * 1e9 * QUANTS[q] / 2 ** 
 
 function render() {
   const [p, L, h, d, act] = MODELS[$("m").value], [gib, bw] = GPUS[$("g").value], usd = +$("pr").value, ov = +$("ov").value;
+  const users = +$("u").value;
   const r = fit(p, QUANTS[$("q").value], L, h, d, KV_BYTES, +$("c").value, gib, bw, usd, ov, act);
-  const ok = r.users >= +$("u").value;
+  const ok = r.users >= users;
   const run = RUNS.find(x => x.model == $("m").value && x.quant == $("q").value && x.gpu == $("g").value);
-  const need = r.weights + ov + r.kv * +$("u").value, scale = Math.max(gib, need), pc = x => (100 * x / scale) + "%";
+  const need = r.weights + ov + r.kv * users, scale = Math.max(gib, need), pc = x => (100 * x / scale) + "%";
   $("asm").textContent = `GPU: ${gib} GiB VRAM, ${bw} GB/s bandwidth (vendor datasheet, from memory). Price: assumed, not a quote. Model config: layers/KV heads/head dim from the model's Hugging Face config.json (see models.js). KV cache assumed fp16. Speed = bandwidth / weight bytes read per token (active params for MoE).`;
   const seg = (x, c) => `<i style="width:${pc(x)};background:${c}"></i>`;
-  $("bar").innerHTML = seg(r.weights, "#4a6fa5") + seg(r.kv * +$("u").value, "#e0a030") + seg(ov, "#888") + `<b style="left:${pc(gib)}"></b>`;
-  $("leg").textContent = `blue weights ${r.weights.toFixed(1)} | orange KV for ${$("u").value} users ${(r.kv * $("u").value).toFixed(1)} | gray overhead ${ov} | black line = GPU limit ${gib} GiB` + (need > gib ? " | OVER LIMIT" : "");
-  $("out").textContent =
-`Verdict:        ${ok ? "FITS" : "DOES NOT FIT"} ${$("u").value} users (headroom ${r.free.toFixed(1)} GiB before KV)
-Weights:        ${r.weights.toFixed(1)} GiB
-KV per user:    ${r.kv.toFixed(2)} GiB
-Max users:      ${r.users}
-Tokens/s max:   ${r.users ? Math.round(r.tok) + " (single-user ceiling)" : "n/a (doesn't fit)"}
-Cost/user-hour: ${r.users ? "$" + r.cost.toFixed(3) : "n/a (doesn't fit)"}
-${ok ? "" : `Needs at least ${minGpus("fp16 / bf16", p, r.kv, +$("u").value, gib)} x this GPU in fp16, or ${minGpus("GPTQ / AWQ int4", p, r.kv, +$("u").value, gib)} in int4 (minimums: ignore per-GPU overhead and interconnect losses).
-`}Confidence:     ${run ? "speed MEASURED (below), rest estimated" : "estimated"}`;
+  $("bar").innerHTML = seg(r.weights, "#5b3df5") + seg(r.kv * users, "#ff7a3d") + seg(ov, "#6b6b75") + `<b style="left:${pc(gib)}"></b>`;
+  const chip = (c, t) => `<span class=chip style="--c:${c}">${t}</span>`;
+  $("leg").innerHTML = chip("#5b3df5", `weights ${r.weights.toFixed(1)} GiB`) + chip("#ff7a3d", `KV for ${users} users ${(r.kv * users).toFixed(1)} GiB`)
+    + chip("#6b6b75", `overhead ${ov} GiB`) + chip("#f4f4ee", `GPU limit ${gib} GiB`) + (need > gib ? "<b style='color:#ff5a5f'>OVER LIMIT</b>" : "");
+  $("vc").className = "card s2 r2 " + (ok ? "ok" : "no");
+  $("vt").textContent = (ok ? "Fits " : "Does not fit ") + users + " users";
+  $("vs").textContent = `Headroom ${r.free.toFixed(1)} GiB before KV.` + (ok ? "" :
+    ` Needs at least ${minGpus("fp16 / bf16", p, r.kv, users, gib)} x this GPU in fp16, or ${minGpus("GPTQ / AWQ int4", p, r.kv, users, gib)} in int4 (minimums: ignore per-GPU overhead and interconnect losses).`);
+  $("conf").textContent = run ? "Speed MEASURED, rest estimated" : "Estimated";
+  $("sw").textContent = r.weights.toFixed(1) + " GiB";
+  $("skv").textContent = r.kv.toFixed(2) + " GiB";
+  $("su").textContent = r.users;
+  $("st").textContent = r.users ? Math.round(r.tok) : "n/a";
+  $("sth").textContent = r.users ? "single-user decode ceiling" : "doesn't fit";
+  $("sc").textContent = r.users ? "$" + r.cost.toFixed(3) : "n/a (doesn't fit)";
   const issue = JSON.stringify({ model: $("m").value, quant: $("q").value, gpu: $("g").value, context: +$("c").value, users: 1, engine: "", tok_s: 0, source: "" }, null, 2);
-  $("meas").innerHTML = (run ? `<p><b>Measured:</b> ${run.tok_s} tok/s on ${run.engine} vs predicted ceiling ${Math.round(r.tok)} (predicted is ${(r.tok / run.tok_s).toFixed(2)}x measured). <a href="${run.source}">source</a></p>` : "")
+  $("meas").innerHTML = `<span class=lab>Measured vs predicted</span>` + (run ? `<p><b>${run.tok_s} tok/s</b> measured on ${run.engine} vs predicted ceiling ${Math.round(r.tok)} (predicted is ${(r.tok / run.tok_s).toFixed(2)}x measured). <a href="${run.source}">source</a></p>` : `<p>No measured run for this combination yet.</p>`)
     + `<p><a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + $("m").value + " on " + $("g").value)}&body=${encodeURIComponent(FENCE + "json\n" + issue + "\n" + FENCE)}">Submit your measured run</a></p>`;
   history.replaceState(null, "", "?" + new URLSearchParams(IDS.map(i => [i, $(i).value])));
 }
