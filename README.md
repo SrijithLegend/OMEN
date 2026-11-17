@@ -44,6 +44,20 @@ New to the terms? Open the **Guide** tab at the top of the page.
 
 These are estimates, not benchmarks. Real speed depends on the software you use, batching and the hardware. Mixture-of-experts models use all parameters for memory but only the active ones for speed. GPU specs come from vendor datasheets and prices are assumptions, not quotes.
 
+## How far off is the speed ceiling?
+
+The speed ceiling is a best case, and real runs land below it. Against the five published llama.cpp runs for Llama-2-7B Q4_0 (single user, 128-token context, `measured.js`):
+
+| GPU | Measured / predicted |
+|---|---|
+| RTX 4090 | about 70% |
+| RTX 3090 | about 64% |
+| RTX 5090 | about 61% |
+| A100 80GB | about 35% |
+| H100 80GB SXM | about 30% |
+
+So the ceiling reads about 1.5x too high on consumer cards and about 3x too high on datacenter cards in this case. This is five rows from one model and one quantization on four different llama.cpp builds, so no correction factor is applied yet. The calculator shows this gap on the Measured vs predicted card whenever a measured run exists.
+
 ## Contribute a measured run
 
 Real measurements beat estimates. If you have run a model, open the calculator for that combination and press **Submit your measured run**. It opens a pre-filled GitHub issue. Fill in the engine, tokens per second and a source link. The format is described in `runs.schema.json`, with an example in `run-template.json`.

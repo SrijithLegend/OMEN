@@ -97,7 +97,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
   <div class="card hero s2 r2" id=hero></div>
   <div class="card stat"><span class=lab>Max users</span><b id=su></b><small>sessions that fit</small></div>
 
-  <div class="card stat sand"><span class=lab>Cost per user-hour</span><b id=sc></b><small>GPU price / users that fit</small></div>
+  <div class="card stat sand"><span class=lab>Cost per user-hour</span><b id=sc></b><small id=scs>GPU price / users that fit</small></div>
 
   <div class="card s4"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
 
@@ -229,9 +229,10 @@ function render() {
   $("su").textContent = r.users;
   $("st").textContent = r.users ? Math.round(r.tok) : "n/a";
   $("sth").textContent = r.users ? "single-user decode ceiling" : "doesn't fit";
+  $("scs").textContent = r.users ? `GPU price / ${r.users} users (the max that fit, not your ${users})` : "GPU price / users that fit";
   $("sc").textContent = r.users ? "$" + r.cost.toFixed(3) : "n/a (doesn't fit)";
   const issue = JSON.stringify({ model: $("m").value, quant: $("q").value, gpu: $("g").value, context: +$("c").value, users: 1, engine: "", tok_s: 0, source: "" }, null, 2);
-  $("meas").innerHTML = `<span class=lab>Measured vs predicted</span>` + (run ? `<b class=n>${run.tok_s} tok/s</b><p>measured on ${run.engine} vs predicted ceiling ${Math.round(r.tok)} (predicted is ${(r.tok / run.tok_s).toFixed(2)}x measured). <a href="${run.source}">source</a></p>` : ``)
+  $("meas").innerHTML = `<span class=lab>Measured vs predicted</span>` + (run ? `<b class=n>${Math.round(100 * run.tok_s / r.tok)}% of the ceiling</b><p>Measured ${run.tok_s} tok/s on ${run.engine} vs a predicted ceiling of ${Math.round(r.tok)}. The real speed is ${(r.tok / run.tok_s).toFixed(2)}x lower than the formula says. <a href="${run.source}">source</a></p>` : ``)
     + `<div class=cta><span>${run ? "Got a different result?" : "Ran this on real hardware?"} Add your tokens/s.</span><a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + $("m").value + " on " + $("g").value)}&body=${encodeURIComponent(FENCE + "json\n" + issue + "\n" + FENCE)}">Submit your measured run &rarr;</a></div>`;
 }
 const setPrice = () => $("pr").value = $("g").value ? GPUS[$("g").value][2] : "";
