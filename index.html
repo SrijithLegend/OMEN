@@ -46,8 +46,8 @@ function render() {
 Weights:        ${r.weights.toFixed(1)} GiB
 KV per user:    ${r.kv.toFixed(2)} GiB
 Max users:      ${r.users}
-Tokens/s max:   ${Math.round(r.tok)} (single-user ceiling)
-Cost/user-hour: ${r.cost ? "$" + r.cost.toFixed(3) : "n/a"}
+Tokens/s max:   ${r.users ? Math.round(r.tok) + " (single-user ceiling)" : "n/a (doesn't fit)"}
+Cost/user-hour: ${r.users ? "$" + r.cost.toFixed(3) : "n/a (doesn't fit)"}
 Confidence:     estimated`;
 }
 document.querySelectorAll("select,input").forEach(e => e.oninput = render);
