@@ -10,12 +10,12 @@
 <label>Users <input id=u type=number value=4></label>
 <pre id=out></pre>
 <script src="models.js"></script>
+<script src="quants.js"></script>
+<script src="gpus.js"></script>
 <script>
-// GPU specs are from memory = ESTIMATED. Verify before trusting.
 const MODELS = Object.assign({}, ...Object.values(MODELS_BY_CREATOR));
-const QUANTS = { fp16: 2, int8: 1, int4: 0.57 }; // bytes per weight
-const GPUS = { // gib, GB/s, assumed $/hr
-  "RTX 4090": [24, 1008, 0.40], "A100 80GB": [80, 2039, 1.80], "H100 80GB": [80, 3350, 3.00] };
+const QUANTS = Object.assign({}, ...Object.values(QUANTS_BY_FAMILY));
+const GPUS = Object.assign({}, ...Object.values(GPUS_BY_VENDOR));
 const KV_BYTES = 2; // fp16 KV cache
 
 function fit(params_b, bytes_per_param, layers, kv_heads, head_dim, kv_bytes,
@@ -30,9 +30,10 @@ function fit(params_b, bytes_per_param, layers, kv_heads, head_dim, kv_bytes,
 }
 
 const $ = id => document.getElementById(id);
-const opts = o => Object.keys(o).map(k => `<option>${k}</option>`).join("");
-$("m").innerHTML = Object.entries(MODELS_BY_CREATOR).map(([c, o]) => `<optgroup label="${c}">${opts(o)}</optgroup>`).join("");
-$("q").innerHTML = opts(QUANTS); $("g").innerHTML = opts(GPUS);
+const groups = by => Object.entries(by).map(([k, o]) =>
+  `<optgroup label="${k}">${Object.keys(o).map(n => `<option>${n}</option>`).join("")}</optgroup>`).join("");
+$("m").innerHTML = groups(MODELS_BY_CREATOR); $("q").innerHTML = groups(QUANTS_BY_FAMILY); $("g").innerHTML = groups(GPUS_BY_VENDOR);
+$("q").value = "fp16 / bf16"; $("g").value = "RTX 4090 24GB";
 $("m").value = "Llama-3.1-8B";
 
 function render() {
