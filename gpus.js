@@ -17,5 +17,19 @@ const GPUS_BY_VENDOR = {
   "Intel": { "Arc A770 16GB": [16, 560, 0.12], "Gaudi 2 96GB": [96, 2450, 1.50] },
   "Apple Silicon": {
     "M3 Max 128GB": [128, 400, 0.20], "M4 Max 128GB": [128, 546, 0.25],
-    "M2 Ultra 192GB": [192, 800, 0.35], "M3 Ultra 512GB": [512, 819, 0.50] }
+    "M2 Ultra 192GB": [192, 800, 0.35], "M3 Ultra 512GB": [512, 819, 0.50] },
+  "Cloud accelerators": {
+    "Google TPU v5e 16GB": [16, 819, 1.20], "Google TPU v5p 95GB": [95, 2765, 4.20],
+    "AWS Inferentia2 32GB": [32, 820, 0.76], "AWS Trainium2 96GB": [96, 2900, 3.00] },
+  // CPU-only inference: speed is limited by system RAM bandwidth = channels * per-channel GB/s.
+  "CPU / System RAM": Object.fromEntries([ // [name, ram type, channels, GiB, assumed $/hr]
+    ["Desktop DDR4-3200 2ch 32GB", "DDR4-3200", 2, 32, 0.05],
+    ["Laptop DDR5-5600 2ch 32GB", "DDR5-5600", 2, 32, 0.05],
+    ["Desktop DDR5-6400 2ch 64GB", "DDR5-6400", 2, 64, 0.08],
+    ["Workstation DDR5-5600 4ch 128GB", "DDR5-5600", 4, 128, 0.25],
+    ["AI mini-PC LPDDR5X-8000 4ch 128GB", "LPDDR5X-8000", 4, 128, 0.15],
+    ["Server Xeon DDR4-3200 8ch 512GB", "DDR4-3200", 8, 512, 0.60],
+    ["Server EPYC DDR5-4800 12ch 768GB", "DDR5-4800", 12, 768, 1.00],
+    ["Server EPYC DDR5-6400 12ch 768GB", "DDR5-6400", 12, 768, 1.30],
+  ].map(([n, t, ch, gib, usd]) => [n, [gib, +(SYSRAM_GBS_PER_CHANNEL[t] * ch).toFixed(1), usd]]))
 };
