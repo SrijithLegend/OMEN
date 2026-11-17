@@ -3,6 +3,8 @@
 **Will it fit? How fast? What does it cost?**
 OMEN is a GPU fit calculator for open AI models. Pick a model, a graphics card and how many people will use it, and OMEN tells you whether it fits in memory, roughly how fast it will run, and what each user costs per hour.
 
+**Live demo: https://srijithlegend.github.io/OMEN/** (served by GitHub Pages from the `main` branch)
+
 ![OMEN calculator](docs/screenshot.png)
 
 ## What you get
@@ -62,6 +64,13 @@ So the ceiling reads about 1.5x too high on consumer cards and about 3x too high
 
 Real measurements beat estimates. If you have run a model, open the calculator for that combination and press **Submit your measured run**. It opens a pre-filled GitHub issue. Fill in the engine, tokens per second and a source link. The format is described in `runs.schema.json`, with an example in `run-template.json`.
 
+## Contributing
+
+- **Report a measured speed**: use **Submit your measured run** in the calculator (see above).
+- **Report a measured memory use**: run the model, read the peak with `nvidia-smi --query-gpu=memory.used --format=csv`, and open an issue with the model, quantization, GPU, context length, users and the reading. The memory math (weights plus KV cache plus overhead) is not yet validated against real readings, so these are especially welcome.
+- **Fix or add a model**: add its Hugging Face repo to `scripts/gen-models.js` and run `node scripts/gen-models.js`. Do not edit `models.js` by hand. Models are only included when their `config.json` and parameter count can be read.
+- Run `node test.js` before opening a pull request.
+
 ## Project layout
 
 | File | Purpose |
@@ -82,3 +91,7 @@ node test.js
 ## Limits
 
 OMEN assumes an fp16 KV cache and ignores multi-GPU interconnect losses. The multi-GPU counts shown are minimums. Treat results as a starting point, then measure.
+
+## License
+
+MIT, see `LICENSE`.
