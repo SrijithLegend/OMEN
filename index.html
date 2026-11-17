@@ -35,6 +35,19 @@ option,optgroup{background:var(--ink);color:#fff}
 .bar b{position:absolute;top:-6px;bottom:-6px;width:3px;background:#fff;border-radius:2px}
 .chip{display:inline-block;margin:0 12px 4px 0;font-size:.82rem;color:var(--mute)}.chip:before{content:"";display:inline-block;width:.7rem;height:.7rem;border-radius:50%;margin-right:6px;background:var(--c)}
 a{color:inherit;font-weight:700}
+input[type=number]{appearance:textfield;-moz-appearance:textfield}input::-webkit-inner-spin-button,input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+.pills button{border:0;border-radius:99px;padding:5px 11px;background:var(--field);color:var(--mute);font:600 .78rem Inter,system-ui;cursor:pointer}
+.pills button:hover{color:#fff}.pills button.on{background:var(--orange);color:var(--ink)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+details{margin-top:6px}summary{cursor:pointer;color:var(--mute);font-size:.8rem}
+details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;line-height:1.5}
+.meas b.n{display:block;font-size:2.6rem;line-height:1;letter-spacing:-.03em;font-weight:900}
+.meas p{margin:.4rem 0 0}
+.cta{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px;padding:14px 16px;border-radius:16px;background:var(--ink);color:#fff}
+.cta span{font-size:.85rem;color:var(--mute);max-width:26ch}
+.cta a{padding:10px 18px;border-radius:99px;background:var(--orange);color:var(--ink);text-decoration:none;white-space:nowrap}
+.cta a:hover{filter:brightness(1.08)}
 @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.s4,.s2{grid-column:span 2}.r2{grid-row:auto}}
 </style>
 <div class=grid>
@@ -53,17 +66,17 @@ a{color:inherit;font-weight:700}
     <label>Quantization <select id=q></select></label>
     <label>GPU <select id=g></select></label></div>
   <div class="card"><span class=lab>Workload</span>
-    <label>Context (tokens) <input id=c type=number value=8192></label>
-    <label>Users <input id=u type=number value=4></label></div>
+    <label>Context (tokens) <input id=c type=number min=1 value=8192></label><div class=pills data-for=c></div>
+    <label style="margin-top:16px">Users <input id=u type=number min=1 value=4></label><div class=pills data-for=u></div></div>
   <div class="card stat sand"><span class=lab>Cost per user-hour</span><b id=sc></b><small>GPU price / users that fit</small></div>
 
   <div class="card s4"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
 
   <div class="card s2"><span class=lab>Assumptions (editable)</span>
-    <label>Overhead GiB (CUDA context, activations) <input id=ov type=number step=0.1 value=1.5></label>
-    <label>GPU price $/hr <input id=pr type=number step=0.01></label>
-    <small id=asm></small></div>
-  <div class="card sand s2" id=meas></div>
+    <div class=two><label>Overhead GiB <input id=ov type=number step=0.1 value=1.5></label>
+    <label>GPU price $/hr <input id=pr type=number step=0.01></label></div>
+    <details><summary>How this is estimated</summary><ul id=asm></ul></details></div>
+  <div class="card sand s2 meas" id=meas></div>
 </div>
 <script src="models.js"></script>
 <script src="usecases.js"></script>
@@ -105,7 +118,8 @@ function render() {
   const ok = r.users >= users;
   const run = RUNS.find(x => x.model == $("m").value && x.quant == $("q").value && x.gpu == $("g").value);
   const need = r.weights + ov + r.kv * users, scale = Math.max(gib, need), pc = x => (100 * x / scale) + "%";
-  $("asm").textContent = `GPU: ${gib} GiB VRAM, ${bw} GB/s bandwidth (vendor datasheet, from memory). Price: assumed, not a quote. Model config: layers/KV heads/head dim from the model's Hugging Face config.json (see models.js). KV cache assumed fp16. Speed = bandwidth / weight bytes read per token (active params for MoE).`;
+  $("asm").innerHTML = [`Overhead: CUDA context and activations, not part of weights or KV.`, `GPU: ${gib} GiB VRAM, ${bw} GB/s (vendor datasheet, from memory).`, `Price is assumed, not a quote.`, `Model config (layers, KV heads, head dim) from Hugging Face config.json, see models.js.`, `KV cache assumed fp16.`, `Speed = bandwidth / weight bytes read per token (active params for MoE).`].map(t => `<li>${t}</li>`).join("");
+  document.querySelectorAll(".pills button").forEach(b => b.classList.toggle("on", $(b.parentNode.dataset.for).value == b.dataset.v));
   const seg = (x, c) => `<i style="width:${pc(x)};background:${c}"></i>`;
   $("bar").innerHTML = seg(r.weights, "#ff6a2b") + seg(r.kv * users, "#ffffffcc") + seg(ov, "#ffffff55") + `<b style="left:${pc(gib)}"></b>`;
   const chip = (c, t) => `<span class=chip style="--c:${c}">${t}</span>`;
@@ -126,11 +140,14 @@ function render() {
   $("sth").textContent = r.users ? "single-user decode ceiling" : "doesn't fit";
   $("sc").textContent = r.users ? "$" + r.cost.toFixed(3) : "n/a (doesn't fit)";
   const issue = JSON.stringify({ model: $("m").value, quant: $("q").value, gpu: $("g").value, context: +$("c").value, users: 1, engine: "", tok_s: 0, source: "" }, null, 2);
-  $("meas").innerHTML = `<span class=lab>Measured vs predicted</span>` + (run ? `<p><b>${run.tok_s} tok/s</b> measured on ${run.engine} vs predicted ceiling ${Math.round(r.tok)} (predicted is ${(r.tok / run.tok_s).toFixed(2)}x measured). <a href="${run.source}">source</a></p>` : `<p>No measured run for this combination yet.</p>`)
-    + `<p><a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + $("m").value + " on " + $("g").value)}&body=${encodeURIComponent(FENCE + "json\n" + issue + "\n" + FENCE)}">Submit your measured run</a></p>`;
+  $("meas").innerHTML = `<span class=lab>Measured vs predicted</span>` + (run ? `<b class=n>${run.tok_s} tok/s</b><p>measured on ${run.engine} vs predicted ceiling ${Math.round(r.tok)} (predicted is ${(r.tok / run.tok_s).toFixed(2)}x measured). <a href="${run.source}">source</a></p>` : `<b class=n>No data yet</b><p>Nobody has measured this model, quant and GPU combination.</p>`)
+    + `<div class=cta><span>${run ? "Got a different result?" : "Ran this on real hardware?"} Add your tokens/s.</span><a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + $("m").value + " on " + $("g").value)}&body=${encodeURIComponent(FENCE + "json\n" + issue + "\n" + FENCE)}">Submit your measured run &rarr;</a></div>`;
   history.replaceState(null, "", "?" + new URLSearchParams(IDS.map(i => [i, $(i).value])));
 }
 const setPrice = () => $("pr").value = GPUS[$("g").value][2];
+const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32]};
+document.querySelectorAll(".pills").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id].map(v => `<button type=button data-v=${v}>${id == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
+document.querySelectorAll(".pills button").forEach(b => b.onclick = () => { $(b.parentNode.dataset.for).value = b.dataset.v; render(); });
 document.querySelectorAll("select,input").forEach(e => e.oninput = render);
 $("g").addEventListener("input", () => { setPrice(); render(); });
 $("uc").oninput = () => { fillModels(); if ($("uc").value != "All") $("c").value = USE_CASE_CONTEXT[$("uc").value]; render(); };
