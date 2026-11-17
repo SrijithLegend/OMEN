@@ -20,6 +20,7 @@
 <script src="memtypes.js"></script>
 <script src="gpus.js"></script>
 <script src="measured.js"></script>
+<script src="fit.js"></script>
 <script>
 const MODELS = Object.assign({}, ...Object.values(MODELS_BY_CREATOR));
 const QUANTS = Object.assign({}, ...Object.values(QUANTS_BY_FAMILY));
@@ -27,17 +28,6 @@ const GPUS = Object.assign({}, ...Object.values(GPUS_BY_VENDOR));
 const FENCE = "\x60\x60\x60"; // markdown code fence
 const IDS = ["m", "q", "g", "c", "u", "ov", "pr"]; // inputs stored in the URL
 const KV_BYTES = 2; // fp16 KV cache
-
-function fit(params_b, bytes_per_param, layers, kv_heads, head_dim, kv_bytes,
-             context, gpu_gib, gpu_bw_gbs, gpu_usd_hr, overhead_gib = 1.5, active_params_b = params_b) {
-  const weights = params_b * 1e9 * bytes_per_param / 2 ** 30;
-  const kv = 2 * layers * kv_heads * head_dim * kv_bytes * context / 2 ** 30;
-  const free = gpu_gib - weights - overhead_gib;
-  const users = Math.max(0, Math.floor(free / kv));
-  return { weights, kv, free, users, fits: free >= kv,
-    tok: gpu_bw_gbs * 1e9 / (active_params_b * 1e9 * bytes_per_param),
-    cost: users ? gpu_usd_hr / users : null };
-}
 
 const $ = id => document.getElementById(id);
 const groups = by => Object.entries(by).map(([k, o]) =>
