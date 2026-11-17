@@ -1,0 +1,12 @@
+{
+  "model": "Llama-3-8B",
+  "quant": "fp16",
+  "gpu": "RTX 4090",
+  "context": 8192,
+  "users": 1,
+  "engine": "",
+  "tok_s": 0,
+  "vram_gib": 0,
+  "date": "YYYY-MM-DD",
+  "notes": ""
+}

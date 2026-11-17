@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OMEN measured run",
+  "type": "object",
+  "required": ["model", "quant", "gpu", "context", "users", "engine", "tok_s", "vram_gib"],
+  "properties": {
+    "model": {"type": "string"},
+    "quant": {"enum": ["fp16", "int8", "int4"]},
+    "gpu": {"type": "string"},
+    "context": {"type": "integer", "minimum": 1, "description": "tokens per user"},
+    "users": {"type": "integer", "minimum": 1, "description": "concurrent sessions tested"},
+    "engine": {"type": "string", "description": "e.g. vllm 0.6.3, llama.cpp b3900"},
+    "tok_s": {"type": "number", "description": "decode tokens/s per user"},
+    "vram_gib": {"type": "number", "description": "peak VRAM used"},
+    "date": {"type": "string", "format": "date"},
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": false
+}
