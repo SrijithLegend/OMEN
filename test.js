@@ -16,4 +16,14 @@ assert.strictEqual(Math.round(q.tok), 221);
 const m = fit(46.7, 0.57, 32, 8, 128, 2, 8192, 80, 2039, 1.8, 1.5, 12.9);
 assert.strictEqual(m.users, 53);
 assert.strictEqual(Math.round(m.tok), 277);
+// No fit: 70B fp16 on a 24 GiB card has negative headroom, 0 users, no cost
+const n = fit(70, 2, 80, 8, 128, 2, 8192, 24, 1008, 0.40);
+assert.strictEqual(n.fits, false);
+assert.strictEqual(n.users, 0);
+assert.strictEqual(n.cost, null);
+// Partial fit: 8B fp16 at 32k context on 24 GiB leaves room for exactly 1 user (KV 4 GiB each)
+const p = fit(8, 2, 32, 8, 128, 2, 32768, 24, 1008, 0.40);
+assert.strictEqual(p.kv.toFixed(1), "4.0");
+assert.strictEqual(p.users, 1);
+assert.strictEqual(p.fits, true);
 console.log("all tests pass");
