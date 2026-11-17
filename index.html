@@ -3,6 +3,7 @@
 <title>OMEN</title>
 <style>body{font:16px system-ui;max-width:32rem;margin:2rem auto;padding:0 1rem}label{display:block;margin:.5rem 0}input,select{width:100%;padding:.3rem}pre{background:#eee;padding:1rem;white-space:pre-wrap}.bar{position:relative;display:flex;height:2rem;background:#ddd;border-radius:4px;margin:1rem 0 .25rem}.bar i{display:block;height:100%}.bar b{position:absolute;top:-4px;bottom:-4px;width:2px;background:#000}#leg{font-size:.85rem}</style>
 <h1>OMEN: GPU fit calculator</h1>
+<label>Use case <select id=uc></select></label>
 <label>Model <select id=m></select></label>
 <label>Quantization <select id=q></select></label>
 <label>GPU <select id=g></select></label>
@@ -16,6 +17,7 @@
 <pre id=out></pre>
 <div id=meas></div>
 <script src="models.js"></script>
+<script src="usecases.js"></script>
 <script src="quants.js"></script>
 <script src="memtypes.js"></script>
 <script src="gpus.js"></script>
@@ -26,13 +28,20 @@ const MODELS = Object.assign({}, ...Object.values(MODELS_BY_CREATOR));
 const QUANTS = Object.assign({}, ...Object.values(QUANTS_BY_FAMILY));
 const GPUS = Object.assign({}, ...Object.values(GPUS_BY_VENDOR));
 const FENCE = "\x60\x60\x60"; // markdown code fence
-const IDS = ["m", "q", "g", "c", "u", "ov", "pr"]; // inputs stored in the URL
+const IDS = ["uc", "m", "q", "g", "c", "u", "ov", "pr"]; // inputs stored in the URL
 const KV_BYTES = 2; // fp16 KV cache
 
 const $ = id => document.getElementById(id);
-const groups = by => Object.entries(by).map(([k, o]) =>
-  `<optgroup label="${k}">${Object.keys(o).map(n => `<option>${n}</option>`).join("")}</optgroup>`).join("");
-$("m").innerHTML = groups(MODELS_BY_CREATOR); $("q").innerHTML = groups(QUANTS_BY_FAMILY); $("g").innerHTML = groups(GPUS_BY_VENDOR);
+const groups = (by, keep = () => true) => Object.entries(by).map(([k, o]) => [k, Object.keys(o).filter(keep)])
+  .filter(([, names]) => names.length).map(([k, names]) =>
+  `<optgroup label="${k}">${names.map(n => `<option>${n}</option>`).join("")}</optgroup>`).join("");
+const inUseCase = n => $("uc").value == "All" || (MODEL_USE_CASES[n] || ["General"]).includes($("uc").value);
+function fillModels() { // list only models for the chosen use case, keep the current pick if still listed
+  const prev = $("m").value; $("m").innerHTML = groups(MODELS_BY_CREATOR, inUseCase);
+  if ([...$("m").options].some(o => o.value == prev)) $("m").value = prev;
+}
+$("uc").innerHTML = ["All", ...Object.keys(USE_CASE_CONTEXT)].map(n => `<option>${n}</option>`).join("");
+fillModels(); $("q").innerHTML = groups(QUANTS_BY_FAMILY); $("g").innerHTML = groups(GPUS_BY_VENDOR);
 $("q").value = "fp16 / bf16"; $("g").value = "RTX 4090 24GB";
 $("m").value = "Llama-3.1-8B";
 
@@ -66,7 +75,10 @@ ${ok ? "" : `Needs at least ${minGpus("fp16 / bf16", p, r.kv, +$("u").value, gib
 const setPrice = () => $("pr").value = GPUS[$("g").value][2];
 document.querySelectorAll("select,input").forEach(e => e.oninput = render);
 $("g").addEventListener("input", () => { setPrice(); render(); });
+$("uc").oninput = () => { fillModels(); if ($("uc").value != "All") $("c").value = USE_CASE_CONTEXT[$("uc").value]; render(); };
 setPrice();
-for (const [k, v] of new URLSearchParams(location.search)) if (IDS.includes(k)) $(k).value = v; // shared link
+const P = new URLSearchParams(location.search);
+if (P.has("uc")) { $("uc").value = P.get("uc"); fillModels(); } // filter first so the model can be set
+for (const [k, v] of P) if (IDS.includes(k) && k != "uc") $(k).value = v; // shared link
 render();
 </script>
