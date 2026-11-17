@@ -8,5 +8,6 @@
   "tok_s": 0,
   "vram_gib": 0,
   "date": "YYYY-MM-DD",
-  "notes": ""
+  "notes": "",
+  "source": ""
 }

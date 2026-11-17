@@ -10,10 +10,12 @@
 <label>Users <input id=u type=number value=4></label>
 <div class=bar id=bar></div><div id=leg></div>
 <pre id=out></pre>
+<div id=meas></div>
 <script src="models.js"></script>
 <script src="quants.js"></script>
 <script src="memtypes.js"></script>
 <script src="gpus.js"></script>
+<script src="measured.js"></script>
 <script>
 const MODELS = Object.assign({}, ...Object.values(MODELS_BY_CREATOR));
 const QUANTS = Object.assign({}, ...Object.values(QUANTS_BY_FAMILY));
@@ -45,6 +47,7 @@ function render() {
   const [p, L, h, d, act] = MODELS[$("m").value], [gib, bw, usd] = GPUS[$("g").value];
   const r = fit(p, QUANTS[$("q").value], L, h, d, KV_BYTES, +$("c").value, gib, bw, usd, 1.5, act);
   const ok = r.users >= +$("u").value;
+  const run = RUNS.find(x => x.model == $("m").value && x.quant == $("q").value && x.gpu == $("g").value);
   const need = r.weights + 1.5 + r.kv * +$("u").value, scale = Math.max(gib, need), pc = x => (100 * x / scale) + "%";
   const seg = (x, c) => `<i style="width:${pc(x)};background:${c}"></i>`;
   $("bar").innerHTML = seg(r.weights, "#4a6fa5") + seg(r.kv * +$("u").value, "#e0a030") + seg(1.5, "#888") + `<b style="left:${pc(gib)}"></b>`;
@@ -57,7 +60,12 @@ Max users:      ${r.users}
 Tokens/s max:   ${r.users ? Math.round(r.tok) + " (single-user ceiling)" : "n/a (doesn't fit)"}
 Cost/user-hour: ${r.users ? "$" + r.cost.toFixed(3) : "n/a (doesn't fit)"}
 ${ok ? "" : `Needs at least ${minGpus("fp16 / bf16", p, r.kv, +$("u").value, gib)} x this GPU in fp16, or ${minGpus("GPTQ / AWQ int4", p, r.kv, +$("u").value, gib)} in int4 (minimums: ignore per-GPU overhead and interconnect losses).
-`}Confidence:     estimated`;
+`}Confidence:     ${run ? "speed MEASURED (below), rest estimated" : "estimated"}`;
+  const issue = JSON.stringify({ model: $("m").value, quant: $("q").value, gpu: $("g").value, context: +$("c").value, users: 1, engine: "", tok_s: 0, source: "" }, null, 2);
+  $("meas").innerHTML = (run ? `<p><b>Measured:</b> ${run.tok_s} tok/s on ${run.engine} vs predicted ceiling ${Math.round(r.tok)} (predicted is ${(r.tok / run.tok_s).toFixed(2)}x measured). <a href="${run.source}">source</a></p>` : "")
+    + `<p><a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + $("m").value + " on " + $("g").value)}&body=${encodeURIComponent("```json
+" + issue + "
+```")}">Submit your measured run</a></p>`;
 }
 document.querySelectorAll("select,input").forEach(e => e.oninput = render);
 render();
