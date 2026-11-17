@@ -37,6 +37,9 @@ $("m").innerHTML = groups(MODELS_BY_CREATOR); $("q").innerHTML = groups(QUANTS_B
 $("q").value = "fp16 / bf16"; $("g").value = "RTX 4090 24GB";
 $("m").value = "Llama-3.1-8B";
 
+// Minimum GPUs: (weights + users*KV) / VRAM, rounded up. Ignores per-GPU overhead and interconnect losses.
+const minGpus = (q, p, kv, users, gib) => Math.ceil((p * 1e9 * QUANTS[q] / 2 ** 30 + users * kv) / gib);
+
 function render() {
   const [p, L, h, d, act] = MODELS[$("m").value], [gib, bw, usd] = GPUS[$("g").value];
   const r = fit(p, QUANTS[$("q").value], L, h, d, KV_BYTES, +$("c").value, gib, bw, usd, 1.5, act);
@@ -48,7 +51,8 @@ KV per user:    ${r.kv.toFixed(2)} GiB
 Max users:      ${r.users}
 Tokens/s max:   ${r.users ? Math.round(r.tok) + " (single-user ceiling)" : "n/a (doesn't fit)"}
 Cost/user-hour: ${r.users ? "$" + r.cost.toFixed(3) : "n/a (doesn't fit)"}
-Confidence:     estimated`;
+${ok ? "" : `Needs at least ${minGpus("fp16 / bf16", p, r.kv, +$("u").value, gib)} x this GPU in fp16, or ${minGpus("GPTQ / AWQ int4", p, r.kv, +$("u").value, gib)} in int4 (minimums: ignore per-GPU overhead and interconnect losses).
+`}Confidence:     estimated`;
 }
 document.querySelectorAll("select,input").forEach(e => e.oninput = render);
 render();
