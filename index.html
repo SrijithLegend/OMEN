@@ -127,7 +127,8 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
     <label>GPU price $/hr (each) <input id=pr type=number step=0.01 placeholder="auto from GPU"></label>
     <label>Output tokens / request <input id=ot type=number min=1 placeholder="512"></label>
     <label>Requests / month <input id=rq type=number min=1 placeholder="100000"></label>
-    <label>Utilization % of ceiling <input id=ut type=number min=1 max=100 placeholder="50"></label>
+    <label>Input tokens / request <input id=it type=number min=1 placeholder="2000"></label>
+    <label>Utilization % of ceiling <input id=ut type=number min=1 max=100 placeholder="from measured runs"></label>
     <label>Budget $/hr (recommend) <input id=bd type=number step=0.1 min=0 placeholder="no limit"></label>
     <label>Min tokens/s (recommend) <input id=mt type=number min=0 placeholder="10 (default)"></label>
     <label>Max quality loss % (recommend) <input id=ml type=number step=0.1 min=0 placeholder="5 (default)"></label></div>
@@ -144,6 +145,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 <script src="gpus.js"></script>
 <script src="measured.js"></script>
 <script src="fit.js"></script>
+<script src="gpu-compute.js"></script>
 <script src="intel.js"></script>
 <script>
 const TERMS = [
@@ -177,12 +179,14 @@ const MODELS = Object.assign({}, ...Object.values(MODELS_BY_CREATOR));
 const QUANTS = Object.assign({}, ...Object.values(QUANTS_BY_FAMILY));
 const GPUS = Object.assign({}, ...Object.values(GPUS_BY_VENDOR));
 const FENCE = "\x60\x60\x60"; // markdown code fence
-const IDS = ["uc", "m", "q", "g", "c", "u", "n", "ov", "pr", "ot", "rq", "ut", "bd", "mt", "ml"]; // inputs stored in the URL
+const IDS = ["uc", "m", "q", "g", "c", "u", "n", "ov", "pr", "ot", "rq", "ut", "it", "bd", "mt", "ml"]; // inputs stored in the URL
 const LOGOS = {Meta: "meta", "Mistral AI": "mistralai", "Alibaba (Qwen)": "alibabacloud", Google: "google", Microsoft: "microsoft", DeepSeek: "deepseek", OpenAI: "openai"}; // simple-icons slugs
 const OLD_ICONS = ["openai", "microsoft"]; // dropped from the latest simple-icons, served from v9 (black SVG, inverted to white)
 const FAVS = [[/OLMo/, "allenai.org"], [/Falcon/, "tii.ae"], [/^Yi-/, "01.ai"], [/InternLM/, "internlm.intern-ai.org.cn"], [/StarCoder/, "bigcode-project.org"], [/Fin-R1/, "sufe.edu.cn"]]; // org sites, logo via favicon service
 const iconUrl = s => OLD_ICONS.includes(s) ? `https://cdn.jsdelivr.net/npm/simple-icons@9.21.0/icons/${s}.svg` : `https://cdn.simpleicons.org/${s}/fff`;
 const KV_BYTES = 2; // fp16 KV cache
+// Calibration: real decode speed vs the formula's ceiling across the published runs. Used as the default utilization.
+const CAL = median(RUNS.map(x => { const [p, L, h, d, a] = MODELS[x.model], [gib, bw, usd] = GPUS[x.gpu]; return x.tok_s / fit(p, QUANTS[x.quant], L, h, d, 2, x.context, gib, bw, usd, 1.5, a).tok; }));
 
 const $ = id => document.getElementById(id);
 const BLANK = '<option value="" hidden></option>';
@@ -274,11 +278,14 @@ function render() {
   $("scs").textContent = r.users ? `GPU price / ${r.users} users (the max that fit, not your ${users})` : "GPU price / users that fit";
   $("sc").textContent = r.users ? "$" + r.cost.toFixed(3) : "n/a (doesn't fit)";
   $("cmp").hidden = false; renderCmp(p, L, h, d, act, ov, users);
-  const out = +$("ot").value || 512, req = +$("rq").value || 100000, ut = ($("ut").value === "" ? 50 : Math.min(100, +$("ut").value)) / 100;
+  const out = +$("ot").value || 512, req = +$("rq").value || 100000, ut = $("ut").value === "" ? CAL : Math.min(100, +$("ut").value) / 100, inTok = +$("it").value || 2000, tf = GPU_TFLOPS[$("g").value], pre = ttft(act ?? p, inTok, tf, n);
   const w = r.users ? workload(r.tok, Math.min(users, r.users), usd, out, req, ut) : null, f = x => x.toLocaleString("en", {maximumFractionDigits: 0});
-  $("wl").innerHTML = `<span class=lab>Workload: ${f(req)} requests a month, ${out} output tokens each, ${Math.round(ut * 100)}% of the speed ceiling</span>` + (!w ? `<p>This setup does not fit, so there is no workload estimate.</p>` :
+  $("wl").innerHTML = `<span class=lab>Workload: ${f(req)} requests a month, ${out} output tokens each, ${Math.round(ut * 100)}% of the speed ceiling${$("ut").value === "" ? " (median of the published runs)" : ""}</span>` + (!w ? `<p>This setup does not fit, so there is no workload estimate.</p>` :
     `<div class=two><div><b class=big>$${w.perM < 1 ? w.perM.toFixed(3) : w.perM.toFixed(2)}</b><small>per 1M output tokens (ceiling x utilization)</small></div>
     <div><b class=big>${w.latency.toFixed(1)} s</b><small>to write one reply (decode only, no prompt processing or queueing)</small></div>
+    <div><b class=big>${pre == null ? "n/a" : pre < 1 ? Math.round(pre * 1000) + " ms" : pre.toFixed(1) + " s"}</b><small>${pre == null ? "time to first token: no compute figure for this GPU, so prefill is not estimated" : `time to first token for ${f(inTok)} prompt tokens (compute-bound, assumes 40% of peak, uncalibrated)`}</small></div>
+    <div><b class=big>${Math.round(1000 / w.perUser)} ms</b><small>per output token after the first (decode)</small></div>
+    <div><b class=big>${pre == null ? "n/a" : (pre + w.latency).toFixed(1) + " s"}</b><small>whole request: first token plus ${out} output tokens</small></div>
     <div><b class=big>${f(w.agg)} tok/s</b><small>total across ${Math.min(users, r.users)} users</small></div>
     <div><b class=big>$${f(w.payPerUse)} / $${f(w.alwaysOn)}</b><small>a month billed per use / kept on 24/7${w.copies > 1 ? ` (${w.copies} copies of this setup needed to keep up)` : ""}</small></div></div>`);
   renderRec(p, L, h, d, act, ov, users, n);

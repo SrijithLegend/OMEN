@@ -48,4 +48,9 @@ function validateRun(r, known) {
   if (!r.source) bad.push("source is missing: without a link this stays a Community record that cannot be checked");
   return bad;
 }
-if (typeof module !== 'undefined') module.exports = { cluster, workload, recommend, parseHF, validateRun, TP_EFF }; // for test.js
+// Prefill (prompt processing) is compute-bound: ~2 FLOPs per active parameter per prompt token, at a fraction (mfu) of peak.
+// ponytail: mfu 0.4 is a typical large-batch figure, not calibrated (no measured prefill data yet). Replace with a fitted value once runs record TTFT.
+const MFU = 0.4;
+const ttft = (activeB, inTok, tflops, n = 1, mfu = MFU) => tflops ? 2 * activeB * 1e9 * inTok / (tflops * 1e12 * (n > 1 ? n * TP_EFF : 1) * mfu) : null;
+const median = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+if (typeof module !== 'undefined') module.exports = { cluster, workload, recommend, parseHF, validateRun, ttft, median, TP_EFF }; // for test.js

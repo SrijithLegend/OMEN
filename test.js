@@ -60,4 +60,9 @@ assert.deepStrictEqual(validateRun(good, kn), []);
 assert.strictEqual(validateRun({ ...good, gpu: "Z" }, kn).length, 1);
 assert.strictEqual(validateRun({ ...good, tok_s: 0, context: 1.5 }, kn).length, 2);
 assert.strictEqual(validateRun({ ...good, source: "" }, kn).length, 1);
+// Prefill: 8B active params, 2000 prompt tokens, 989 TFLOPS at 40% => 2*8e9*2000/(989e12*0.4) = 0.0809 s
+const { ttft, median } = require("./intel.js");
+assert.strictEqual(ttft(8, 2000, 989).toFixed(4), "0.0809");
+assert.strictEqual(ttft(8, 2000, undefined), null);
+assert.strictEqual(median([3, 1, 2]), 2); assert.strictEqual(median([1, 2, 3, 4]), 2.5);
 console.log("all tests pass");
