@@ -44,6 +44,8 @@ input:hover,.dd>button:hover{border-color:#ff6a2b66}input:focus,.dd>button:focus
 .bar b{position:absolute;top:-6px;bottom:-6px;width:3px;background:#fff;border-radius:2px}
 .chip{display:inline-block;margin:0 12px 4px 0;font-size:.82rem;color:var(--mute)}.chip:before{content:"";display:inline-block;width:.7rem;height:.7rem;border-radius:50%;margin-right:6px;background:var(--c)}
 a{color:inherit;font-weight:700}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:.85rem;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:7px 10px;white-space:nowrap}th{color:var(--mute);font-weight:500}tr.hit td{color:var(--orange);font-weight:700}tr.no td{color:#777}
+#share{margin-top:10px;padding:8px 16px;border:0;border-radius:99px;background:var(--field);color:#fff;font:700 .85rem Inter,system-ui;cursor:pointer}
 .tabs{max-width:72rem;margin:0 auto 12px;display:flex;gap:8px}
 .tabs button{border:0;border-radius:99px;padding:11px 20px;background:var(--white);color:var(--ink);font:700 .95rem Inter,system-ui;cursor:pointer;transition:filter .15s}
 .tabs button:hover{filter:brightness(.95)}.tabs button.on{background:var(--ink);color:#fff}
@@ -87,7 +89,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
       <div><label><em>5</em> Context (tokens) <input id=c type=number min=1 placeholder="e.g. 8192"></label><div class=pills data-for=c></div></div>
       <div><label><em>6</em> Users <input id=u type=number min=1 placeholder="e.g. 4"></label><div class=pills data-for=u></div></div>
     </div>
-    <button type=button id=go>Calculate &rarr;</button></div>
+    <button type=button id=go>Calculate &rarr;</button><button type=button id=share>Copy share link</button></div>
   <div class="card stat sand"><span class=lab>Weights</span><b id=sw></b><small>fixed cost of loading</small></div>
   <div class="card stat"><span class=lab>KV cache / user</span><b id=skv></b><small>grows with context</small></div>
   <div class="card stat sand"><span class=lab>Tokens/s ceiling</span><b id=st></b><small id=sth>single-user decode</small></div>
@@ -106,6 +108,9 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
     <label>GPU price $/hr <input id=pr type=number step=0.01 placeholder="auto from GPU"></label></div>
     <details><summary>How this is estimated</summary><ul id=asm></ul></details></div>
   <div class="card sand s2 meas" id=meas></div>
+  <div class="card s4" id=cmp hidden><span class=lab>Compare (same model, context and users)</span>
+    <div class=pills id=cmpTabs><button type=button data-v=g class=on>All GPUs</button><button type=button data-v=q>All quantizations</button></div>
+    <div id=cmpBody style="overflow:auto"></div></div>
 </div>
 <script src="models.js"></script>
 <script src="usecases.js"></script>
@@ -195,7 +200,7 @@ function heroHtml() {
 let calculated = false;
 function render() {
   dds.forEach(d => d.sync());
-  document.querySelectorAll(".pills button").forEach(b => b.classList.toggle("on", $(b.parentNode.dataset.for).value == b.dataset.v));
+  document.querySelectorAll(".pills[data-for] button").forEach(b => b.classList.toggle("on", $(b.parentNode.dataset.for).value == b.dataset.v));
   history.replaceState(null, "", "?" + new URLSearchParams(IDS.filter(i => $(i).value).map(i => [i, $(i).value])));
   $("hero").innerHTML = heroHtml();
   const missing = [["m", "model"], ["q", "quantization"], ["g", "GPU"], ["c", "context"], ["u", "users"]].filter(([i]) => !(i == "c" || i == "u" ? +$(i).value > 0 : $(i).value)).map(x => x[1]);
@@ -204,7 +209,7 @@ function render() {
     $("vs").textContent = calculated ? "Still needed: " + missing.join(", ") + "." : "Fill in the setup, then press Calculate.";
     $("conf").textContent = ""; for (const i of ["sw", "skv", "su", "st", "sc"]) $(i).textContent = "-";
     $("sth").textContent = "single-user decode"; $("bar").innerHTML = ""; $("leg").innerHTML = "";
-    $("meas").innerHTML = `<span class=lab>Measured vs predicted</span><p>Calculate a setup to compare it against measured runs.</p>`; return;
+    $("meas").innerHTML = `<span class=lab>Measured vs predicted</span><p>Calculate a setup to compare it against measured runs.</p>`; $("cmp").hidden = true; return;
   }
   const [p, L, h, d, act] = MODELS[$("m").value], [gib, bw] = GPUS[$("g").value], usd = +$("pr").value, ov = $("ov").value === "" ? 1.5 : +$("ov").value;
   const users = +$("u").value;
@@ -213,7 +218,7 @@ function render() {
   const run = RUNS.find(x => x.model == $("m").value && x.quant == $("q").value && x.gpu == $("g").value);
   const need = r.weights + ov + r.kv * users, scale = Math.max(gib, need), pc = x => (100 * x / scale) + "%";
   $("asm").innerHTML = [`Overhead: CUDA context and activations, not part of weights or KV.`, `GPU: ${gib} GiB VRAM, ${bw} GB/s (vendor datasheet, from memory).`, `Price is assumed, not a quote.`, `Model config (layers, KV heads, head dim) from Hugging Face config.json, see models.js.`, `KV cache assumed fp16.`, ...(/MLA/.test($("m").value) ? ["MLA model: the head size fed to the KV formula is an effective value matching its compressed cache, not a literal one."] : []), `Speed = bandwidth / weight bytes read per token (active params for MoE).`].map(t => `<li>${t}</li>`).join("");
-  document.querySelectorAll(".pills button").forEach(b => b.classList.toggle("on", $(b.parentNode.dataset.for).value == b.dataset.v));
+  document.querySelectorAll(".pills[data-for] button").forEach(b => b.classList.toggle("on", $(b.parentNode.dataset.for).value == b.dataset.v));
   const seg = (x, c) => `<i style="width:${pc(x)};background:${c}"></i>`;
   $("bar").innerHTML = seg(r.weights, "#ff6a2b") + seg(r.kv * users, "#ffffffcc") + seg(ov, "#ffffff55") + `<b style="left:${pc(gib)}"></b>`;
   const chip = (c, t) => `<span class=chip style="--c:${c}">${t}</span>`;
@@ -231,14 +236,28 @@ function render() {
   $("sth").textContent = r.users ? "single-user decode ceiling" : "doesn't fit";
   $("scs").textContent = r.users ? `GPU price / ${r.users} users (the max that fit, not your ${users})` : "GPU price / users that fit";
   $("sc").textContent = r.users ? "$" + r.cost.toFixed(3) : "n/a (doesn't fit)";
+  $("cmp").hidden = false; renderCmp(p, L, h, d, act, ov, users);
   const issue = JSON.stringify({ model: $("m").value, quant: $("q").value, gpu: $("g").value, context: +$("c").value, users: 1, engine: "", tok_s: 0, source: "" }, null, 2);
   $("meas").innerHTML = `<span class=lab>Measured vs predicted</span>` + (run ? `<b class=n>${Math.round(100 * run.tok_s / r.tok)}% of the ceiling</b><p>Measured ${run.tok_s} tok/s on ${run.engine} vs a predicted ceiling of ${Math.round(r.tok)}. The real speed is ${(r.tok / run.tok_s).toFixed(2)}x lower than the formula says. <a href="${run.source}">source</a></p>` : ``)
     + `<div class=cta><span>${run ? "Got a different result?" : "Ran this on real hardware?"} Add your tokens/s.</span><a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + $("m").value + " on " + $("g").value)}&body=${encodeURIComponent(FENCE + "json\n" + issue + "\n" + FENCE)}">Submit your measured run &rarr;</a></div>`;
 }
+// Compare table: rows are every GPU or every quantization, other inputs held fixed. Best (fits, cheapest) first.
+let cmpBy = "g";
+function renderCmp(p, L, h, d, act, ov, users) {
+  const rows = (cmpBy == "g" ? Object.entries(GPUS) : Object.keys(QUANTS).map(n => [n])).map(([n, spec]) => {
+    const [gib, bw, usd] = cmpBy == "g" ? spec : [...GPUS[$("g").value].slice(0, 2), +$("pr").value];
+    return [n, fit(p, QUANTS[cmpBy == "g" ? $("q").value : n], L, h, d, KV_BYTES, +$("c").value, gib, bw, usd, ov, act), gib];
+  }).sort((a, b) => (b[1].users >= users) - (a[1].users >= users) || (a[1].cost ?? 1e9) - (b[1].cost ?? 1e9));
+  $("cmpBody").innerHTML = `<table><tr><th>${cmpBy == "g" ? "GPU" : "Quantization"}</th><th>VRAM</th><th>Weights</th><th>Max users</th><th>tok/s ceiling</th><th>$/user-hr</th></tr>` + rows.map(([n, r, gib]) =>
+    `<tr class="${r.users >= users ? (n == $(cmpBy).value ? "hit" : "") : "no"}"><td>${n}${r.users >= users ? "" : " (no fit)"}</td><td>${gib} GiB</td><td>${r.weights.toFixed(1)} GiB</td><td>${r.users}</td><td>${r.users ? Math.round(r.tok) : "-"}</td><td>${r.cost == null ? "-" : "$" + r.cost.toFixed(3)}</td></tr>`).join("") + "</table>";
+  document.querySelectorAll("#cmpTabs button").forEach(b => b.classList.toggle("on", b.dataset.v == cmpBy));
+}
+document.querySelectorAll("#cmpTabs button").forEach(b => b.onclick = () => { cmpBy = b.dataset.v; render(); });
+$("share").onclick = () => navigator.clipboard.writeText(location.href).then(() => { $("share").textContent = "Copied!"; setTimeout(() => $("share").textContent = "Copy share link", 1500); });
 const setPrice = () => $("pr").value = $("g").value ? GPUS[$("g").value][2] : "";
 const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32]};
 document.querySelectorAll(".pills").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id].map(v => `<button type=button data-v=${v}>${id == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
-document.querySelectorAll(".pills button").forEach(b => b.onclick = () => { $(b.parentNode.dataset.for).value = b.dataset.v; render(); });
+document.querySelectorAll(".pills[data-for] button").forEach(b => b.onclick = () => { $(b.parentNode.dataset.for).value = b.dataset.v; render(); });
 document.querySelectorAll("select,input").forEach(e => e.oninput = render);
 const go = () => { calculated = true; render(); $("vc").scrollIntoView({behavior: "smooth", block: "center"}); };
 $("go").onclick = go;
