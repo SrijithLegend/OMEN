@@ -33,3 +33,39 @@ def test_lookup_and_errors():
     assert c.get("/api/v1/models/nope").status_code == 404
     assert c.post("/api/v1/estimate/memory", json={**BASE, "gpu": "nope"}).status_code == 404
     assert c.post("/api/v1/estimate/memory", json={**BASE, "concurrency": 0}).status_code == 422
+
+
+def test_workload_and_cost():
+    w = c.post("/api/v1/workloads/simulate", json={**BASE, "gpu": "H100 80GB SXM", "requests_per_month": 1_000_000, "output_tokens": 500}).json()
+    assert w["status"] == "estimated" and w["workload"]["usd_per_million_output_tokens"] > 0
+    assert w["workload"]["monthly_usd_always_on"] >= w["workload"]["monthly_usd_pay_per_use"]
+    k = c.post("/api/v1/cost/estimate", json={**BASE, "hardware_usd": 1800}).json()
+    assert k["self_hosted"]["usd_hr_while_running"] > 0
+    big = c.post("/api/v1/cost/estimate", json={**BASE, "model": "Llama-3.1-70B", "quantization": "fp16 / bf16"}).json()
+    assert big["status"] == "does_not_fit"
+
+
+def test_workload_math_and_break_even():
+    from app.workload import break_even_months, self_hosted_usd_hr, simulate
+    s = simulate(100, 4, 1, 500, 1_000_000, 0.5)  # same case as test.js
+    assert s["aggregate_tok_s"] == 200 and round(s["usd_per_million_output_tokens"], 3) == 1.389 and round(s["gpu_hours_per_month"]) == 694
+    # $3650 over 36 months = $101.4/month, no power/hosting: $0.139/hr; renting at $0.40 saves $0.261/hr x 730h
+    own = self_hosted_usd_hr(3650, 36, 0, 0)
+    assert round(own, 3) == 0.139 and round(break_even_months(3650, 0.40, own, 730), 1) == 19.1
+    assert break_even_months(3650, 0.10, own, 730) is None
+
+
+def test_compare_warns_on_different_workloads():
+    a = {**BASE, "requests_per_month": 1000}
+    same = c.post("/api/v1/configurations/compare", json={"configurations": [a, {**a, "gpu": "A100 80GB"}]}).json()
+    assert same["warnings"] == [] and len(same["results"]) == 2
+    diff = c.post("/api/v1/configurations/compare", json={"configurations": [a, {**a, "output_tokens": 999}]}).json()
+    assert diff["warnings"]
+
+
+def test_recommendations():
+    r = c.post("/api/v1/recommendations", json={"model": "Llama-3.1-8B", "concurrency": 4, "max_usd_hr": 1.0}).json()
+    assert r["feasible"] > 0 and r["picks"]["cheapest"]["usd_hr"] <= 1.0
+    assert r["picks"]["fastest"]["decode_ceiling_tok_s"] >= r["picks"]["cheapest"]["decode_ceiling_tok_s"]
+    none = c.post("/api/v1/recommendations", json={"model": "Llama-3.1-405B", "max_usd_hr": 0.01}).json()
+    assert none["feasible"] == 0 and none["picks"] == {}
