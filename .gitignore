@@ -12,3 +12,8 @@ Thumbs.db
 _x.js
 node_modules/
 __pycache__/
+__pycache__/
+.pytest_cache/
+*.db
+.env
+node_modules/

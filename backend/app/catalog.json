@@ -1,0 +1,1247 @@
+{
+ "models": {
+  "Llama-2-7B": {
+   "creator": "Meta",
+   "params_b": 6.74,
+   "layers": 32,
+   "kv_heads": 32,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/NousResearch/Llama-2-7b-hf/blob/main/config.json"
+  },
+  "Llama-3.2-1B": {
+   "creator": "Meta",
+   "params_b": 1.24,
+   "layers": 16,
+   "kv_heads": 8,
+   "head_dim": 64,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/unsloth/Llama-3.2-1B/blob/main/config.json"
+  },
+  "Llama-3.2-3B": {
+   "creator": "Meta",
+   "params_b": 3.21,
+   "layers": 28,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/unsloth/Llama-3.2-3B/blob/main/config.json"
+  },
+  "Llama-3.1-8B": {
+   "creator": "Meta",
+   "params_b": 8.03,
+   "layers": 32,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/unsloth/Llama-3.1-8B/blob/main/config.json"
+  },
+  "Llama-3.1-70B": {
+   "creator": "Meta",
+   "params_b": 70.55,
+   "layers": 80,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/unsloth/Llama-3.1-70B/blob/main/config.json"
+  },
+  "Llama-3.3-70B": {
+   "creator": "Meta",
+   "params_b": 70.55,
+   "layers": 80,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/unsloth/Llama-3.3-70B-Instruct/blob/main/config.json"
+  },
+  "Llama-3.1-405B": {
+   "creator": "Meta",
+   "params_b": 405.85,
+   "layers": 126,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/RedHatAI/Meta-Llama-3.1-405B-Instruct-FP8/blob/main/config.json"
+  },
+  "CodeLlama-7B": {
+   "creator": "Meta",
+   "params_b": 6.74,
+   "layers": 32,
+   "kv_heads": 32,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Code"
+   ],
+   "source": "https://huggingface.co/codellama/CodeLlama-7b-hf/blob/main/config.json"
+  },
+  "CodeLlama-13B": {
+   "creator": "Meta",
+   "params_b": 13.02,
+   "layers": 40,
+   "kv_heads": 40,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Code"
+   ],
+   "source": "https://huggingface.co/codellama/CodeLlama-13b-hf/blob/main/config.json"
+  },
+  "CodeLlama-34B": {
+   "creator": "Meta",
+   "params_b": 33.74,
+   "layers": 48,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Code"
+   ],
+   "source": "https://huggingface.co/codellama/CodeLlama-34b-hf/blob/main/config.json"
+  },
+  "Llama-3.2-11B-Vision": {
+   "creator": "Meta",
+   "params_b": 10.64,
+   "layers": 40,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Vision"
+   ],
+   "source": "https://huggingface.co/unsloth/Llama-3.2-11B-Vision/blob/main/config.json"
+  },
+  "Mistral-7B": {
+   "creator": "Mistral AI",
+   "params_b": 7.24,
+   "layers": 32,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/mistralai/Mistral-7B-v0.1/blob/main/config.json"
+  },
+  "Mixtral-8x7B (MoE)": {
+   "creator": "Mistral AI",
+   "params_b": 46.7,
+   "layers": 32,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": 12.9,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/mistralai/Mixtral-8x7B-v0.1/blob/main/config.json"
+  },
+  "Mixtral-8x22B (MoE)": {
+   "creator": "Mistral AI",
+   "params_b": 140.62,
+   "layers": 56,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": 39.1,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/mistralai/Mixtral-8x22B-v0.1/blob/main/config.json"
+  },
+  "Mistral-Nemo-12B": {
+   "creator": "Mistral AI",
+   "params_b": 12.25,
+   "layers": 40,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/mistralai/Mistral-Nemo-Base-2407/blob/main/config.json"
+  },
+  "Mistral-Small-24B": {
+   "creator": "Mistral AI",
+   "params_b": 23.57,
+   "layers": 40,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/mistralai/Mistral-Small-24B-Base-2501/blob/main/config.json"
+  },
+  "Qwen2.5-0.5B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 0.49,
+   "layers": 24,
+   "kv_heads": 2,
+   "head_dim": 64,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-0.5B/blob/main/config.json"
+  },
+  "Qwen2.5-1.5B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 1.54,
+   "layers": 28,
+   "kv_heads": 2,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-1.5B/blob/main/config.json"
+  },
+  "Qwen2.5-3B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 3.09,
+   "layers": 36,
+   "kv_heads": 2,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-3B/blob/main/config.json"
+  },
+  "Qwen2.5-7B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 7.62,
+   "layers": 28,
+   "kv_heads": 4,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-7B/blob/main/config.json"
+  },
+  "Qwen2.5-14B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 14.77,
+   "layers": 48,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-14B/blob/main/config.json"
+  },
+  "Qwen2.5-32B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 32.76,
+   "layers": 64,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-32B/blob/main/config.json"
+  },
+  "Qwen2.5-72B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 72.71,
+   "layers": 80,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-72B/blob/main/config.json"
+  },
+  "Qwen3-8B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 8.19,
+   "layers": 36,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General",
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen3-8B/blob/main/config.json"
+  },
+  "Qwen3-14B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 14.77,
+   "layers": 40,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General",
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen3-14B/blob/main/config.json"
+  },
+  "Qwen3-32B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 32.76,
+   "layers": 64,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General",
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen3-32B/blob/main/config.json"
+  },
+  "Qwen3-30B-A3B (MoE)": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 30.53,
+   "layers": 48,
+   "kv_heads": 4,
+   "head_dim": 128,
+   "active_params_b": 3.3,
+   "use_cases": [
+    "General",
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen3-30B-A3B/blob/main/config.json"
+  },
+  "Qwen3-235B-A22B (MoE)": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 235.09,
+   "layers": 94,
+   "kv_heads": 4,
+   "head_dim": 128,
+   "active_params_b": 22,
+   "use_cases": [
+    "General",
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen3-235B-A22B/blob/main/config.json"
+  },
+  "Qwen2.5-Coder-7B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 7.62,
+   "layers": 28,
+   "kv_heads": 4,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Code"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-7B/blob/main/config.json"
+  },
+  "Qwen2.5-Coder-14B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 14.77,
+   "layers": 48,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Code"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-14B/blob/main/config.json"
+  },
+  "Qwen2.5-Coder-32B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 32.76,
+   "layers": 64,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Code"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-32B/blob/main/config.json"
+  },
+  "Qwen3-Coder-30B-A3B (MoE)": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 30.53,
+   "layers": 48,
+   "kv_heads": 4,
+   "head_dim": 128,
+   "active_params_b": 3.3,
+   "use_cases": [
+    "Code"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct/blob/main/config.json"
+  },
+  "Qwen2.5-VL-7B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 8.29,
+   "layers": 28,
+   "kv_heads": 4,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Vision"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct/blob/main/config.json"
+  },
+  "Qwen2.5-VL-32B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 33.45,
+   "layers": 64,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Vision"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-VL-32B-Instruct/blob/main/config.json"
+  },
+  "Qwen2.5-VL-72B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 73.41,
+   "layers": 80,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Vision"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-VL-72B-Instruct/blob/main/config.json"
+  },
+  "Qwen2.5-Math-7B": {
+   "creator": "Alibaba (Qwen)",
+   "params_b": 7.62,
+   "layers": 28,
+   "kv_heads": 4,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/Qwen/Qwen2.5-Math-7B/blob/main/config.json"
+  },
+  "Gemma-2-2B": {
+   "creator": "Google",
+   "params_b": 2.61,
+   "layers": 26,
+   "kv_heads": 4,
+   "head_dim": 256,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/unsloth/gemma-2-2b/blob/main/config.json"
+  },
+  "Gemma-2-9B": {
+   "creator": "Google",
+   "params_b": 9.24,
+   "layers": 42,
+   "kv_heads": 8,
+   "head_dim": 256,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/unsloth/gemma-2-9b/blob/main/config.json"
+  },
+  "Gemma-2-27B": {
+   "creator": "Google",
+   "params_b": 27.23,
+   "layers": 46,
+   "kv_heads": 16,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/unsloth/gemma-2-27b/blob/main/config.json"
+  },
+  "Gemma-3-4B": {
+   "creator": "Google",
+   "params_b": 4.3,
+   "layers": 34,
+   "kv_heads": 4,
+   "head_dim": 256,
+   "active_params_b": null,
+   "use_cases": [
+    "General",
+    "Vision"
+   ],
+   "source": "https://huggingface.co/unsloth/gemma-3-4b-pt/blob/main/config.json"
+  },
+  "Gemma-3-12B": {
+   "creator": "Google",
+   "params_b": 12.19,
+   "layers": 48,
+   "kv_heads": 8,
+   "head_dim": 256,
+   "active_params_b": null,
+   "use_cases": [
+    "General",
+    "Vision"
+   ],
+   "source": "https://huggingface.co/unsloth/gemma-3-12b-pt/blob/main/config.json"
+  },
+  "Gemma-3-27B": {
+   "creator": "Google",
+   "params_b": 27.43,
+   "layers": 62,
+   "kv_heads": 16,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General",
+    "Vision"
+   ],
+   "source": "https://huggingface.co/unsloth/gemma-3-27b-pt/blob/main/config.json"
+  },
+  "Phi-3-mini": {
+   "creator": "Microsoft",
+   "params_b": 3.82,
+   "layers": 32,
+   "kv_heads": 32,
+   "head_dim": 96,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/blob/main/config.json"
+  },
+  "Phi-4 (14B)": {
+   "creator": "Microsoft",
+   "params_b": 14.66,
+   "layers": 40,
+   "kv_heads": 10,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/microsoft/phi-4/blob/main/config.json"
+  },
+  "Phi-3.5-MoE (MoE)": {
+   "creator": "Microsoft",
+   "params_b": 41.87,
+   "layers": 32,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": 6.6,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/microsoft/Phi-3.5-MoE-instruct/blob/main/config.json"
+  },
+  "Phi-3.5-vision": {
+   "creator": "Microsoft",
+   "params_b": 4.15,
+   "layers": 32,
+   "kv_heads": 32,
+   "head_dim": 96,
+   "active_params_b": null,
+   "use_cases": [
+    "Vision"
+   ],
+   "source": "https://huggingface.co/microsoft/Phi-3.5-vision-instruct/blob/main/config.json"
+  },
+  "R1-Distill-Qwen-7B": {
+   "creator": "DeepSeek",
+   "params_b": 7.62,
+   "layers": 28,
+   "kv_heads": 4,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B/blob/main/config.json"
+  },
+  "R1-Distill-Llama-8B": {
+   "creator": "DeepSeek",
+   "params_b": 8.03,
+   "layers": 32,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-8B/blob/main/config.json"
+  },
+  "R1-Distill-Qwen-32B": {
+   "creator": "DeepSeek",
+   "params_b": 32.76,
+   "layers": 64,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-32B/blob/main/config.json"
+  },
+  "R1-Distill-Llama-70B": {
+   "creator": "DeepSeek",
+   "params_b": 70.55,
+   "layers": 80,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-70B/blob/main/config.json"
+  },
+  "DeepSeek-V2-Lite (MoE, MLA)": {
+   "creator": "DeepSeek",
+   "params_b": 15.71,
+   "layers": 27,
+   "kv_heads": 1,
+   "head_dim": 288,
+   "active_params_b": 2.4,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite/blob/main/config.json"
+  },
+  "DeepSeek-V3 (MoE, MLA)": {
+   "creator": "DeepSeek",
+   "params_b": 684.49,
+   "layers": 61,
+   "kv_heads": 1,
+   "head_dim": 288,
+   "active_params_b": 37,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-V3/blob/main/config.json"
+  },
+  "DeepSeek-Coder-6.7B": {
+   "creator": "DeepSeek",
+   "params_b": 6.74,
+   "layers": 32,
+   "kv_heads": 32,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Code"
+   ],
+   "source": "https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-base/blob/main/config.json"
+  },
+  "DeepSeek-Coder-V2-Lite (MoE, MLA)": {
+   "creator": "DeepSeek",
+   "params_b": 15.71,
+   "layers": 27,
+   "kv_heads": 1,
+   "head_dim": 288,
+   "active_params_b": 2.4,
+   "use_cases": [
+    "Code"
+   ],
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-Coder-V2-Lite-Base/blob/main/config.json"
+  },
+  "gpt-oss-20b (MoE)": {
+   "creator": "OpenAI",
+   "params_b": 20.91,
+   "layers": 24,
+   "kv_heads": 8,
+   "head_dim": 64,
+   "active_params_b": 3.6,
+   "use_cases": [
+    "General",
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/openai/gpt-oss-20b/blob/main/config.json"
+  },
+  "gpt-oss-120b (MoE)": {
+   "creator": "OpenAI",
+   "params_b": 116.83,
+   "layers": 36,
+   "kv_heads": 8,
+   "head_dim": 64,
+   "active_params_b": 5.1,
+   "use_cases": [
+    "General",
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/openai/gpt-oss-120b/blob/main/config.json"
+  },
+  "OLMo-2-7B (AI2)": {
+   "creator": "Others",
+   "params_b": 7.3,
+   "layers": 32,
+   "kv_heads": 32,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/allenai/OLMo-2-1124-7B/blob/main/config.json"
+  },
+  "Falcon3-7B (TII)": {
+   "creator": "Others",
+   "params_b": 7.46,
+   "layers": 28,
+   "kv_heads": 4,
+   "head_dim": 256,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/tiiuae/Falcon3-7B-Base/blob/main/config.json"
+  },
+  "SmolLM2-1.7B (HF)": {
+   "creator": "Others",
+   "params_b": 1.71,
+   "layers": 24,
+   "kv_heads": 32,
+   "head_dim": 64,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B/blob/main/config.json"
+  },
+  "Yi-1.5-34B (01.AI)": {
+   "creator": "Others",
+   "params_b": 34.39,
+   "layers": 60,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/01-ai/Yi-1.5-34B/blob/main/config.json"
+  },
+  "InternLM2.5-7B (Shanghai AI Lab)": {
+   "creator": "Others",
+   "params_b": 7.74,
+   "layers": 32,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/internlm/internlm2_5-7b/blob/main/config.json"
+  },
+  "Kimi-K2 (Moonshot, MoE, MLA)": {
+   "creator": "Others",
+   "params_b": 1026.41,
+   "layers": 61,
+   "kv_heads": 1,
+   "head_dim": 288,
+   "active_params_b": 32,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/moonshotai/Kimi-K2-Instruct/blob/main/config.json"
+  },
+  "StarCoder2-15B (BigCode)": {
+   "creator": "Others",
+   "params_b": 15.96,
+   "layers": 40,
+   "kv_heads": 4,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Code"
+   ],
+   "source": "https://huggingface.co/bigcode/starcoder2-15b/blob/main/config.json"
+  },
+  "SmolVLM-2B (HF)": {
+   "creator": "Others",
+   "params_b": 2.25,
+   "layers": 24,
+   "kv_heads": 32,
+   "head_dim": 64,
+   "active_params_b": null,
+   "use_cases": [
+    "Vision"
+   ],
+   "source": "https://huggingface.co/HuggingFaceTB/SmolVLM-Instruct/blob/main/config.json"
+  },
+  "Fin-R1-7B (SUFE)": {
+   "creator": "Others",
+   "params_b": 7.62,
+   "layers": 28,
+   "kv_heads": 4,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "Finance",
+    "Math & reasoning"
+   ],
+   "source": "https://huggingface.co/SUFE-AIFLM-Lab/Fin-R1/blob/main/config.json"
+  }
+ },
+ "quants": {
+  "fp32": {
+   "family": "Full precision",
+   "bytes_per_param": 4,
+   "quality_loss_pct": 0,
+   "quality_measured": true
+  },
+  "fp16 / bf16": {
+   "family": "Full precision",
+   "bytes_per_param": 2,
+   "quality_loss_pct": 0,
+   "quality_measured": true
+  },
+  "fp8": {
+   "family": "Float 8/4 (hardware)",
+   "bytes_per_param": 1,
+   "quality_loss_pct": 0.1,
+   "quality_measured": false
+  },
+  "MXFP4 / NVFP4": {
+   "family": "Float 8/4 (hardware)",
+   "bytes_per_param": 0.53,
+   "quality_loss_pct": 2,
+   "quality_measured": false
+  },
+  "int8 (W8A8 / LLM.int8)": {
+   "family": "Integer (GPU)",
+   "bytes_per_param": 1,
+   "quality_loss_pct": 0.1,
+   "quality_measured": false
+  },
+  "GPTQ / AWQ int4": {
+   "family": "Integer (GPU)",
+   "bytes_per_param": 0.53,
+   "quality_loss_pct": 2,
+   "quality_measured": false
+  },
+  "bitsandbytes NF4": {
+   "family": "Integer (GPU)",
+   "bytes_per_param": 0.53,
+   "quality_loss_pct": 2.5,
+   "quality_measured": false
+  },
+  "int3": {
+   "family": "Integer (GPU)",
+   "bytes_per_param": 0.4,
+   "quality_loss_pct": 8,
+   "quality_measured": false
+  },
+  "int2": {
+   "family": "Integer (GPU)",
+   "bytes_per_param": 0.28,
+   "quality_loss_pct": 40,
+   "quality_measured": false
+  },
+  "Q8_0": {
+   "family": "GGUF (llama.cpp)",
+   "bytes_per_param": 1.0625,
+   "quality_loss_pct": 0.007,
+   "quality_measured": true
+  },
+  "Q6_K": {
+   "family": "GGUF (llama.cpp)",
+   "bytes_per_param": 0.82,
+   "quality_loss_pct": 0.07,
+   "quality_measured": true
+  },
+  "Q5_K_M": {
+   "family": "GGUF (llama.cpp)",
+   "bytes_per_param": 0.71,
+   "quality_loss_pct": 0.24,
+   "quality_measured": true
+  },
+  "Q5_0": {
+   "family": "GGUF (llama.cpp)",
+   "bytes_per_param": 0.6875,
+   "quality_loss_pct": 1.2,
+   "quality_measured": true
+  },
+  "Q4_K_M": {
+   "family": "GGUF (llama.cpp)",
+   "bytes_per_param": 0.611,
+   "quality_loss_pct": 0.9,
+   "quality_measured": true
+  },
+  "Q4_0": {
+   "family": "GGUF (llama.cpp)",
+   "bytes_per_param": 0.5625,
+   "quality_loss_pct": 3.7,
+   "quality_measured": true
+  },
+  "Q3_K_M": {
+   "family": "GGUF (llama.cpp)",
+   "bytes_per_param": 0.489,
+   "quality_loss_pct": 4.1,
+   "quality_measured": true
+  },
+  "Q2_K": {
+   "family": "GGUF (llama.cpp)",
+   "bytes_per_param": 0.328,
+   "quality_loss_pct": 14.7,
+   "quality_measured": true
+  }
+ },
+ "gpus": {
+  "RTX 3060 12GB": {
+   "vendor": "NVIDIA GeForce",
+   "vram_gib": 12,
+   "bandwidth_gbs": 360,
+   "usd_hr": 0.1,
+   "tflops_fp16": null
+  },
+  "RTX 3080 10GB": {
+   "vendor": "NVIDIA GeForce",
+   "vram_gib": 10,
+   "bandwidth_gbs": 760,
+   "usd_hr": 0.15,
+   "tflops_fp16": null
+  },
+  "RTX 3090 24GB": {
+   "vendor": "NVIDIA GeForce",
+   "vram_gib": 24,
+   "bandwidth_gbs": 936,
+   "usd_hr": 0.25,
+   "tflops_fp16": 71
+  },
+  "RTX 4060 Ti 16GB": {
+   "vendor": "NVIDIA GeForce",
+   "vram_gib": 16,
+   "bandwidth_gbs": 288,
+   "usd_hr": 0.12,
+   "tflops_fp16": null
+  },
+  "RTX 4070 Ti Super 16GB": {
+   "vendor": "NVIDIA GeForce",
+   "vram_gib": 16,
+   "bandwidth_gbs": 672,
+   "usd_hr": 0.2,
+   "tflops_fp16": null
+  },
+  "RTX 4080 16GB": {
+   "vendor": "NVIDIA GeForce",
+   "vram_gib": 16,
+   "bandwidth_gbs": 717,
+   "usd_hr": 0.28,
+   "tflops_fp16": null
+  },
+  "RTX 4090 24GB": {
+   "vendor": "NVIDIA GeForce",
+   "vram_gib": 24,
+   "bandwidth_gbs": 1008,
+   "usd_hr": 0.4,
+   "tflops_fp16": 165
+  },
+  "RTX 5080 16GB": {
+   "vendor": "NVIDIA GeForce",
+   "vram_gib": 16,
+   "bandwidth_gbs": 960,
+   "usd_hr": 0.35,
+   "tflops_fp16": null
+  },
+  "RTX 5090 32GB": {
+   "vendor": "NVIDIA GeForce",
+   "vram_gib": 32,
+   "bandwidth_gbs": 1792,
+   "usd_hr": 0.7,
+   "tflops_fp16": null
+  },
+  "T4 16GB": {
+   "vendor": "NVIDIA Datacenter/Pro",
+   "vram_gib": 16,
+   "bandwidth_gbs": 320,
+   "usd_hr": 0.35,
+   "tflops_fp16": 65
+  },
+  "L4 24GB": {
+   "vendor": "NVIDIA Datacenter/Pro",
+   "vram_gib": 24,
+   "bandwidth_gbs": 300,
+   "usd_hr": 0.7,
+   "tflops_fp16": 121
+  },
+  "A10G 24GB": {
+   "vendor": "NVIDIA Datacenter/Pro",
+   "vram_gib": 24,
+   "bandwidth_gbs": 600,
+   "usd_hr": 1,
+   "tflops_fp16": null
+  },
+  "RTX A6000 48GB": {
+   "vendor": "NVIDIA Datacenter/Pro",
+   "vram_gib": 48,
+   "bandwidth_gbs": 768,
+   "usd_hr": 0.5,
+   "tflops_fp16": null
+  },
+  "RTX 6000 Ada 48GB": {
+   "vendor": "NVIDIA Datacenter/Pro",
+   "vram_gib": 48,
+   "bandwidth_gbs": 960,
+   "usd_hr": 0.9,
+   "tflops_fp16": null
+  },
+  "L40S 48GB": {
+   "vendor": "NVIDIA Datacenter/Pro",
+   "vram_gib": 48,
+   "bandwidth_gbs": 864,
+   "usd_hr": 1.8,
+   "tflops_fp16": 362
+  },
+  "A100 40GB": {
+   "vendor": "NVIDIA Datacenter/Pro",
+   "vram_gib": 40,
+   "bandwidth_gbs": 1555,
+   "usd_hr": 1.3,
+   "tflops_fp16": 312
+  },
+  "A100 80GB": {
+   "vendor": "NVIDIA Datacenter/Pro",
+   "vram_gib": 80,
+   "bandwidth_gbs": 2039,
+   "usd_hr": 1.8,
+   "tflops_fp16": 312
+  },
+  "H100 80GB SXM": {
+   "vendor": "NVIDIA Datacenter/Pro",
+   "vram_gib": 80,
+   "bandwidth_gbs": 3350,
+   "usd_hr": 3,
+   "tflops_fp16": 989
+  },
+  "H200 141GB": {
+   "vendor": "NVIDIA Datacenter/Pro",
+   "vram_gib": 141,
+   "bandwidth_gbs": 4800,
+   "usd_hr": 3.8,
+   "tflops_fp16": 989
+  },
+  "B200 192GB": {
+   "vendor": "NVIDIA Datacenter/Pro",
+   "vram_gib": 192,
+   "bandwidth_gbs": 8000,
+   "usd_hr": 6,
+   "tflops_fp16": 2250
+  },
+  "RX 7900 XTX 24GB": {
+   "vendor": "AMD",
+   "vram_gib": 24,
+   "bandwidth_gbs": 960,
+   "usd_hr": 0.3,
+   "tflops_fp16": null
+  },
+  "MI250X 128GB": {
+   "vendor": "AMD",
+   "vram_gib": 128,
+   "bandwidth_gbs": 3277,
+   "usd_hr": 1.5,
+   "tflops_fp16": null
+  },
+  "MI300X 192GB": {
+   "vendor": "AMD",
+   "vram_gib": 192,
+   "bandwidth_gbs": 5300,
+   "usd_hr": 2.5,
+   "tflops_fp16": 1307
+  },
+  "MI325X 256GB": {
+   "vendor": "AMD",
+   "vram_gib": 256,
+   "bandwidth_gbs": 6000,
+   "usd_hr": 3.5,
+   "tflops_fp16": null
+  },
+  "Arc A770 16GB": {
+   "vendor": "Intel",
+   "vram_gib": 16,
+   "bandwidth_gbs": 560,
+   "usd_hr": 0.12,
+   "tflops_fp16": null
+  },
+  "Gaudi 2 96GB": {
+   "vendor": "Intel",
+   "vram_gib": 96,
+   "bandwidth_gbs": 2450,
+   "usd_hr": 1.5,
+   "tflops_fp16": null
+  },
+  "M3 Max 128GB": {
+   "vendor": "Apple Silicon",
+   "vram_gib": 128,
+   "bandwidth_gbs": 400,
+   "usd_hr": 0.2,
+   "tflops_fp16": null
+  },
+  "M4 Max 128GB": {
+   "vendor": "Apple Silicon",
+   "vram_gib": 128,
+   "bandwidth_gbs": 546,
+   "usd_hr": 0.25,
+   "tflops_fp16": null
+  },
+  "M2 Ultra 192GB": {
+   "vendor": "Apple Silicon",
+   "vram_gib": 192,
+   "bandwidth_gbs": 800,
+   "usd_hr": 0.35,
+   "tflops_fp16": null
+  },
+  "M3 Ultra 512GB": {
+   "vendor": "Apple Silicon",
+   "vram_gib": 512,
+   "bandwidth_gbs": 819,
+   "usd_hr": 0.5,
+   "tflops_fp16": null
+  },
+  "Google TPU v5e 16GB": {
+   "vendor": "Cloud accelerators",
+   "vram_gib": 16,
+   "bandwidth_gbs": 819,
+   "usd_hr": 1.2,
+   "tflops_fp16": null
+  },
+  "Google TPU v5p 95GB": {
+   "vendor": "Cloud accelerators",
+   "vram_gib": 95,
+   "bandwidth_gbs": 2765,
+   "usd_hr": 4.2,
+   "tflops_fp16": null
+  },
+  "AWS Inferentia2 32GB": {
+   "vendor": "Cloud accelerators",
+   "vram_gib": 32,
+   "bandwidth_gbs": 820,
+   "usd_hr": 0.76,
+   "tflops_fp16": null
+  },
+  "AWS Trainium2 96GB": {
+   "vendor": "Cloud accelerators",
+   "vram_gib": 96,
+   "bandwidth_gbs": 2900,
+   "usd_hr": 3,
+   "tflops_fp16": null
+  },
+  "Desktop DDR4-3200 2ch 32GB": {
+   "vendor": "CPU / System RAM",
+   "vram_gib": 32,
+   "bandwidth_gbs": 51.2,
+   "usd_hr": 0.05,
+   "tflops_fp16": null
+  },
+  "Laptop DDR5-5600 2ch 32GB": {
+   "vendor": "CPU / System RAM",
+   "vram_gib": 32,
+   "bandwidth_gbs": 89.6,
+   "usd_hr": 0.05,
+   "tflops_fp16": null
+  },
+  "Desktop DDR5-6400 2ch 64GB": {
+   "vendor": "CPU / System RAM",
+   "vram_gib": 64,
+   "bandwidth_gbs": 102.4,
+   "usd_hr": 0.08,
+   "tflops_fp16": null
+  },
+  "Workstation DDR5-5600 4ch 128GB": {
+   "vendor": "CPU / System RAM",
+   "vram_gib": 128,
+   "bandwidth_gbs": 179.2,
+   "usd_hr": 0.25,
+   "tflops_fp16": null
+  },
+  "AI mini-PC LPDDR5X-8000 4ch 128GB": {
+   "vendor": "CPU / System RAM",
+   "vram_gib": 128,
+   "bandwidth_gbs": 256,
+   "usd_hr": 0.15,
+   "tflops_fp16": null
+  },
+  "Server Xeon DDR4-3200 8ch 512GB": {
+   "vendor": "CPU / System RAM",
+   "vram_gib": 512,
+   "bandwidth_gbs": 204.8,
+   "usd_hr": 0.6,
+   "tflops_fp16": null
+  },
+  "Server EPYC DDR5-4800 12ch 768GB": {
+   "vendor": "CPU / System RAM",
+   "vram_gib": 768,
+   "bandwidth_gbs": 460.8,
+   "usd_hr": 1,
+   "tflops_fp16": null
+  },
+  "Server EPYC DDR5-6400 12ch 768GB": {
+   "vendor": "CPU / System RAM",
+   "vram_gib": 768,
+   "bandwidth_gbs": 614.4,
+   "usd_hr": 1.3,
+   "tflops_fp16": null
+  }
+ },
+ "runs": [
+  {
+   "model": "Llama-2-7B",
+   "quant": "Q4_0",
+   "gpu": "RTX 5090 32GB",
+   "context": 128,
+   "users": 1,
+   "engine": "llama.cpp 8cf6b42",
+   "tok_s": 290.02,
+   "source": "https://github.com/ggml-org/llama.cpp/discussions/15013"
+  },
+  {
+   "model": "Llama-2-7B",
+   "quant": "Q4_0",
+   "gpu": "H100 80GB SXM",
+   "context": 128,
+   "users": 1,
+   "engine": "llama.cpp 5143fa8",
+   "tok_s": 267.81,
+   "source": "https://github.com/ggml-org/llama.cpp/discussions/15013"
+  },
+  {
+   "model": "Llama-2-7B",
+   "quant": "Q4_0",
+   "gpu": "A100 80GB",
+   "context": 128,
+   "users": 1,
+   "engine": "llama.cpp 5143fa8",
+   "tok_s": 190.88,
+   "source": "https://github.com/ggml-org/llama.cpp/discussions/15013"
+  },
+  {
+   "model": "Llama-2-7B",
+   "quant": "Q4_0",
+   "gpu": "RTX 4090 24GB",
+   "context": 128,
+   "users": 1,
+   "engine": "llama.cpp 2241453",
+   "tok_s": 186.21,
+   "source": "https://github.com/ggml-org/llama.cpp/discussions/15013"
+  },
+  {
+   "model": "Llama-2-7B",
+   "quant": "Q4_0",
+   "gpu": "RTX 3090 24GB",
+   "context": 128,
+   "users": 1,
+   "engine": "llama.cpp c76b420",
+   "tok_s": 158.16,
+   "source": "https://github.com/ggml-org/llama.cpp/discussions/15013"
+  }
+ ]
+}
