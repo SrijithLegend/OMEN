@@ -55,9 +55,9 @@ textarea{display:block;width:100%;margin-top:8px;padding:12px 14px;border:2px so
 .sm{margin:10px 8px 0 0}#wslist div{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #ffffff22}#wslist span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .res{display:none}#calc.done .res{display:block;animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 110ms)}
 #calc.done .res.stat{display:flex}#calc.done .res.hero{display:flex}#calc.done .res[hidden]{display:none}
-#learn:not([hidden]) .card,#bench:not([hidden]) .card{animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 60ms)}
+#learn:not([hidden]) .card,#bench:not([hidden]) .card,#api:not([hidden]) .card{animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 60ms)}
 @keyframes pop{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:none}}
-@media(prefers-reduced-motion:reduce){#calc.done .res,#learn .card,#bench .card{animation:none!important}}
+@media(prefers-reduced-motion:reduce){#calc.done .res,#learn .card,#bench .card,#api .card{animation:none!important}}
 .term b{display:block;font-size:1.6rem;line-height:1.1;margin-bottom:8px}.term p{margin:0 0 10px;font-size:1rem;line-height:1.5}
 .term small{display:block;padding:10px 12px;border-radius:12px;background:#ffffff14;font-size:.85rem;line-height:1.4}.sand.term small{background:#0000000d}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.steps div{padding:14px;border-radius:16px;background:#ffffff14;font-size:.95rem;line-height:1.4}
@@ -79,9 +79,12 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 .cta span{font-size:.85rem;color:var(--mute);max-width:26ch}
 .cta a{padding:10px 18px;border-radius:99px;background:var(--orange);color:var(--ink);text-decoration:none;white-space:nowrap}
 .cta a:hover{filter:brightness(1.08)}
+.v-ok{background:var(--pink);color:var(--ink)}.v-no{background:var(--orange);color:var(--ink)}.v-ok .lab,.v-ok small{color:#8a4a44}.v-no .lab,.v-no small{color:#5a2300}
+.conf{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.78rem;font-weight:700;background:#ececee;color:var(--ink)}.conf.high{background:var(--orange)}
+.sand table th{color:#777}.sand td,.sand th{border-top:1px solid #0000001a}
 @media(max-width:760px){.steps{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.s4,.s3,.s2{grid-column:span 2}.two{grid-template-columns:1fr}.r2{grid-row:auto}}
 </style>
-<nav class=tabs><button class=on data-tab=calc>GPU calculator</button><button data-tab=learn>Guide</button><button data-tab=bench>Benchmarks</button></nav>
+<nav class=tabs><button class=on data-tab=calc>GPU calculator</button><button data-tab=learn>Guide</button><button data-tab=bench>Benchmarks</button><button data-tab=api>Live API</button></nav>
 <div class=grid id=learn hidden>
   <div class="card s4"><h1>Plain English</h1><p class=tag>Never run an AI model yourself? Here is every term OMEN uses, with no jargon.</p>
     <div class=steps><div><em>1</em>Pick the AI model you want to run.</div><div><em>2</em>Pick the graphics card (GPU) you have or want to rent.</div><div><em>3</em>Say how much text and how many people, then press Calculate.</div></div>
@@ -93,6 +96,33 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
   <div class="card s4"><span class=lab>Check your own result</span><p class=tag>Paste a result as JSON (see run-template.json). Nothing is sent anywhere until you choose to submit.</p>
     <textarea id=runjson rows=9 placeholder='{"model": "Llama-3.1-8B", "quant": "Q4_K_M", "gpu": "RTX 4090 24GB", "context": 8192, "users": 1, "engine": "llama.cpp b1234", "tok_s": 120, "source": "https://..."}'></textarea>
     <button type=button class=go2 id=runcheck>Check result</button><div id=runout></div></div>
+</div>
+<div class=grid id=api hidden>
+  <div class="card s4"><h1>Live API</h1><p class=tag>The same catalog answered by the OMEN backend: memory, speed, recommendations with a confidence level, benchmarks and recorded cloud prices.</p></div>
+  <div class="card sand s4"><span class=lab>Server</span>
+    <div class=two style="align-items:end"><label>API address <input id=apiurl placeholder="http://localhost:8000"></label><div><button type=button class=go2 id=apiconn style="margin:0">Connect</button></div></div>
+    <small id=apistat>Not connected. In the backend folder run: uvicorn app.main:app</small></div>
+  <div class="card sand s4"><span class=lab>Setup</span>
+    <div class=two>
+      <label>Model <input id=am list=amd placeholder="Choose a model" autocomplete=off></label>
+      <label>Quantization <input id=aq list=aqd placeholder="Choose quantization" autocomplete=off></label>
+      <label>GPU <input id=ag list=agd placeholder="Choose a GPU" autocomplete=off></label>
+      <label>Number of GPUs <input id=an type=number min=1 placeholder="1"></label>
+      <label>Context (tokens) <input id=ac type=number min=1 placeholder="8192"></label>
+      <label>Users <input id=au type=number min=1 placeholder="1"></label>
+    </div>
+    <datalist id=amd></datalist><datalist id=aqd></datalist><datalist id=agd></datalist>
+    <button type=button class=go2 id=aest>Estimate memory and speed</button>
+    <details open><summary>Recommend a GPU and quantization for this model</summary>
+      <div class=two style="margin-top:8px">
+        <label>Max $ per hour <input id=ab type=number min=0 step=any placeholder="no limit"></label>
+        <label>Min tokens/s per user <input id=amt type=number min=0 placeholder="10"></label>
+        <label>Max quality loss (%) <input id=aml type=number min=0 step=any placeholder="5"></label>
+        <label>Confidence <button type=button class=sm id=ahi style="display:block;margin:6px 0 0">Any confidence</button></label>
+      </div>
+      <button type=button class=go2 id=arec>Recommend</button></details>
+    <button type=button class=sm id=abench>Show benchmarks</button><button type=button class=sm id=aprice>Show cloud prices</button></div>
+  <div id=aout style="display:contents"></div>
 </div>
 <div class=grid id=calc>
   <div class="card s4 title"><h1>OMEN</h1><p class=tag>GPU Calculator &middot; will it fit? How fast? What does it cost?</p></div>
@@ -180,14 +210,82 @@ const QUIZ = [
 g("learn").insertAdjacentHTML("beforeend", `<div class="card s4" id=quiz><span class=lab>Test your understanding</span>` + QUIZ.map(([q, o], i) => `<fieldset style="border:0;padding:0;margin:0 0 14px"><legend><b>${i + 1}. ${q}</b></legend>${o.map((t, j) => `<label style="display:block;margin:6px 0"><input type=radio name=q${i} value=${j} style="display:inline;width:auto;margin:0 8px 0 0"> ${t}</label>`).join("")}</fieldset>`).join("") + `<button type=button class=go2 id=quizgo>Check answers</button> <b id=quizout></b></div>`);
 g("quizgo").onclick = () => { let ok = 0; QUIZ.forEach(([, , a], i) => { const v = document.querySelector(`input[name=q${i}]:checked`); ok += v && +v.value == a; });
   g("quizout").textContent = `${ok} of ${QUIZ.length} correct` + (ok == QUIZ.length ? ". Nice." : ". Re-read the Guide terms above and try again."); };
+// ---- Live API tab: calls the FastAPI backend; the calculator tab does not depend on it.
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => "&#" + c.charCodeAt(0) + ";"); // submitted benchmark text is untrusted
+const link = u => /^https?:\/\//.test(u || "") ? `<a href="${esc(u)}" target=_blank rel=noopener>source</a>` : "none";
+try { g("apiurl").value = localStorage.getItem("omen_api") || ""; } catch {}
+g("apiurl").value ||= "http://localhost:8000";
+let HIGH = false;
+g("ahi").onclick = () => { HIGH = !HIGH; g("ahi").textContent = HIGH ? "Only high confidence (75%+)" : "Any confidence"; };
+const api = async (path, body) => {
+  const base = g("apiurl").value.trim().replace(/\/$/, "");
+  try { localStorage.setItem("omen_api", base); } catch {}
+  let r; try { r = await fetch(base + path, body ? {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(body)} : {}); }
+  catch { throw new Error(`Cannot reach the server at ${base}. Is it running, and is the address right?`); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(typeof j.detail == "string" ? j.detail : `${r.status} ${r.statusText}${j.detail ? ": " + JSON.stringify(j.detail).slice(0, 200) : ""}`);
+  return j;
+};
+const card = (cls, html) => `<div class="card ${cls}">${html}</div>`;
+const show = html => { g("aout").innerHTML = html; [...g("aout").children].forEach((e, i) => e.style.setProperty("--i", i)); };
+const fail = e => show(card("s4", `<span class=lab>Could not get an answer</span><p style="margin:0">${esc(e.message)}</p>`));
+const stat = (lab, val, note = "") => card("stat", `<span class=lab>${lab}</span><b>${val}</b><small>${note}</small>`);
+const table = (head, rows) => `<div style="overflow:auto"><table><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</table></div>`;
+const warns = w => w?.length ? `<small>${w.map(esc).join(" ")}</small>` : "";
+const aconf = () => ({model: g("am").value, quantization: g("aq").value, gpu: g("ag").value, gpu_count: +g("an").value || 1, context_length: +g("ac").value || 8192, concurrency: +g("au").value || 1});
+const FIT = {measured_to_fit: "Measured to fit", likely_fits: "Likely fits", fits_theoretically: "Fits theoretically", does_not_fit_under_stated_assumptions: "Does not fit under stated assumptions"};
+g("apiconn").onclick = async () => {
+  try { const n = Object.keys(await api("/api/v1/gpus")).length; g("apistat").textContent = `Connected: ${n} GPUs in the server's catalog.`; }
+  catch (e) { g("apistat").textContent = e.message; }
+};
+g("aest").onclick = async () => {
+  try {
+    const c = aconf(), [m, p] = await Promise.all([api("/api/v1/estimate/memory", c), api("/api/v1/estimate/performance", c)]), r = m.memory, f = p.performance;
+    const n = m.evidence.benchmark_count;
+    show(card("s2 " + (r.fits ? "v-ok" : "v-no"), `<span class=lab>Fit</span><b class=big>${FIT[r.status] || esc(r.status)}</b><small>${r.total_gib.toFixed(1)} GiB needed of ${r.vram_gib.toFixed(0)} GiB. Largest part: ${esc(r.largest_component.replace("_", " "))}.</small>`)
+      + card("s2 sand", `<span class=lab>Evidence</span><b class=big>${n ? "Measured runs exist" : "Estimate only"}</b><small>${n ? n + " published run(s) for this exact model, quantization and GPU, but the numbers below are still estimates." : "Nothing has been measured for this setup."} ${esc(m.warnings.join(" "))}</small>`)
+      + stat("Weights", r.weights_gib.toFixed(1) + " GiB") + stat("KV cache (all users)", r.kv_gib_total.toFixed(2) + " GiB", `${r.kv_gib_per_user.toFixed(2)} GiB per user`)
+      + stat("Most users that fit", r.max_users) + stat("Decode speed", f.decode_tok_s.toFixed(0) + " tok/s", `ceiling ${f.decode_ceiling_tok_s.toFixed(0)} tok/s, utilization ${(f.utilization_used * 100).toFixed(0)}%`)
+      + stat("Time to first token", f.ttft_ms == null ? "n/a" : f.ttft_ms.toFixed(0) + " ms", f.ttft_ms == null ? "no compute figure for this GPU" : "2000-token prompt")
+      + stat("Per output token", f.tpot_ms.toFixed(1) + " ms", "bottleneck: " + esc(f.bottleneck.replace("_", " "))));
+  } catch (e) { fail(e); }
+};
+g("arec").onclick = async () => {
+  try {
+    const num = (id, d) => g(id).value === "" ? d : +g(id).value, c = aconf();
+    const r = await api("/api/v1/recommendations", {model: c.model, gpu_count: c.gpu_count, context_length: c.context_length, concurrency: c.concurrency,
+      max_usd_hr: num("ab", null) || null, min_tok_s: num("amt", 10), max_quality_loss_pct: num("aml", 5), min_confidence: HIGH ? 0.75 : 0});
+    const rm = Object.entries(r.removed).filter(([, v]) => v).map(([k, v]) => `${v} ${k.replace(/_/g, " ")}`).join(", ");
+    const sum = card("s4", `<span class=lab>Recommendations</span><b class=big>${r.feasible} of ${r.combinations_tried} setups pass your limits</b><small>${rm ? "Removed: " + esc(rm) + "." : ""}</small>`);
+    const rows = Object.entries(r.picks).map(([k, p]) => [k.replace("_", " "), esc(p.gpu), esc(p.quantization), "$" + p.usd_hr.toFixed(2), p.decode_ceiling_tok_s.toFixed(0), p.quality_loss_pct + "%",
+      `<span class="conf ${p.confidence_label == "high" ? "high" : ""}" title="${esc(p.confidence_basis)}">${p.confidence_label} ${(p.confidence * 100).toFixed(0)}%</span>`, `<small>${esc(p.confidence_basis)}</small>`]);
+    show(sum + (rows.length ? card("sand s4", `<span class=lab>One pick per priority (hard limits applied first, no blended score)</span>` + table(["Priority", "GPU", "Quantization", "$/hr", "Speed ceiling tok/s", "Quality loss", "Confidence", "Why"], rows) + warns(r.warnings)) : ""));
+  } catch (e) { fail(e); }
+};
+g("abench").onclick = async () => {
+  try {
+    const b = (await api("/api/v1/benchmarks")).results;
+    show(card("sand s4", `<span class=lab>Benchmarks (${b.length}). Submitters appear only if they opted in.</span>` + table(["Model", "Quant", "GPU", "Engine", "Context", "Users", "tok/s per user", "Status", "Source"],
+      b.map(x => [esc(x.model), esc(x.quant), esc(x.gpu), esc(x.engine), x.context_tokens, x.users, x.tok_s_per_user.toFixed(1), esc(x.status), link(x.source_url)]))));
+  } catch (e) { fail(e); }
+};
+g("aprice").onclick = async () => {
+  try {
+    const p = await api("/api/v1/prices");
+    show(card("sand s4", `<span class=lab>Recorded cloud prices (${p.prices.length})</span>` + (p.prices.length ? table(["Provider", "Instance", "Region", "GPU", "Pricing", "$/hr", "$/hr per GPU", "Read on", "Source"],
+      p.prices.map(x => [esc(x.provider), esc(x.instance_type), esc(x.region), `${x.gpu_count} x ${esc(x.gpu)}`, esc(x.pricing_model), x.usd_hr.toFixed(2), x.usd_hr_per_gpu.toFixed(2), esc(x.observed_at), link(x.source_url)]))
+      : `<p style="margin:0">None yet. A reviewer adds each price with its source and date (POST /api/v1/prices); OMEN does not invent them. Providers accepted: ${p.providers.map(esc).join(", ")}.</p>`)));
+  } catch (e) { fail(e); }
+};
 document.querySelectorAll("#learn .card,#bench .card").forEach((e, i) => e.style.setProperty("--i", i));
 document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
   document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x.dataset.tab == b.dataset.tab));
-  ["calc", "learn", "bench"].forEach(t => g(t).hidden = b.dataset.tab != t); scrollTo(0, 0);
+  ["calc", "learn", "bench", "api"].forEach(t => g(t).hidden = b.dataset.tab != t); scrollTo(0, 0);
 });
 const MODELS = Object.assign({}, ...Object.values(MODELS_BY_CREATOR));
 const QUANTS = Object.assign({}, ...Object.values(QUANTS_BY_FAMILY));
 const GPUS = Object.assign({}, ...Object.values(GPUS_BY_VENDOR));
+for (const [id, o] of [["amd", MODELS], ["aqd", QUANTS], ["agd", GPUS]]) g(id).innerHTML = Object.keys(o).map(n => `<option value="${esc(n)}">`).join("");
 const FENCE = "\x60\x60\x60"; // markdown code fence
 const IDS = ["uc", "m", "q", "g", "c", "u", "n", "ov", "pr", "ot", "rq", "ut", "it", "bd", "mt", "ml"]; // inputs stored in the URL
 const LOGOS = {Meta: "meta", "Mistral AI": "mistralai", "Alibaba (Qwen)": "alibabacloud", Google: "google", Microsoft: "microsoft", DeepSeek: "deepseek", OpenAI: "openai"}; // simple-icons slugs

@@ -5,6 +5,7 @@ import secrets
 import time
 from contextlib import asynccontextmanager
 
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from sqlalchemy import delete, insert, select, update
@@ -24,6 +25,7 @@ async def lifespan(_):
 
 
 app = FastAPI(title="OMEN Inference Intelligence", version="0.1.0", lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("OMEN_CORS", "*").split(","), allow_methods=["*"], allow_headers=["*"])  # restrict with OMEN_CORS=https://your.site
 
 
 REQUESTS = Counter("omen_http_requests_total", "HTTP requests", ["method", "route", "status"])
