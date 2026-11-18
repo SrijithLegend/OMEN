@@ -232,7 +232,9 @@ function render() {
   $("vt").textContent = (ok ? "Fits " : "Does not fit ") + users + " users";
   $("vs").textContent = `Headroom ${r.free.toFixed(1)} GiB before KV.` + (ok ? "" :
     ` Needs at least ${minGpus("fp16 / bf16", p, r.kv, users, gib)} x this GPU in fp16, or ${minGpus("GPTQ / AWQ int4", p, r.kv, users, gib)} in int4 (minimums: ignore per-GPU overhead and interconnect losses).`);
-  $("conf").textContent = run ? "Speed MEASURED, rest estimated" : "Estimated";
+  // Fit status levels (spec F): measured to fit > likely fits (10%+ of the GPU spare) > fits theoretically (tight) > does not fit.
+  const spare = (gib - need) / gib, status = !ok ? "Does not fit under stated assumptions" : run ? "Measured to fit" : spare >= 0.1 ? "Likely fits" : "Fits theoretically (tight)";
+  $("conf").textContent = status + " · " + (run ? "speed MEASURED, rest estimated" : "estimated, not measured");
   const [ql, qm] = QUALITY_LOSS[$("q").value] || [0, 0];
   $("sq").textContent = ql ? "+" + (ql < 1 ? ql : ql.toFixed(1)) + "%" : "None";
   $("sqs").textContent = (ql ? "perplexity vs fp16, " : "same as fp16, ") + (qm ? "measured (llama.cpp, 7B)" : "typical, estimated");
