@@ -47,7 +47,7 @@ def search(**f) -> list[dict]:
         if f.get(k):
             q = q.where(T.c[k] == f[k])
     with db.engine.connect() as c:
-        return [{k: v for k, v in r.items() if k not in ("submitter",)} for r in c.execute(q.order_by(T.c.id)).mappings()]
+        return [{k: v for k, v in r.items() if k != "attribute_me" and (k != "submitter" or r["attribute_me"])} for r in c.execute(q.order_by(T.c.id)).mappings()]
 
 
 def verify(run_id: int) -> bool:

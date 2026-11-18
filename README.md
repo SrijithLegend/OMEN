@@ -132,7 +132,7 @@ OMEN_ADMIN_KEY=choose-a-secret uvicorn app.main:app --reload   # docs at http://
 | `POST /api/v1/keys`, `/workspaces/{project}/analyses`, `/workspaces/{project}/changes` | Hashed API keys with a rate limit, private saved analyses, re-run and report material changes |
 | `GET /metrics` | Prometheus metrics |
 
-`backend/omen_bench.py` measures any OpenAI-compatible server (vLLM, llama.cpp server) and writes a result file. It submits only with `--consent`.
+`backend/omen_bench.py` measures any OpenAI-compatible server (vLLM, llama.cpp server) and writes a result file. It submits only with `--consent`. Publishing and name attribution are both opt-in: the submitter name is hidden unless you also pass `--attribute`. (If you already have a database file from before this change, delete it: the schema gained a column.)
 
 The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects PostgreSQL, and `docker compose up --build` in `backend/` starts the API, PostgreSQL and Prometheus. The PostgreSQL path and the Docker files are untested: the Docker daemon was not running when this was written. Only SQLite is tested.
 

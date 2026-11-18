@@ -210,6 +210,7 @@ class BenchmarkSubmission(BaseModel):
     source_url: str | None = None
     submitter: str | None = None
     consent_to_publish: bool
+    attribute_me: bool = False  # opt-in: without it the submitter name is stored but never shown
 
 
 @app.post("/api/v1/benchmarks/submit", status_code=202)

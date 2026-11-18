@@ -16,6 +16,7 @@ benchmark_runs = Table(
     Column("engine", String, nullable=False), Column("context_tokens", Integer, nullable=False), Column("users", Integer, nullable=False),
     Column("tok_s_per_user", Float, nullable=False), Column("ttft_ms", Float), Column("tpot_ms", Float), Column("vram_gib", Float),
     Column("source_url", String), Column("submitter", String), Column("consent_to_publish", Boolean, nullable=False, default=False),
+    Column("attribute_me", Boolean, nullable=False, default=False),  # opt-in: show the submitter name publicly
     Column("status", String, nullable=False),  # pending -> community | rejected; sourced (imported); verified (reviewer)
     Column("problems", JSON, nullable=False, default=list),
     Column("duplicate_of", Integer), Column("created_at", String, server_default=func.now()),

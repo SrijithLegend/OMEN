@@ -72,7 +72,7 @@ def run(args) -> dict:
         "model": args.model, "quant": args.quant, "gpu": args.gpu, "engine": args.engine,
         "context_tokens": args.input_tokens + args.output_tokens, "users": args.users,
         "tok_s_per_user": 1000 / tpot, "ttft_ms": statistics.median(r["ttft_ms"] for r in results), "tpot_ms": tpot,
-        "vram_gib": vram_gib(), "source_url": args.source_url, "submitter": args.submitter, "consent_to_publish": False,
+        "vram_gib": vram_gib(), "source_url": args.source_url, "submitter": args.submitter, "consent_to_publish": False, "attribute_me": args.attribute,
         "aggregate_tok_s": sum(r["tokens"] for r in results) / wall,
         "notes": f"{len(results)} requests ({len(errors)} failed), {args.warmup} warm-up, medians; tokens counted as streamed chunks",
     }
@@ -103,6 +103,7 @@ def main(argv=None):
     p.add_argument("--output-tokens", type=int, default=128)
     p.add_argument("--source-url", default=None)
     p.add_argument("--submitter", default=None)
+    p.add_argument("--attribute", action="store_true", help="opt in to showing --submitter publicly (default: anonymous)")
     p.add_argument("--output", default="omen-result.json")
     p.add_argument("--submit", metavar="API_URL", help="OMEN API base URL to submit to")
     p.add_argument("--consent", action="store_true", help="required with --submit: you agree to publish this result")

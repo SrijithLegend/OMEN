@@ -150,3 +150,10 @@ def test_metrics_endpoint():
     c.get("/api/v1/models/Llama-3.1-8B")
     text = c.get("/metrics").text
     assert 'omen_http_requests_total{method="GET",route="/api/v1/models/{model_id}",status="200"}' in text
+
+
+def test_submitter_is_shown_only_when_opted_in():
+    a = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 777, "submitter": "anon-person"}).json()["id"]
+    b = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 778, "submitter": "proud-person", "attribute_me": True}).json()["id"]
+    got = {x["id"]: x for x in c.get("/api/v1/benchmarks", params={"status": "community"}).json()["results"]}
+    assert "submitter" not in got[a] and got[b]["submitter"] == "proud-person" and "attribute_me" not in got[b]
