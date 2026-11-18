@@ -1,14 +1,24 @@
 """OMEN API. Run from the backend folder: uvicorn app.main:app --reload   (interactive docs at /docs)."""
-from fastapi import FastAPI, HTTPException
+import os
+from contextlib import asynccontextmanager
+
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from . import benchmarks, db
 from .catalog import GPUS, MODELS, QUANTS, RUNS, get
 from .memory import estimate_memory
 from .performance import estimate_performance
 from .recommend import candidates, recommend
 from .workload import HOURS_PER_MONTH, break_even_months, self_hosted_usd_hr, simulate
 
-app = FastAPI(title="OMEN Inference Intelligence", version="0.1.0")
+@asynccontextmanager
+async def lifespan(_):
+    db.init(RUNS)
+    yield
+
+
+app = FastAPI(title="OMEN Inference Intelligence", version="0.1.0", lifespan=lifespan)
 
 
 def _measured(model: str, quant: str, gpu: str) -> int:
@@ -160,3 +170,44 @@ def performance(c: PerfRequest):
     if r["ttft_ms"] is None:
         warnings.append("No compute figure for this GPU: prefill/TTFT is not estimated.")
     return {"status": "estimated", "performance": r, "evidence": _evidence(c), "warnings": warnings}
+
+
+class BenchmarkSubmission(BaseModel):
+    model: str
+    quant: str
+    gpu: str
+    engine: str = Field(min_length=1)
+    context_tokens: int = Field(ge=1)
+    users: int = Field(1, ge=1)
+    tok_s_per_user: float = Field(gt=0)
+    ttft_ms: float | None = Field(None, gt=0)
+    tpot_ms: float | None = Field(None, gt=0)
+    vram_gib: float | None = Field(None, gt=0)
+    source_url: str | None = None
+    submitter: str | None = None
+    consent_to_publish: bool
+
+
+@app.post("/api/v1/benchmarks/submit", status_code=202)
+def submit_benchmark(b: BenchmarkSubmission, background: BackgroundTasks):
+    """Needs explicit consent. Validation runs in the background; poll GET /benchmarks?status=... or the returned id."""
+    if not b.consent_to_publish:
+        raise HTTPException(400, "consent_to_publish must be true: OMEN never publishes a result without it")
+    run_id = benchmarks.submit(b.model_dump())
+    background.add_task(benchmarks.process, run_id)
+    return {"id": run_id, "status": "pending"}
+
+
+@app.get("/api/v1/benchmarks")
+def search_benchmarks(model: str | None = None, quant: str | None = None, gpu: str | None = None, engine: str | None = None, status: str | None = None):
+    return {"results": benchmarks.search(model=model, quant=quant, gpu=gpu, engine=engine, status=status)}
+
+
+@app.post("/api/v1/benchmarks/{run_id}/verify")
+def verify_benchmark(run_id: int, x_admin_key: str | None = Header(None)):
+    """Reviewer action. Needs OMEN_ADMIN_KEY set on the server; promotes a Community run to Verified."""
+    if not os.environ.get("OMEN_ADMIN_KEY") or x_admin_key != os.environ["OMEN_ADMIN_KEY"]:
+        raise HTTPException(403, "reviewer key required")
+    if not benchmarks.verify(run_id):
+        raise HTTPException(409, "only community runs can be verified")
+    return {"id": run_id, "status": "verified"}

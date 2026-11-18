@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 c = TestClient(app)
+c.__enter__()  # runs the app startup (creates and seeds the in-memory database)
 BASE = {"model": "Llama-3.1-8B", "quantization": "Q4_K_M", "gpu": "RTX 4090 24GB", "context_length": 8192, "concurrency": 4}
 
 
@@ -69,3 +70,31 @@ def test_recommendations():
     assert r["picks"]["fastest"]["decode_ceiling_tok_s"] >= r["picks"]["cheapest"]["decode_ceiling_tok_s"]
     none = c.post("/api/v1/recommendations", json={"model": "Llama-3.1-405B", "max_usd_hr": 0.01}).json()
     assert none["feasible"] == 0 and none["picks"] == {}
+
+
+GOOD = {"model": "Llama-3.1-8B", "quant": "Q4_K_M", "gpu": "RTX 4090 24GB", "engine": "llama.cpp b9999", "context_tokens": 4096, "users": 1,
+        "tok_s_per_user": 120, "source_url": "https://example.com/run", "consent_to_publish": True}
+
+
+def test_benchmark_flow():
+    seeded = c.get("/api/v1/benchmarks").json()["results"]
+    assert len(seeded) == 5 and all(r["status"] == "sourced" for r in seeded)
+    assert c.post("/api/v1/benchmarks/submit", json={**GOOD, "consent_to_publish": False}).status_code == 400
+    r = c.post("/api/v1/benchmarks/submit", json=GOOD)  # background validation has run by the time the response returns
+    assert r.status_code == 202
+    got = c.get("/api/v1/benchmarks", params={"status": "community"}).json()["results"]
+    assert [x["id"] for x in got] == [r.json()["id"]] and "submitter" not in got[0]
+    dup = c.post("/api/v1/benchmarks/submit", json={**GOOD, "tok_s_per_user": 121}).json()["id"]
+    row = c.get("/api/v1/benchmarks", params={"status": "rejected"}).json()["results"]
+    assert [x["id"] for x in row] == [dup] and row[0]["duplicate_of"] == r.json()["id"]
+
+
+def test_implausible_and_unknown_runs_are_rejected_and_verify_needs_key():
+    fast = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 1, "tok_s_per_user": 5000}).json()["id"]  # 8B Q4 on a 4090 cannot do 5000 tok/s
+    bogus = c.post("/api/v1/benchmarks/submit", json={**GOOD, "gpu": "Imaginary 9000"}).json()["id"]
+    rej = {x["id"]: x for x in c.get("/api/v1/benchmarks", params={"status": "rejected"}).json()["results"]}
+    assert "ceiling" in rej[fast]["problems"][0] and "not in the catalog" in rej[bogus]["problems"][0]
+    ok = c.get("/api/v1/benchmarks", params={"status": "community"}).json()["results"][0]["id"]
+    assert c.post(f"/api/v1/benchmarks/{ok}/verify").status_code == 403
+    assert c.post(f"/api/v1/benchmarks/{ok}/verify", headers={"x-admin-key": "test-admin"}).json()["status"] == "verified"
+    assert c.post(f"/api/v1/benchmarks/{ok}/verify", headers={"x-admin-key": "test-admin"}).status_code == 409
