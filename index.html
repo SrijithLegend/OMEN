@@ -111,7 +111,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
     <details><summary>How this is estimated</summary><ul id=asm></ul></details></div>
   <div class="card sand s2 meas res" id=meas></div>
   <div class="card s4 res" id=cmp hidden><span class=lab>Compare (same model, context and users)</span>
-    <div class=pills id=cmpTabs><button type=button data-v=g class=on>All GPUs</button><button type=button data-v=q>All quantizations</button></div>
+    <div class=pills id=cmpTabs><button type=button data-v=g class=on>All GPUs</button><button type=button data-v=q>All quantizations</button><button type=button data-v=c>Context lengths</button></div>
     <div id=cmpBody style="overflow:auto"></div></div>
 </div>
 <script src="models.js"></script>
@@ -226,7 +226,8 @@ function render() {
   const seg = (x, c) => `<i style="width:${pc(x)};background:${c}"></i>`;
   $("bar").innerHTML = seg(r.weights, "#ff6a2b") + seg(r.kv * users, "#ffffffcc") + seg(ov, "#ffffff55") + `<b style="left:${pc(gib)}"></b>`;
   const chip = (c, t) => `<span class=chip style="--c:${c}">${t}</span>`;
-  $("leg").innerHTML = chip("#ff6a2b", `weights ${r.weights.toFixed(1)} GiB`) + chip("#ffffffcc", `KV for ${users} users ${(r.kv * users).toFixed(1)} GiB`)
+  const parts = [["weights", r.weights], ["KV cache", r.kv * users], ["overhead", ov]].sort((a, b) => b[1] - a[1]);
+  $("leg").innerHTML = `<small>Biggest memory use: <b>${parts[0][0]}</b> (${Math.round(100 * parts[0][1] / need)}% of what this setup needs).</small><br>` + chip("#ff6a2b", `weights ${r.weights.toFixed(1)} GiB`) + chip("#ffffffcc", `KV for ${users} users ${(r.kv * users).toFixed(1)} GiB`)
     + chip("#ffffff55", `overhead ${ov} GiB`) + chip("#ff6a2b", `GPU limit ${gib} GiB`) + (need > gib ? "<b>OVER LIMIT</b>" : "");
   $("vc").className = "card r2 s2 res " + (ok ? "ok" : "no");
   $("vt").textContent = (ok ? "Fits " : "Does not fit ") + users + " users";
@@ -253,12 +254,13 @@ function render() {
 // Compare table: rows are every GPU or every quantization, other inputs held fixed. Best (fits, cheapest) first.
 let cmpBy = "g";
 function renderCmp(p, L, h, d, act, ov, users) {
-  const rows = (cmpBy == "g" ? Object.entries(GPUS) : Object.keys(QUANTS).map(n => [n])).map(([n, spec]) => {
+  const ctxName = c => c >= 1048576 ? "1M" : c / 1024 + "K"; // context rows: same GPU and quantization, only context changes
+  const rows = (cmpBy == "g" ? Object.entries(GPUS) : cmpBy == "q" ? Object.keys(QUANTS).map(n => [n]) : PRESETS.c.map(c => [ctxName(c), c])).map(([n, spec]) => {
     const [gib, bw, usd] = cmpBy == "g" ? spec : [...GPUS[$("g").value].slice(0, 2), +$("pr").value];
-    return [n, fit(p, QUANTS[cmpBy == "g" ? $("q").value : n], L, h, d, KV_BYTES, +$("c").value, gib, bw, usd, ov, act), gib];
-  }).sort((a, b) => (b[1].users >= users) - (a[1].users >= users) || (a[1].cost ?? 1e9) - (b[1].cost ?? 1e9));
-  $("cmpBody").innerHTML = `<table><tr><th>${cmpBy == "g" ? "GPU" : "Quantization"}</th><th>VRAM</th><th>Weights</th><th>Max users</th><th>tok/s ceiling</th><th>Quality loss</th><th>$/user-hr</th></tr>` + rows.map(([n, r, gib]) =>
-    `<tr class="${r.users >= users ? (n == $(cmpBy).value ? "hit" : "") : "no"}"><td>${n}${r.users >= users ? "" : " (no fit)"}</td><td>${gib} GiB</td><td>${r.weights.toFixed(1)} GiB</td><td>${r.users}</td><td>${r.users ? Math.round(r.tok) : "-"}</td><td>${(q => q ? "+" + q + "%" : "none")(QUALITY_LOSS[cmpBy == "g" ? $("q").value : n][0])}</td><td>${r.cost == null ? "-" : "$" + r.cost.toFixed(3)}</td></tr>`).join("") + "</table>";
+    return [n, fit(p, QUANTS[cmpBy == "q" ? n : $("q").value], L, h, d, KV_BYTES, cmpBy == "c" ? spec : +$("c").value, gib, bw, usd, ov, act), gib];
+  }).sort((a, b) => cmpBy == "c" ? 0 : (b[1].users >= users) - (a[1].users >= users) || (a[1].cost ?? 1e9) - (b[1].cost ?? 1e9));
+  $("cmpBody").innerHTML = `<table><tr><th>${{g: "GPU", q: "Quantization", c: "Context"}[cmpBy]}</th><th>VRAM</th><th>Weights</th><th>KV / user</th><th>Max users</th><th>tok/s ceiling</th><th>Quality loss</th><th>$/user-hr</th></tr>` + rows.map(([n, r, gib]) =>
+    `<tr class="${r.users >= users ? (n == (cmpBy == "c" ? ctxName(+$("c").value) : $(cmpBy).value) ? "hit" : "") : "no"}"><td>${n}${r.users >= users ? "" : " (no fit)"}</td><td>${gib} GiB</td><td>${r.weights.toFixed(1)} GiB</td><td>${r.kv.toFixed(2)} GiB</td><td>${r.users}</td><td>${r.users ? Math.round(r.tok) : "-"}</td><td>${(q => q ? "+" + q + "%" : "none")(QUALITY_LOSS[cmpBy == "q" ? n : $("q").value][0])}</td><td>${r.cost == null ? "-" : "$" + r.cost.toFixed(3)}</td></tr>`).join("") + "</table>";
   document.querySelectorAll("#cmpTabs button").forEach(b => b.classList.toggle("on", b.dataset.v == cmpBy));
 }
 document.querySelectorAll("#cmpTabs button").forEach(b => b.onclick = () => { cmpBy = b.dataset.v; render(); });
