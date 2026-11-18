@@ -100,8 +100,8 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 <div class=grid id=api hidden>
   <div class="card s4"><h1>Live API</h1><p class=tag>The same catalog answered by the OMEN backend: memory, speed, recommendations with a confidence level, benchmarks and recorded cloud prices.</p></div>
   <div class="card sand s4"><span class=lab>Server</span>
-    <div class=two style="align-items:end"><label>API address <input id=apiurl placeholder="http://localhost:8000"></label><div><button type=button class=go2 id=apiconn style="margin:0">Connect</button></div></div>
-    <small id=apistat>Not connected. In the backend folder run: uvicorn app.main:app</small></div>
+    <div class=two style="align-items:end"><label>API address <input id=apiurl placeholder="http://localhost:8787"></label><div><button type=button class=go2 id=apiconn style="margin:0">Connect</button></div></div>
+    <small id=apistat>Not connected. In the backend folder run: python -m uvicorn app.main:app --port 8787</small></div>
   <div class="card sand s4"><span class=lab>Setup</span>
     <div class=two>
       <label>Model <input id=am list=amd placeholder="Choose a model" autocomplete=off></label>
@@ -214,7 +214,7 @@ g("quizgo").onclick = () => { let ok = 0; QUIZ.forEach(([, , a], i) => { const v
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => "&#" + c.charCodeAt(0) + ";"); // submitted benchmark text is untrusted
 const link = u => /^https?:\/\//.test(u || "") ? `<a href="${esc(u)}" target=_blank rel=noopener>source</a>` : "none";
 try { g("apiurl").value = localStorage.getItem("omen_api") || ""; } catch {}
-g("apiurl").value ||= "http://localhost:8000";
+g("apiurl").value ||= "http://localhost:8787";
 let HIGH = false;
 g("ahi").onclick = () => { HIGH = !HIGH; g("ahi").textContent = HIGH ? "Only high confidence (75%+)" : "Any confidence"; };
 const api = async (path, body) => {
@@ -236,7 +236,7 @@ const aconf = () => ({model: g("am").value, quantization: g("aq").value, gpu: g(
 const FIT = {measured_to_fit: "Measured to fit", likely_fits: "Likely fits", fits_theoretically: "Fits theoretically", does_not_fit_under_stated_assumptions: "Does not fit under stated assumptions"};
 g("apiconn").onclick = async () => {
   try { const n = Object.keys(await api("/api/v1/gpus")).length; g("apistat").textContent = `Connected: ${n} GPUs in the server's catalog.`; }
-  catch (e) { g("apistat").textContent = e.message; }
+  catch (e) { g("apistat").textContent = /^(Not Found|404)/.test(e.message) ? "Something answered at that address, but it is not the OMEN server (another app may be using this port). Start OMEN on a free port and enter it here." : e.message; }
 };
 g("aest").onclick = async () => {
   try {

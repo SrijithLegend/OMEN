@@ -111,16 +111,18 @@ OMEN is a static page, so everything that needs no server is built:
 
 ## The API (backend/)
 
-The page's **Live API** tab calls this server (default `http://localhost:8000`, remembered in the browser): memory and speed estimates, recommendations with confidence labels and an optional high-confidence-only filter, benchmarks and recorded prices. CORS is open by default; set `OMEN_CORS=https://your.site` to restrict it.
+The page's **Live API** tab calls this server (default `http://localhost:8787`, remembered in the browser): memory and speed estimates, recommendations with confidence labels and an optional high-confidence-only filter, benchmarks and recorded prices. CORS is open by default; set `OMEN_CORS=https://your.site` to restrict it.
 
 A FastAPI service built from the product spec, sharing the page's data (`node scripts/export-catalog.js` regenerates `backend/app/catalog.json`).
 
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m pytest                       # 16 tests
-OMEN_ADMIN_KEY=choose-a-secret uvicorn app.main:app --reload   # docs at http://localhost:8000/docs
+python -m pytest                       # 19 tests
+python -m uvicorn app.main:app --port 8787      # docs at http://localhost:8787/docs
 ```
+
+Set the reviewer key first if you want to verify runs or add prices. Git Bash / Linux / macOS: `export OMEN_ADMIN_KEY=choose-a-secret`. Windows PowerShell: `$env:OMEN_ADMIN_KEY="choose-a-secret"`. If you see "address already in use", another program has that port: pick another with `--port` and type the same address into the Live API tab.
 
 | Endpoint | What it does |
 |---|---|
