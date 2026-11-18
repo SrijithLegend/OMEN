@@ -97,12 +97,18 @@ OMEN assumes an fp16 KV cache and ignores multi-GPU interconnect losses. The mul
 
 MIT, see `LICENSE`.
 
-## Roadmap (from the product spec)
+## Built from the product spec
 
-OMEN is a static page, so only the parts that need no server are built. Not yet built: accounts and workspaces, an API, a benchmark runner and database, workload and percentile modelling, a cloud pricing catalog, and a recommendation engine.
+OMEN is a static page, so everything that needs no server is built:
+- **Fit and memory**: four-level fit status, memory breakdown with the biggest component named, context-length table, multi-GPU pooling.
+- **Evidence labels**: measured vs estimated on every verdict, plus a Benchmarks tab that sets each measured run against the prediction.
+- **Compare**: all GPUs, all quantizations, all context lengths, with quality loss per quantization and CSV export.
+- **Workload and cost**: cost per 1M output tokens, reply time, monthly cost (per use and always on), copies needed to keep up.
+- **Recommendations**: hard limits (budget, speed, quality) first, then one pick per priority. No single blended score.
+- **Model import**: any public Hugging Face model, pinned to its commit. Missing fields are rejected, never guessed.
+- **Saved setups**, configuration IDs and shareable links. Saved setups live in your browser only.
+- **Result checker** for benchmark JSON, with submission through a prefilled GitHub issue.
 
-Built from Release 1 of the spec:
-- Evidence labels (measured vs estimated) and a four-level fit status.
-- Memory breakdown with the biggest component named, plus a context-length table.
-- GPU, quantization and context comparison tables, with quality loss per quantization.
-- A configuration ID for every setup, and shareable links.
+## Not built, and why
+
+These need a backend, accounts or data that this repository does not have: user accounts and team workspaces, API keys and a public API, billing, alerts and change tracking, a benchmark runner CLI and results database, a cloud price catalog (prices here are assumptions, not quotes), and prefill/TTFT estimates (the GPU list has no compute-throughput data). The spec in `claude.md` describes them for a later release.
