@@ -111,7 +111,7 @@ OMEN is a static page, so everything that needs no server is built:
 
 ## The API (backend/)
 
-The page's **Live API** tab calls this server (default `http://localhost:8787`, remembered in the browser): memory and speed estimates, recommendations with confidence labels and an optional high-confidence-only filter, benchmarks and recorded prices. CORS is open by default; set `OMEN_CORS=https://your.site` to restrict it.
+The web page does not use this server: everything in it, including the **Recommend** tab, runs in the browser. The server is a separate, optional service for programs that want the same numbers over HTTP. CORS is open by default; set `OMEN_CORS=https://your.site` to restrict it.
 
 A FastAPI service built from the product spec, sharing the page's data (`node scripts/export-catalog.js` regenerates `backend/app/catalog.json`).
 
@@ -143,7 +143,7 @@ The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects Po
 
 ## Not built, and why
 
-- **React + TypeScript + Tailwind frontend.** By decision the existing look, colours and fonts are kept, so the page stays plain HTML/JS with no build step. The API is reached through the new **Live API** tab; the calculator tab still runs its own copy of the maths in the browser.
+- **React + TypeScript + Tailwind frontend.** By decision the existing look, colours and fonts are kept, so the page stays plain HTML/JS with no build step. The **Recommend** tab uses the same dropdowns and cards as the calculator and does not call the API.
 - **Supabase/OAuth sign-in, Razorpay/Stripe billing, and email or in-app alert delivery.** They need accounts with outside services. API keys and a pull-based `/changes` report cover the same ground without them.
 - **Celery and Redis.** FastAPI background tasks do the benchmark validation. A queue is the upgrade once volume needs it.
 - **Cloud price data and a benchmark dataset beyond the 5 published runs.** The price catalog exists but ships empty: someone has to read each provider's pricing page and enter the price with its source. Until then prices are assumptions, not quotes. Benchmark data has to come from contributors.

@@ -13,18 +13,28 @@ function workload(tokS, users, usdHr, outTok, reqMonth, util) {
 // Recommendation: hard constraints first (with a count of what each removed), then a pick per priority. No single blended score.
 // cands: [{gpu, quant, fits, usd (total $/hr), tok, loss (%)}]. cons: {maxUsd, minTok, maxLoss}; blank/0 = no limit.
 function recommend(cands, cons) {
-  const dropped = { "does not fit": 0, "over budget": 0, "too slow": 0, "too much quality loss": 0 }, ok = [];
+  const dropped = { "does not fit": 0, "over budget": 0, "too slow": 0, "too much quality loss": 0, "below the confidence limit": 0 }, ok = [];
   for (const x of cands) {
     if (!x.fits) dropped["does not fit"]++;
     else if (cons.maxUsd && x.usd > cons.maxUsd) dropped["over budget"]++;
     else if (cons.minTok && x.tok < cons.minTok) dropped["too slow"]++;
     else if (cons.maxLoss !== "" && cons.maxLoss != null && x.loss > cons.maxLoss) dropped["too much quality loss"]++;
+    else if (cons.minConf && x.conf < cons.minConf) dropped["below the confidence limit"]++;
     else ok.push(x);
   }
   const by = (f) => ok.slice().sort(f)[0], perTok = x => x.usd / x.tok;
   const picks = ok.length ? [["Cheapest", by((a, b) => a.usd - b.usd)], ["Fastest", by((a, b) => b.tok - a.tok)],
     ["Best quality", by((a, b) => a.loss - b.loss || a.usd - b.usd)], ["Best value ($ per token)", by((a, b) => perTok(a) - perTok(b))]] : [];
   return { ok, dropped, picks };
+}
+// Confidence ladder (claude.md section K). High = 75% or above, which only a measured setup reaches. A fixed ladder, not a probability.
+const HIGH_CONFIDENCE = 0.75;
+function confidence(runs, model, quant, gpu, users) {
+  const exact = runs.filter(r => r.model == model && r.quant == quant && r.gpu == gpu);
+  if (exact.some(r => r.users == users)) return [0.9, "this exact model, quantization and GPU was measured at your concurrency"];
+  if (exact.length) return [0.7, "this exact setup was measured, but at a different concurrency"];
+  if (runs.some(r => r.gpu == gpu)) return [0.5, "estimate calibrated on measured runs of other models on this GPU"];
+  return [0.3, "first-principles estimate: nothing measured on this GPU"];
 }
 // Hugging Face import: config.json + safetensors total (in params) -> [params_b, layers, kv_heads, head_dim]. Missing fields throw, never guessed.
 function parseHF(cfg, totalParams) {
@@ -53,4 +63,4 @@ function validateRun(r, known) {
 const MFU = 0.4;
 const ttft = (activeB, inTok, tflops, n = 1, mfu = MFU) => tflops ? 2 * activeB * 1e9 * inTok / (tflops * 1e12 * (n > 1 ? n * TP_EFF : 1) * mfu) : null;
 const median = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
-if (typeof module !== 'undefined') module.exports = { cluster, workload, recommend, parseHF, validateRun, ttft, median, TP_EFF }; // for test.js
+if (typeof module !== 'undefined') module.exports = { confidence, HIGH_CONFIDENCE, cluster, workload, recommend, parseHF, validateRun, ttft, median, TP_EFF }; // for test.js
