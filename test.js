@@ -26,4 +26,15 @@ const p = fit(8, 2, 32, 8, 128, 2, 32768, 24, 1008, 0.40);
 assert.strictEqual(p.kv.toFixed(1), "4.0");
 assert.strictEqual(p.users, 1);
 assert.strictEqual(p.fits, true);
+// Workload: 100 tok/s ceiling, 4 users at 50% => 200 tok/s total; 1M requests x 500 tokens at $1/hr
+const { cluster, workload } = require("./intel.js"), w = workload(100, 4, 1, 500, 1e6, 0.5);
+assert.strictEqual(w.agg, 200);
+assert.strictEqual(w.perM.toFixed(3), "1.389");
+assert.strictEqual(Math.round(w.hours), 694);
+assert.strictEqual(w.copies, 1);
+assert.strictEqual(w.latency, 10);
+// Cluster: 2 GPUs double VRAM and price, bandwidth x2 x 0.85
+const c2 = cluster([24, 1000, 0.4], 2);
+assert.deepStrictEqual([c2[0], c2[1], c2[2]], [48, 1700, 0.8]);
+assert.deepStrictEqual(cluster([24, 1000, 0.4], 1), [24, 1000, 0.4]);
 console.log("all tests pass");

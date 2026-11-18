@@ -94,6 +94,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
       <label><em>4</em> GPU <select id=g data-ph="Choose a GPU"></select></label>
       <div><label><em>5</em> Context (tokens) <input id=c type=number min=1 placeholder="e.g. 8192"></label><div class=pills data-for=c></div></div>
       <div><label><em>6</em> Users <input id=u type=number min=1 placeholder="e.g. 4"></label><div class=pills data-for=u></div></div>
+      <div><label><em>7</em> Number of GPUs <input id=n type=number min=1 placeholder="1"></label><div class=pills data-for=n></div></div>
     </div>
     <button type=button id=go>Calculate &rarr;</button><button type=button id=share>Copy share link</button> <small id=cid></small></div>
   <div class="card hero s2 r2 res" id=hero></div>
@@ -104,10 +105,14 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
   <div class="card stat res"><span class=lab>Max users</span><b id=su></b><small>sessions that fit</small></div>
   <div class="card stat res s2"><span class=lab>Quality loss</span><b id=sq></b><small id=sqs>vs fp16</small></div>
   <div class="card stat sand res s2"><span class=lab>Cost per user-hour</span><b id=sc></b><small id=scs>GPU price / users that fit</small></div>
+  <div class="card sand s4 res" id=wl></div>
   <div class="card s4 res"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
   <div class="card s2 res"><span class=lab>Assumptions (editable)</span>
     <div class=two><label>Overhead GiB <input id=ov type=number step=0.1 placeholder="1.5"></label>
-    <label>GPU price $/hr <input id=pr type=number step=0.01 placeholder="auto from GPU"></label></div>
+    <label>GPU price $/hr (each) <input id=pr type=number step=0.01 placeholder="auto from GPU"></label>
+    <label>Output tokens / request <input id=ot type=number min=1 placeholder="512"></label>
+    <label>Requests / month <input id=rq type=number min=1 placeholder="100000"></label>
+    <label>Utilization % of ceiling <input id=ut type=number min=1 max=100 placeholder="50"></label></div>
     <details><summary>How this is estimated</summary><ul id=asm></ul></details></div>
   <div class="card sand s2 meas res" id=meas></div>
   <div class="card s4 res" id=cmp hidden><span class=lab>Compare (same model, context and users)</span>
@@ -121,6 +126,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 <script src="gpus.js"></script>
 <script src="measured.js"></script>
 <script src="fit.js"></script>
+<script src="intel.js"></script>
 <script>
 const TERMS = [
   ["GPU", "The graphics card. It does the heavy maths an AI model needs, much faster than a normal processor.", "Example: an RTX 4090 or an H100."],
@@ -153,7 +159,7 @@ const MODELS = Object.assign({}, ...Object.values(MODELS_BY_CREATOR));
 const QUANTS = Object.assign({}, ...Object.values(QUANTS_BY_FAMILY));
 const GPUS = Object.assign({}, ...Object.values(GPUS_BY_VENDOR));
 const FENCE = "\x60\x60\x60"; // markdown code fence
-const IDS = ["uc", "m", "q", "g", "c", "u", "ov", "pr"]; // inputs stored in the URL
+const IDS = ["uc", "m", "q", "g", "c", "u", "n", "ov", "pr", "ot", "rq", "ut"]; // inputs stored in the URL
 const LOGOS = {Meta: "meta", "Mistral AI": "mistralai", "Alibaba (Qwen)": "alibabacloud", Google: "google", Microsoft: "microsoft", DeepSeek: "deepseek", OpenAI: "openai"}; // simple-icons slugs
 const OLD_ICONS = ["openai", "microsoft"]; // dropped from the latest simple-icons, served from v9 (black SVG, inverted to white)
 const FAVS = [[/OLMo/, "allenai.org"], [/Falcon/, "tii.ae"], [/^Yi-/, "01.ai"], [/InternLM/, "internlm.intern-ai.org.cn"], [/StarCoder/, "bigcode-project.org"], [/Fin-R1/, "sufe.edu.cn"]]; // org sites, logo via favicon service
@@ -218,13 +224,13 @@ function render() {
     $("sth").textContent = "single-user decode"; $("bar").innerHTML = ""; $("leg").innerHTML = "";
     $("meas").innerHTML = `<span class=lab>Measured vs predicted</span><p>Calculate a setup to compare it against measured runs.</p>`; $("cmp").hidden = true; return;
   }
-  const [p, L, h, d, act] = MODELS[$("m").value], [gib, bw] = GPUS[$("g").value], usd = +$("pr").value, ov = $("ov").value === "" ? 1.5 : +$("ov").value;
+  const [p, L, h, d, act] = MODELS[$("m").value], n = N(), [gib, bw, usd] = cluster([...GPUS[$("g").value].slice(0, 2), +$("pr").value], n), gib1 = GPUS[$("g").value][0], ov = ($("ov").value === "" ? 1.5 : +$("ov").value) * n;
   const users = +$("u").value;
   const r = fit(p, QUANTS[$("q").value], L, h, d, KV_BYTES, +$("c").value, gib, bw, usd, ov, act);
   const ok = r.users >= users;
   const run = RUNS.find(x => x.model == $("m").value && x.quant == $("q").value && x.gpu == $("g").value);
   const need = r.weights + ov + r.kv * users, scale = Math.max(gib, need), pc = x => (100 * x / scale) + "%";
-  $("asm").innerHTML = [`Overhead: CUDA context and activations, not part of weights or KV.`, `GPU: ${gib} GiB VRAM, ${bw} GB/s (vendor datasheet, from memory).`, `Price is assumed, not a quote.`, `Model config (layers, KV heads, head dim) from Hugging Face config.json, see models.js.`, `KV cache assumed fp16.`, `Quality loss is the perplexity increase vs fp16: measured for GGUF (llama.cpp, Llama-2-7B), typical for the rest. Smaller models and lower bits lose more.`, ...(/MLA/.test($("m").value) ? ["MLA model: the head size fed to the KV formula is an effective value matching its compressed cache, not a literal one."] : []), `Speed = bandwidth / weight bytes read per token (active params for MoE).`].map(t => `<li>${t}</li>`).join("");
+  $("asm").innerHTML = [`Overhead: CUDA context and activations, not part of weights or KV.`, `GPU: ${gib} GiB VRAM, ${Math.round(bw)} GB/s${n > 1 ? ` (${n} GPUs pooled, bandwidth x${TP_EFF} scaling loss)` : ""} (vendor datasheet, from memory).`, `Price is assumed, not a quote.`, `Model config (layers, KV heads, head dim) from Hugging Face config.json, see models.js.`, `KV cache assumed fp16.`, `Quality loss is the perplexity increase vs fp16: measured for GGUF (llama.cpp, Llama-2-7B), typical for the rest. Smaller models and lower bits lose more.`, ...(/MLA/.test($("m").value) ? ["MLA model: the head size fed to the KV formula is an effective value matching its compressed cache, not a literal one."] : []), `Speed = bandwidth / weight bytes read per token (active params for MoE).`].map(t => `<li>${t}</li>`).join("");
   document.querySelectorAll(".pills[data-for] button").forEach(b => b.classList.toggle("on", $(b.parentNode.dataset.for).value == b.dataset.v));
   const seg = (x, c) => `<i style="width:${pc(x)};background:${c}"></i>`;
   $("bar").innerHTML = seg(r.weights, "#ff6a2b") + seg(r.kv * users, "#ffffffcc") + seg(ov, "#ffffff55") + `<b style="left:${pc(gib)}"></b>`;
@@ -235,7 +241,7 @@ function render() {
   $("vc").className = "card r2 s2 res " + (ok ? "ok" : "no");
   $("vt").textContent = (ok ? "Fits " : "Does not fit ") + users + " users";
   $("vs").textContent = `Headroom ${r.free.toFixed(1)} GiB before KV.` + (ok ? "" :
-    ` Needs at least ${minGpus("fp16 / bf16", p, r.kv, users, gib)} x this GPU in fp16, or ${minGpus("GPTQ / AWQ int4", p, r.kv, users, gib)} in int4 (minimums: ignore per-GPU overhead and interconnect losses).`);
+    ` Needs at least ${minGpus("fp16 / bf16", p, r.kv, users, gib1)} x this GPU in fp16, or ${minGpus("GPTQ / AWQ int4", p, r.kv, users, gib1)} in int4 (minimums: ignore per-GPU overhead and interconnect losses).`);
   // Fit status levels (spec F): measured to fit > likely fits (10%+ of the GPU spare) > fits theoretically (tight) > does not fit.
   const spare = (gib - need) / gib, status = !ok ? "Does not fit under stated assumptions" : run ? "Measured to fit" : spare >= 0.1 ? "Likely fits" : "Fits theoretically (tight)";
   $("conf").textContent = status + " · " + (run ? "speed MEASURED, rest estimated" : "estimated, not measured");
@@ -250,6 +256,13 @@ function render() {
   $("scs").textContent = r.users ? `GPU price / ${r.users} users (the max that fit, not your ${users})` : "GPU price / users that fit";
   $("sc").textContent = r.users ? "$" + r.cost.toFixed(3) : "n/a (doesn't fit)";
   $("cmp").hidden = false; renderCmp(p, L, h, d, act, ov, users);
+  const out = +$("ot").value || 512, req = +$("rq").value || 100000, ut = ($("ut").value === "" ? 50 : Math.min(100, +$("ut").value)) / 100;
+  const w = r.users ? workload(r.tok, Math.min(users, r.users), usd, out, req, ut) : null, f = x => x.toLocaleString("en", {maximumFractionDigits: 0});
+  $("wl").innerHTML = `<span class=lab>Workload: ${f(req)} requests a month, ${out} output tokens each, ${Math.round(ut * 100)}% of the speed ceiling</span>` + (!w ? `<p>This setup does not fit, so there is no workload estimate.</p>` :
+    `<div class=two><div><b class=big>$${w.perM < 1 ? w.perM.toFixed(3) : w.perM.toFixed(2)}</b><small>per 1M output tokens (ceiling x utilization)</small></div>
+    <div><b class=big>${w.latency.toFixed(1)} s</b><small>to write one reply (decode only, no prompt processing or queueing)</small></div>
+    <div><b class=big>${f(w.agg)} tok/s</b><small>total across ${Math.min(users, r.users)} users</small></div>
+    <div><b class=big>$${f(w.payPerUse)} / $${f(w.alwaysOn)}</b><small>a month billed per use / kept on 24/7${w.copies > 1 ? ` (${w.copies} copies of this setup needed to keep up)` : ""}</small></div></div>`);
   const issue = JSON.stringify({ model: $("m").value, quant: $("q").value, gpu: $("g").value, context: +$("c").value, users: 1, engine: "", tok_s: 0, source: "" }, null, 2);
   $("meas").innerHTML = `<span class=lab>Measured vs predicted</span>` + (run ? `<b class=n>${Math.round(100 * run.tok_s / r.tok)}% of the ceiling</b><p>Measured ${run.tok_s} tok/s on ${run.engine} vs a predicted ceiling of ${Math.round(r.tok)}. The real speed is ${(r.tok / run.tok_s).toFixed(2)}x lower than the formula says. <a href="${run.source}">source</a></p>` : ``)
     + `<div class=cta><span>${run ? "Got a different result?" : "Ran this on real hardware?"} Add your tokens/s.</span><a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + $("m").value + " on " + $("g").value)}&body=${encodeURIComponent(FENCE + "json\n" + issue + "\n" + FENCE)}">Submit your measured run &rarr;</a></div>`;
@@ -259,7 +272,7 @@ let cmpBy = "g";
 function renderCmp(p, L, h, d, act, ov, users) {
   const ctxName = c => c >= 1048576 ? "1M" : c / 1024 + "K"; // context rows: same GPU and quantization, only context changes
   const rows = (cmpBy == "g" ? Object.entries(GPUS) : cmpBy == "q" ? Object.keys(QUANTS).map(n => [n]) : PRESETS.c.map(c => [ctxName(c), c])).map(([n, spec]) => {
-    const [gib, bw, usd] = cmpBy == "g" ? spec : [...GPUS[$("g").value].slice(0, 2), +$("pr").value];
+    const [gib, bw, usd] = cluster(cmpBy == "g" ? spec : [...GPUS[$("g").value].slice(0, 2), +$("pr").value], N());
     return [n, fit(p, QUANTS[cmpBy == "q" ? n : $("q").value], L, h, d, KV_BYTES, cmpBy == "c" ? spec : +$("c").value, gib, bw, usd, ov, act), gib];
   }).sort((a, b) => cmpBy == "c" ? 0 : (b[1].users >= users) - (a[1].users >= users) || (a[1].cost ?? 1e9) - (b[1].cost ?? 1e9));
   $("cmpBody").innerHTML = `<table><tr><th>${{g: "GPU", q: "Quantization", c: "Context"}[cmpBy]}</th><th>VRAM</th><th>Weights</th><th>KV / user</th><th>Max users</th><th>tok/s ceiling</th><th>Quality loss</th><th>$/user-hr</th></tr>` + rows.map(([n, r, gib]) =>
@@ -268,8 +281,9 @@ function renderCmp(p, L, h, d, act, ov, users) {
 }
 document.querySelectorAll("#cmpTabs button").forEach(b => b.onclick = () => { cmpBy = b.dataset.v; render(); });
 $("share").onclick = () => navigator.clipboard.writeText(location.href).then(() => { $("share").textContent = "Copied!"; setTimeout(() => $("share").textContent = "Copy share link", 1500); });
+const N = () => Math.max(1, Math.floor(+$("n").value || 1));
 const setPrice = () => $("pr").value = $("g").value ? GPUS[$("g").value][2] : "";
-const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32]};
+const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32], n: [1, 2, 4, 8]};
 document.querySelectorAll(".pills[data-for]").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id].map(v => `<button type=button data-v=${v}>${id == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
 document.querySelectorAll(".pills[data-for] button").forEach(b => b.onclick = () => { $(b.parentNode.dataset.for).value = b.dataset.v; render(); });
 document.querySelectorAll("select,input").forEach(e => e.oninput = render);
