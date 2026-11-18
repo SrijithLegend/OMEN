@@ -109,6 +109,37 @@ OMEN is a static page, so everything that needs no server is built:
 - **Saved setups**, configuration IDs and shareable links. Saved setups live in your browser only.
 - **Result checker** for benchmark JSON, with submission through a prefilled GitHub issue.
 
+## The API (backend/)
+
+A FastAPI service built from the product spec, sharing the page's data (`node scripts/export-catalog.js` regenerates `backend/app/catalog.json`).
+
+```bash
+cd backend
+pip install -r requirements.txt
+python -m pytest                       # 16 tests
+OMEN_ADMIN_KEY=choose-a-secret uvicorn app.main:app --reload   # docs at http://localhost:8000/docs
+```
+
+| Endpoint | What it does |
+|---|---|
+| `GET /api/v1/models`, `/models/{id}`, `/gpus`, `/gpus/{id}`, `/quantizations` | Catalog lookup |
+| `POST /api/v1/estimate/memory` | Weights, KV cache, overhead, headroom, four-level fit status |
+| `POST /api/v1/estimate/performance` | Decode ceiling, TTFT, TPOT, end to end, calibration. `null` where data is missing |
+| `POST /api/v1/workloads/simulate`, `/cost/estimate` | Capacity, $ per 1M tokens, monthly cost, cloud vs self-hosted, break-even |
+| `POST /api/v1/configurations/compare` | Side by side; warns when workloads differ |
+| `POST /api/v1/recommendations` | Hard limits first, then one pick per priority |
+| `POST /api/v1/benchmarks/submit`, `GET /benchmarks`, `POST /benchmarks/{id}/verify` | Consent-gated submission, background validation, duplicate and physics checks, reviewer verification |
+| `POST /api/v1/keys`, `/workspaces/{project}/analyses`, `/workspaces/{project}/changes` | Hashed API keys with a rate limit, private saved analyses, re-run and report material changes |
+| `GET /metrics` | Prometheus metrics |
+
+`backend/omen_bench.py` measures any OpenAI-compatible server (vLLM, llama.cpp server) and writes a result file. It submits only with `--consent`.
+
+The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects PostgreSQL, and `docker compose up --build` in `backend/` starts the API, PostgreSQL and Prometheus. Neither the PostgreSQL path nor the Docker files have been run in this repository's test environment; only SQLite is tested.
+
 ## Not built, and why
 
-These need a backend, accounts or data that this repository does not have: user accounts and team workspaces, API keys and a public API, billing, alerts and change tracking, a benchmark runner CLI and results database, a cloud price catalog (prices here are assumptions, not quotes), and prefill/TTFT estimates (the GPU list has no compute-throughput data). The spec in `claude.md` describes them for a later release.
+- **React + TypeScript + Tailwind frontend.** The existing page works with no build step, so it was kept rather than rewritten. It does not call the API yet.
+- **Supabase/OAuth sign-in, Razorpay/Stripe billing, and email or in-app alert delivery.** They need accounts with outside services. API keys and a pull-based `/changes` report cover the same ground without them.
+- **Celery and Redis.** FastAPI background tasks do the benchmark validation. A queue is the upgrade once volume needs it.
+- **A cloud price catalog and a benchmark results dataset beyond the 5 published runs.** Prices here are assumptions, not quotes, and data has to come from contributors.
+- **Prefill estimates for GPUs without a well-known compute figure**, and calibration beyond one model on one engine.
