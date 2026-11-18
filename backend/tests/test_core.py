@@ -144,3 +144,9 @@ def test_rate_limit():
     finally:
         main.RATE_LIMIT_PER_MINUTE = 60
     assert codes == [200, 200, 200, 429, 429]
+
+
+def test_metrics_endpoint():
+    c.get("/api/v1/models/Llama-3.1-8B")
+    text = c.get("/metrics").text
+    assert 'omen_http_requests_total{method="GET",route="/api/v1/models/{model_id}",status="200"}' in text

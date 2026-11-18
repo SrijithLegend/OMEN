@@ -5,7 +5,8 @@ import secrets
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request, Response
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from sqlalchemy import delete, insert, select, update
 from pydantic import BaseModel, Field
 
@@ -23,6 +24,25 @@ async def lifespan(_):
 
 
 app = FastAPI(title="OMEN Inference Intelligence", version="0.1.0", lifespan=lifespan)
+
+
+REQUESTS = Counter("omen_http_requests_total", "HTTP requests", ["method", "route", "status"])
+LATENCY = Histogram("omen_http_request_seconds", "HTTP request latency", ["route"])
+
+
+@app.middleware("http")
+async def metrics(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    route = getattr(request.scope.get("route"), "path", "unmatched")  # the route template, so labels stay low-cardinality
+    REQUESTS.labels(request.method, route, response.status_code).inc()
+    LATENCY.labels(route).observe(time.perf_counter() - start)
+    return response
+
+
+@app.get("/metrics", include_in_schema=False)
+def prometheus_metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 def _measured(model: str, quant: str, gpu: str) -> int:
