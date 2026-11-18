@@ -1,12 +1,16 @@
 """OMEN API. Run from the backend folder: uvicorn app.main:app --reload   (interactive docs at /docs)."""
+import hashlib
 import os
+import secrets
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from sqlalchemy import delete, insert, select, update
 from pydantic import BaseModel, Field
 
 from . import benchmarks, db
-from .catalog import GPUS, MODELS, QUANTS, RUNS, get
+from .catalog import CATALOG_BYTES, GPUS, MODELS, QUANTS, RUNS, get
 from .memory import estimate_memory
 from .performance import estimate_performance
 from .recommend import candidates, recommend
@@ -211,3 +215,120 @@ def verify_benchmark(run_id: int, x_admin_key: str | None = Header(None)):
     if not benchmarks.verify(run_id):
         raise HTTPException(409, "only community runs can be verified")
     return {"id": run_id, "status": "verified"}
+
+
+# ---- API keys, saved workspaces, change tracking -------------------------------------------------------------------
+RATE_LIMIT_PER_MINUTE = 60
+_hash = lambda s: hashlib.sha256(s.encode()).hexdigest()
+CATALOG_HASH = hashlib.sha256(CATALOG_BYTES).hexdigest()[:12]
+
+
+class KeyRequest(BaseModel):
+    owner: str = Field(min_length=1, max_length=64, pattern=r"^[\w.@-]+$")
+
+
+@app.post("/api/v1/keys", status_code=201)
+def create_key(k: KeyRequest):
+    """Returns the key once; only its hash is stored. Self-hosted default: anyone can create one. Put this behind your own gate in production."""
+    key = "omen_" + secrets.token_urlsafe(24)
+    with db.engine.begin() as c:
+        if c.execute(select(db.api_keys.c.id).where(db.api_keys.c.owner == k.owner)).first():
+            raise HTTPException(409, "owner already has a key")
+        c.execute(insert(db.api_keys).values(owner=k.owner, key_hash=_hash(key), calls_this_minute=0, minute=0))
+    return {"owner": k.owner, "api_key": key, "note": "Store it now: it cannot be shown again."}
+
+
+def current_owner(x_api_key: str | None = Header(None)) -> str:
+    """Authenticates by API key and enforces a per-minute rate limit."""
+    if not x_api_key:
+        raise HTTPException(401, "X-API-Key header required")
+    minute = int(time.time() // 60)
+    with db.engine.begin() as c:
+        row = c.execute(select(db.api_keys).where(db.api_keys.c.key_hash == _hash(x_api_key))).mappings().first()
+        if not row:
+            raise HTTPException(401, "unknown API key")
+        used = row["calls_this_minute"] + 1 if row["minute"] == minute else 1
+        if used > RATE_LIMIT_PER_MINUTE:
+            raise HTTPException(429, f"rate limit: {RATE_LIMIT_PER_MINUTE} calls per minute")
+        c.execute(update(db.api_keys).where(db.api_keys.c.id == row["id"]).values(calls_this_minute=used, minute=minute))
+    return row["owner"]
+
+
+KINDS = {"estimate": (Config, lambda x: memory(x)), "workload": (WorkloadRequest, lambda x: simulate_workload(x)),
+         "recommendation": (RecommendRequest, lambda x: recommendations(x))}
+
+
+class SaveRequest(BaseModel):
+    kind: str
+    input: dict
+    note: str = ""
+
+
+def _run(kind: str, payload: dict) -> dict:
+    if kind not in KINDS:
+        raise HTTPException(422, f"kind must be one of {sorted(KINDS)}")
+    model, fn = KINDS[kind]
+    return fn(model(**payload))
+
+
+@app.post("/api/v1/workspaces/{project}/analyses", status_code=201)
+def save_analysis(project: str, s: SaveRequest, owner: str = Depends(current_owner)):
+    """Runs the analysis now and stores the exact input, the output and the catalog version it used."""
+    out = _run(s.kind, s.input)
+    with db.engine.begin() as c:
+        i = c.execute(insert(db.saved_analyses).values(owner=owner, project=project, note=s.note, kind=s.kind, input_snapshot=s.input,
+                                                      output_snapshot=out, catalog_hash=CATALOG_HASH)).inserted_primary_key[0]
+    return {"id": i, "catalog_hash": CATALOG_HASH, "output": out}
+
+
+@app.get("/api/v1/workspaces/{project}/analyses")
+def list_analyses(project: str, owner: str = Depends(current_owner)):
+    with db.engine.connect() as c:
+        rows = c.execute(select(db.saved_analyses).where((db.saved_analyses.c.owner == owner) & (db.saved_analyses.c.project == project))).mappings()
+        return {"analyses": [dict(r) for r in rows]}  # only the caller's own rows: workspaces are private
+
+
+@app.delete("/api/v1/workspaces/{project}/analyses/{analysis_id}")
+def delete_analysis(project: str, analysis_id: int, owner: str = Depends(current_owner)):
+    with db.engine.begin() as c:
+        n = c.execute(delete(db.saved_analyses).where((db.saved_analyses.c.id == analysis_id) & (db.saved_analyses.c.owner == owner)
+                                                      & (db.saved_analyses.c.project == project))).rowcount
+    if not n:
+        raise HTTPException(404, "not found")
+    return {"deleted": analysis_id}
+
+
+def _leaves(x, path=""):
+    if isinstance(x, dict):
+        for k, v in x.items():
+            yield from _leaves(v, f"{path}.{k}" if path else k)
+    elif isinstance(x, list):
+        for i, v in enumerate(x):
+            yield from _leaves(v, f"{path}[{i}]")
+    else:
+        yield path, x
+
+
+def material_changes(before: dict, after: dict, tolerance: float = 0.01) -> list[dict]:
+    """Differences worth telling a user about: numbers that moved more than 1%, or any other value that changed."""
+    a, b = dict(_leaves(before)), dict(_leaves(after))
+    out = []
+    for p in sorted(set(a) | set(b)):
+        x, y = a.get(p), b.get(p)
+        num = isinstance(x, (int, float)) and isinstance(y, (int, float)) and not isinstance(x, bool)
+        if (num and abs(x - y) > tolerance * max(abs(x), abs(y), 1e-12)) or (not num and x != y):
+            out.append({"path": p, "before": x, "after": y})
+    return out
+
+
+@app.get("/api/v1/workspaces/{project}/changes")
+def changes(project: str, owner: str = Depends(current_owner)):
+    """Re-runs every saved analysis against the current catalog and code, and reports what moved. Pull-based; no email is sent."""
+    with db.engine.connect() as c:
+        rows = list(c.execute(select(db.saved_analyses).where((db.saved_analyses.c.owner == owner) & (db.saved_analyses.c.project == project))).mappings())
+    report = []
+    for r in rows:
+        diff = material_changes(r["output_snapshot"], _run(r["kind"], r["input_snapshot"]))
+        if diff:
+            report.append({"id": r["id"], "kind": r["kind"], "note": r["note"], "saved_with_catalog": r["catalog_hash"], "now": CATALOG_HASH, "changes": diff[:20]})
+    return {"checked": len(rows), "changed": report}

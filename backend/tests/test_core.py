@@ -98,3 +98,49 @@ def test_implausible_and_unknown_runs_are_rejected_and_verify_needs_key():
     assert c.post(f"/api/v1/benchmarks/{ok}/verify").status_code == 403
     assert c.post(f"/api/v1/benchmarks/{ok}/verify", headers={"x-admin-key": "test-admin"}).json()["status"] == "verified"
     assert c.post(f"/api/v1/benchmarks/{ok}/verify", headers={"x-admin-key": "test-admin"}).status_code == 409
+
+
+def _key(owner):
+    return {"x-api-key": c.post("/api/v1/keys", json={"owner": owner}).json()["api_key"]}
+
+
+def test_keys_workspaces_and_privacy():
+    a, b = _key("alice"), _key("bob")
+    assert c.post("/api/v1/keys", json={"owner": "alice"}).status_code == 409
+    assert c.get("/api/v1/workspaces/p/analyses").status_code == 401
+    assert c.get("/api/v1/workspaces/p/analyses", headers={"x-api-key": "nope"}).status_code == 401
+    s = c.post("/api/v1/workspaces/support/analyses", headers=a, json={"kind": "estimate", "note": "n", "input": BASE})
+    assert s.status_code == 201 and s.json()["output"]["memory"]["fits"]
+    assert len(c.get("/api/v1/workspaces/support/analyses", headers=a).json()["analyses"]) == 1
+    assert c.get("/api/v1/workspaces/support/analyses", headers=b).json()["analyses"] == []  # bob cannot see alice's
+    assert c.delete(f"/api/v1/workspaces/support/analyses/{s.json()['id']}", headers=b).status_code == 404
+    assert c.post("/api/v1/workspaces/support/analyses", headers=a, json={"kind": "nonsense", "input": BASE}).status_code == 422
+    assert c.delete(f"/api/v1/workspaces/support/analyses/{s.json()['id']}", headers=a).status_code == 200
+
+
+def test_change_tracking_reports_only_material_changes():
+    from app.main import material_changes
+    assert material_changes({"a": 100, "b": "x", "c": {"d": 1}}, {"a": 100.5, "b": "x", "c": {"d": 1}}) == []  # 0.5% is noise
+    assert material_changes({"a": 100}, {"a": 120}) == [{"path": "a", "before": 100, "after": 120}]
+    assert material_changes({"s": "fits"}, {"s": "no"})[0]["path"] == "s"
+    h = _key("carol")
+    c.post("/api/v1/workspaces/w/analyses", headers=h, json={"kind": "estimate", "input": BASE})
+    assert c.get("/api/v1/workspaces/w/changes", headers=h).json() == {"checked": 1, "changed": []}  # nothing moved since saving
+    from sqlalchemy import update
+
+    from app import db
+    with db.engine.begin() as con:  # simulate an old snapshot from before a catalog change
+        con.execute(update(db.saved_analyses).values(output_snapshot={"memory": {"max_users": 5}}).where(db.saved_analyses.c.project == "w"))
+    ch = c.get("/api/v1/workspaces/w/changes", headers=h).json()["changed"]
+    assert ch and any(x["path"] == "memory.max_users" and x["before"] == 5 for x in ch[0]["changes"])
+
+
+def test_rate_limit():
+    from app import main
+    h = _key("dave")
+    main.RATE_LIMIT_PER_MINUTE = 3
+    try:
+        codes = [c.get("/api/v1/workspaces/p/analyses", headers=h).status_code for _ in range(5)]
+    finally:
+        main.RATE_LIMIT_PER_MINUTE = 60
+    assert codes == [200, 200, 200, 429, 429]

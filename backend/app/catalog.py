@@ -2,7 +2,8 @@
 import json
 from pathlib import Path
 
-CATALOG = json.loads((Path(__file__).parent / "catalog.json").read_text(encoding="utf-8"))
+CATALOG_BYTES = (Path(__file__).parent / "catalog.json").read_bytes()
+CATALOG = json.loads(CATALOG_BYTES)
 MODELS, QUANTS, GPUS, RUNS = CATALOG["models"], CATALOG["quants"], CATALOG["gpus"], CATALOG["runs"]
 
 
