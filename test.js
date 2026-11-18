@@ -37,4 +37,14 @@ assert.strictEqual(w.latency, 10);
 const c2 = cluster([24, 1000, 0.4], 2);
 assert.deepStrictEqual([c2[0], c2[1], c2[2]], [48, 1700, 0.8]);
 assert.deepStrictEqual(cluster([24, 1000, 0.4], 1), [24, 1000, 0.4]);
+// Recommend: hard limits first, then one pick per priority
+const { recommend } = require("./intel.js"), cs = [
+  { gpu: "A", quant: "q4", fits: true, usd: 0.4, tok: 200, loss: 2 }, { gpu: "B", quant: "fp16", fits: true, usd: 3, tok: 300, loss: 0 },
+  { gpu: "C", quant: "q4", fits: false, usd: 0.1, tok: 90, loss: 2 }, { gpu: "D", quant: "q2", fits: true, usd: 0.2, tok: 250, loss: 15 }];
+const rc = recommend(cs, { maxUsd: 1, minTok: 0, maxLoss: 5 });
+assert.deepStrictEqual(rc.ok.map(x => x.gpu), ["A"]);
+assert.deepStrictEqual(rc.dropped, { "does not fit": 1, "over budget": 1, "too slow": 0, "too much quality loss": 1 });
+const rn = recommend(cs, { maxUsd: 0, minTok: 0, maxLoss: "" });
+assert.strictEqual(rn.picks[0][1].gpu, "D"); assert.strictEqual(rn.picks[1][1].gpu, "B"); assert.strictEqual(rn.picks[2][1].gpu, "B");
+assert.deepStrictEqual(recommend([cs[2]], {}).picks, []);
 console.log("all tests pass");

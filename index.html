@@ -106,13 +106,17 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
   <div class="card stat res s2"><span class=lab>Quality loss</span><b id=sq></b><small id=sqs>vs fp16</small></div>
   <div class="card stat sand res s2"><span class=lab>Cost per user-hour</span><b id=sc></b><small id=scs>GPU price / users that fit</small></div>
   <div class="card sand s4 res" id=wl></div>
+  <div class="card s4 res" id=rec></div>
   <div class="card s4 res"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
   <div class="card s2 res"><span class=lab>Assumptions (editable)</span>
     <div class=two><label>Overhead GiB <input id=ov type=number step=0.1 placeholder="1.5"></label>
     <label>GPU price $/hr (each) <input id=pr type=number step=0.01 placeholder="auto from GPU"></label>
     <label>Output tokens / request <input id=ot type=number min=1 placeholder="512"></label>
     <label>Requests / month <input id=rq type=number min=1 placeholder="100000"></label>
-    <label>Utilization % of ceiling <input id=ut type=number min=1 max=100 placeholder="50"></label></div>
+    <label>Utilization % of ceiling <input id=ut type=number min=1 max=100 placeholder="50"></label>
+    <label>Budget $/hr (recommend) <input id=bd type=number step=0.1 min=0 placeholder="no limit"></label>
+    <label>Min tokens/s (recommend) <input id=mt type=number min=0 placeholder="10 (default)"></label>
+    <label>Max quality loss % (recommend) <input id=ml type=number step=0.1 min=0 placeholder="5 (default)"></label></div>
     <details><summary>How this is estimated</summary><ul id=asm></ul></details></div>
   <div class="card sand s2 meas res" id=meas></div>
   <div class="card s4 res" id=cmp hidden><span class=lab>Compare (same model, context and users)</span>
@@ -159,7 +163,7 @@ const MODELS = Object.assign({}, ...Object.values(MODELS_BY_CREATOR));
 const QUANTS = Object.assign({}, ...Object.values(QUANTS_BY_FAMILY));
 const GPUS = Object.assign({}, ...Object.values(GPUS_BY_VENDOR));
 const FENCE = "\x60\x60\x60"; // markdown code fence
-const IDS = ["uc", "m", "q", "g", "c", "u", "n", "ov", "pr", "ot", "rq", "ut"]; // inputs stored in the URL
+const IDS = ["uc", "m", "q", "g", "c", "u", "n", "ov", "pr", "ot", "rq", "ut", "bd", "mt", "ml"]; // inputs stored in the URL
 const LOGOS = {Meta: "meta", "Mistral AI": "mistralai", "Alibaba (Qwen)": "alibabacloud", Google: "google", Microsoft: "microsoft", DeepSeek: "deepseek", OpenAI: "openai"}; // simple-icons slugs
 const OLD_ICONS = ["openai", "microsoft"]; // dropped from the latest simple-icons, served from v9 (black SVG, inverted to white)
 const FAVS = [[/OLMo/, "allenai.org"], [/Falcon/, "tii.ae"], [/^Yi-/, "01.ai"], [/InternLM/, "internlm.intern-ai.org.cn"], [/StarCoder/, "bigcode-project.org"], [/Fin-R1/, "sufe.edu.cn"]]; // org sites, logo via favicon service
@@ -263,9 +267,23 @@ function render() {
     <div><b class=big>${w.latency.toFixed(1)} s</b><small>to write one reply (decode only, no prompt processing or queueing)</small></div>
     <div><b class=big>${f(w.agg)} tok/s</b><small>total across ${Math.min(users, r.users)} users</small></div>
     <div><b class=big>$${f(w.payPerUse)} / $${f(w.alwaysOn)}</b><small>a month billed per use / kept on 24/7${w.copies > 1 ? ` (${w.copies} copies of this setup needed to keep up)` : ""}</small></div></div>`);
+  renderRec(p, L, h, d, act, ov, users, n);
   const issue = JSON.stringify({ model: $("m").value, quant: $("q").value, gpu: $("g").value, context: +$("c").value, users: 1, engine: "", tok_s: 0, source: "" }, null, 2);
   $("meas").innerHTML = `<span class=lab>Measured vs predicted</span>` + (run ? `<b class=n>${Math.round(100 * run.tok_s / r.tok)}% of the ceiling</b><p>Measured ${run.tok_s} tok/s on ${run.engine} vs a predicted ceiling of ${Math.round(r.tok)}. The real speed is ${(r.tok / run.tok_s).toFixed(2)}x lower than the formula says. <a href="${run.source}">source</a></p>` : ``)
     + `<div class=cta><span>${run ? "Got a different result?" : "Ran this on real hardware?"} Add your tokens/s.</span><a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + $("m").value + " on " + $("g").value)}&body=${encodeURIComponent(FENCE + "json\n" + issue + "\n" + FENCE)}">Submit your measured run &rarr;</a></div>`;
+}
+// Recommendations: try every GPU x quantization for the chosen model, context, users and GPU count, then apply the limits in Assumptions.
+function renderRec(p, L, h, d, act, ov, users, n) {
+  const cands = Object.entries(GPUS).flatMap(([gpu, spec]) => Object.keys(QUANTS).map(quant => {
+    const [gib, bw, usd] = cluster(spec, n), r = fit(p, QUANTS[quant], L, h, d, KV_BYTES, +$("c").value, gib, bw, usd, ov, act);
+    return { gpu, quant, fits: r.users >= users, usd, tok: r.tok, loss: QUALITY_LOSS[quant][0], users: r.users, weights: r.weights, measured: RUNS.some(x => x.model == $("m").value && x.quant == quant && x.gpu == gpu) };
+  }));
+  const res = recommend(cands, { maxUsd: +$("bd").value, minTok: $("mt").value === "" ? 10 : +$("mt").value, maxLoss: $("ml").value === "" ? 5 : +$("ml").value });
+  const gone = Object.entries(res.dropped).filter(([, v]) => v).map(([k, v]) => `${v} ${k}`).join(", ");
+  const row = ([why, x]) => `<tr><td>${why}</td><td>${x.gpu}${n > 1 ? " x" + n : ""}</td><td>${x.quant}</td><td>$${x.usd.toFixed(2)}/hr</td><td>${Math.round(x.tok)} tok/s</td><td>${x.loss ? "+" + x.loss + "%" : "none"}</td><td>${x.measured ? "speed measured" : "estimated"}</td></tr>`;
+  $("rec").innerHTML = `<span class=lab>Recommended setups for ${users} users at ${$("c").value} tokens (${cands.length} combinations tried${gone ? "; removed: " + gone : ""})</span>`
+    + (res.picks.length ? `<table><tr><th>Best for</th><th>GPU</th><th>Quantization</th><th>Price</th><th>Speed ceiling</th><th>Quality loss</th><th>Evidence</th></tr>${res.picks.map(row).join("")}</table><small>Each row wins on one priority among the ${res.ok.length} setups that pass your limits. Estimates only: benchmark before you buy.</small>`
+      : `<p>No setup passes your limits. Loosen the budget, speed or quality limit in Assumptions.</p>`);
 }
 // Compare table: rows are every GPU or every quantization, other inputs held fixed. Best (fits, cheapest) first.
 let cmpBy = "g";
