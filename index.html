@@ -256,7 +256,7 @@ document.querySelectorAll("#cmpTabs button").forEach(b => b.onclick = () => { cm
 $("share").onclick = () => navigator.clipboard.writeText(location.href).then(() => { $("share").textContent = "Copied!"; setTimeout(() => $("share").textContent = "Copy share link", 1500); });
 const setPrice = () => $("pr").value = $("g").value ? GPUS[$("g").value][2] : "";
 const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32]};
-document.querySelectorAll(".pills").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id].map(v => `<button type=button data-v=${v}>${id == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
+document.querySelectorAll(".pills[data-for]").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id].map(v => `<button type=button data-v=${v}>${id == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
 document.querySelectorAll(".pills[data-for] button").forEach(b => b.onclick = () => { $(b.parentNode.dataset.for).value = b.dataset.v; render(); });
 document.querySelectorAll("select,input").forEach(e => e.oninput = render);
 const go = () => { calculated = true; render(); $("vc").scrollIntoView({behavior: "smooth", block: "center"}); };
