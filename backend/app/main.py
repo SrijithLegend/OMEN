@@ -10,7 +10,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_
 from sqlalchemy import delete, insert, select, update
 from pydantic import BaseModel, Field
 
-from . import benchmarks, db
+from . import benchmarks, db, prices
 from .catalog import CATALOG_BYTES, GPUS, MODELS, QUANTS, RUNS, get
 from .memory import estimate_memory
 from .performance import estimate_performance
@@ -115,12 +115,12 @@ class WorkloadRequest(PerfRequest):
     requests_per_month: int = Field(100_000, ge=1)
 
 
-def _simulate(c: WorkloadRequest) -> dict:
+def _simulate(c: WorkloadRequest, usd_hr_per_gpu: float | None = None) -> dict:
     mem = memory(c)["memory"]
     if not mem["fits"]:
         return {"status": "does_not_fit", "memory": mem}
     perf = performance(c)["performance"]
-    w = simulate(perf["decode_ceiling_tok_s"], c.concurrency, _lookup(GPUS, c.gpu, "GPU")["usd_hr"] * c.gpu_count,
+    w = simulate(perf["decode_ceiling_tok_s"], c.concurrency, (usd_hr_per_gpu if usd_hr_per_gpu is not None else _lookup(GPUS, c.gpu, "GPU")["usd_hr"]) * c.gpu_count,
                  c.output_tokens, c.requests_per_month, perf["utilization_used"])
     return {"status": "estimated", "memory": mem, "performance": perf, "workload": w}
 
@@ -137,18 +137,28 @@ class CostRequest(WorkloadRequest):
     usd_per_kwh: float = Field(0.15, ge=0)
     hosting_usd_month: float = Field(0, ge=0)
     utilization: float | None = Field(None, gt=0, le=1)
+    provider: str | None = None  # price from the recorded catalog (see /prices) instead of the assumed $/hr
+    pricing_model: str = "on_demand"
 
 
 @app.post("/api/v1/cost/estimate")
 def cost(c: CostRequest):
-    s = _simulate(c)
+    rec = None
+    if c.provider:
+        rec = prices.cheapest_per_gpu(c.provider, c.gpu, c.pricing_model)
+        if not rec:
+            raise HTTPException(404, f"no recorded {c.pricing_model} price for {c.gpu} at {c.provider}: add one with POST /api/v1/prices, or omit provider to use the assumed price")
+    s = _simulate(c, rec["usd_hr_per_gpu"] if rec else None)
     if s["status"] != "estimated":
         return s
-    out = {**s, "evidence": _evidence(c), "warnings": ["Cloud price is an assumed $/hr, not a quote."]}
+    warn = f"Price recorded from {rec['source_url']} on {rec['observed_at']}: it may have changed." if rec else "Cloud price is an assumed $/hr, not a quote."
+    out = {**s, "evidence": _evidence(c), "warnings": [warn]}
+    if rec:
+        out["price_used"] = rec
     if c.hardware_usd:
         w = s["workload"]
         own = self_hosted_usd_hr(c.hardware_usd * c.gpu_count, c.lifetime_months, c.power_watts * c.gpu_count, c.usd_per_kwh, c.hosting_usd_month)
-        cloud = _lookup(GPUS, c.gpu, "GPU")["usd_hr"] * c.gpu_count
+        cloud = (rec["usd_hr_per_gpu"] if rec else _lookup(GPUS, c.gpu, "GPU")["usd_hr"]) * c.gpu_count
         out["self_hosted"] = {"usd_hr_while_running": own, "monthly_usd": own * HOURS_PER_MONTH * w["copies_needed"],
                               "break_even_months": break_even_months(c.hardware_usd * c.gpu_count, cloud, own, w["gpu_hours_per_month"])}
     return out
@@ -236,6 +246,35 @@ def verify_benchmark(run_id: int, x_admin_key: str | None = Header(None)):
     if not benchmarks.verify(run_id):
         raise HTTPException(409, "only community runs can be verified")
     return {"id": run_id, "status": "verified"}
+
+
+class PriceRecord(BaseModel):
+    provider: str
+    instance_type: str = Field(min_length=1)
+    region: str = Field(min_length=1)
+    gpu: str
+    gpu_count: int = Field(ge=1)
+    pricing_model: str = "on_demand"
+    usd_hr: float = Field(gt=0)
+    source_url: str = Field(min_length=8)
+    observed_at: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+@app.post("/api/v1/prices", status_code=201)
+def add_price(p: PriceRecord, x_admin_key: str | None = Header(None)):
+    """Reviewer action (same key as /verify). Every price needs a source URL and the date it was read; rows are never overwritten."""
+    if not os.environ.get("OMEN_ADMIN_KEY") or x_admin_key != os.environ["OMEN_ADMIN_KEY"]:
+        raise HTTPException(403, "reviewer key required")
+    if p.provider not in prices.PROVIDERS or p.pricing_model not in prices.PRICING_MODELS:
+        raise HTTPException(422, f"provider must be one of {prices.PROVIDERS}, pricing_model one of {prices.PRICING_MODELS}")
+    _lookup(GPUS, p.gpu, "GPU")
+    return {"id": prices.add(p.model_dump())}
+
+
+@app.get("/api/v1/prices")
+def list_prices(provider: str | None = None, gpu: str | None = None, pricing_model: str | None = None, history: bool = False):
+    """Newest price per instance by default; history=true returns every recorded observation."""
+    return {"providers": prices.PROVIDERS, "prices": prices.search(provider=provider, gpu=gpu, pricing_model=pricing_model, latest_only=not history)}
 
 
 # ---- API keys, saved workspaces, change tracking -------------------------------------------------------------------

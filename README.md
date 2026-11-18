@@ -126,6 +126,7 @@ OMEN_ADMIN_KEY=choose-a-secret uvicorn app.main:app --reload   # docs at http://
 | `POST /api/v1/estimate/memory` | Weights, KV cache, overhead, headroom, four-level fit status |
 | `POST /api/v1/estimate/performance` | Decode ceiling, TTFT, TPOT, end to end, calibration. `null` where data is missing |
 | `POST /api/v1/workloads/simulate`, `/cost/estimate` | Capacity, $ per 1M tokens, monthly cost, cloud vs self-hosted, break-even |
+| `GET /api/v1/prices`, `POST /api/v1/prices` | Cloud price catalog (AWS, Google Cloud, Azure, Oracle, CoreWeave, Lambda, RunPod, Vast.ai, Paperspace, DigitalOcean, Together AI). Reviewer-entered, each with a source URL and date, append-only. `/cost/estimate` takes `provider` and `pricing_model` to use it |
 | `POST /api/v1/configurations/compare` | Side by side; warns when workloads differ |
 | `POST /api/v1/recommendations` | Hard limits first, then one pick per priority |
 | `POST /api/v1/benchmarks/submit`, `GET /benchmarks`, `POST /benchmarks/{id}/verify` | Consent-gated submission, background validation, duplicate and physics checks, reviewer verification |
@@ -141,5 +142,5 @@ The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects Po
 - **React + TypeScript + Tailwind frontend.** The existing page works with no build step, so it was kept rather than rewritten. It does not call the API yet.
 - **Supabase/OAuth sign-in, Razorpay/Stripe billing, and email or in-app alert delivery.** They need accounts with outside services. API keys and a pull-based `/changes` report cover the same ground without them.
 - **Celery and Redis.** FastAPI background tasks do the benchmark validation. A queue is the upgrade once volume needs it.
-- **A cloud price catalog and a benchmark results dataset beyond the 5 published runs.** Prices here are assumptions, not quotes, and data has to come from contributors.
+- **Cloud price data and a benchmark dataset beyond the 5 published runs.** The price catalog exists but ships empty: someone has to read each provider's pricing page and enter the price with its source. Until then prices are assumptions, not quotes. Benchmark data has to come from contributors.
 - **Prefill estimates for GPUs without a well-known compute figure**, and calibration beyond one model on one engine.

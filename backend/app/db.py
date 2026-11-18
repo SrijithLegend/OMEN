@@ -21,6 +21,13 @@ benchmark_runs = Table(
     Column("problems", JSON, nullable=False, default=list),
     Column("duplicate_of", Integer), Column("created_at", String, server_default=func.now()),
 )
+pricing_records = Table(  # append-only: a new price is a new row, so a saved report can cite the price it used
+    "pricing_records", meta,
+    Column("id", Integer, primary_key=True), Column("provider", String, nullable=False), Column("instance_type", String, nullable=False),
+    Column("region", String, nullable=False), Column("gpu", String, nullable=False), Column("gpu_count", Integer, nullable=False),
+    Column("pricing_model", String, nullable=False), Column("usd_hr", Float, nullable=False),  # whole-instance price per hour
+    Column("source_url", String, nullable=False), Column("observed_at", String, nullable=False),  # ISO date the price was read
+)
 saved_analyses = Table(
     "saved_analyses", meta,
     Column("id", Integer, primary_key=True), Column("owner", String, nullable=False), Column("project", String, nullable=False),

@@ -157,3 +157,19 @@ def test_submitter_is_shown_only_when_opted_in():
     b = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 778, "submitter": "proud-person", "attribute_me": True}).json()["id"]
     got = {x["id"]: x for x in c.get("/api/v1/benchmarks", params={"status": "community"}).json()["results"]}
     assert "submitter" not in got[a] and got[b]["submitter"] == "proud-person" and "attribute_me" not in got[b]
+
+
+def test_price_catalog_records_sources_and_feeds_cost():
+    P = {"provider": "AWS", "instance_type": "test.4x", "region": "us-east-1", "gpu": "RTX 4090 24GB", "gpu_count": 4, "usd_hr": 8.0,
+         "source_url": "https://example.com/pricing", "observed_at": "2026-11-01"}
+    body = {**BASE, "provider": "AWS"}
+    assert c.post("/api/v1/prices", json=P).status_code == 403  # reviewer key needed
+    assert c.post("/api/v1/cost/estimate", json=body).status_code == 404  # no price recorded: refuses rather than inventing one
+    h = {"x-admin-key": "test-admin"}
+    assert c.post("/api/v1/prices", headers=h, json={**P, "provider": "Nope"}).status_code == 422
+    assert c.post("/api/v1/prices", headers=h, json=P).status_code == 201
+    c.post("/api/v1/prices", headers=h, json={**P, "usd_hr": 12.0, "observed_at": "2026-11-15"})  # price change: new row, old one kept
+    assert [r["usd_hr"] for r in c.get("/api/v1/prices", params={"provider": "AWS"}).json()["prices"]] == [12.0]
+    assert len(c.get("/api/v1/prices", params={"history": True}).json()["prices"]) == 2
+    r = c.post("/api/v1/cost/estimate", json={**body, "gpu_count": 1}).json()
+    assert r["price_used"]["usd_hr_per_gpu"] == 3.0 and "2026-11-15" in r["warnings"][0]
