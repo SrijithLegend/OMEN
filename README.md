@@ -96,3 +96,13 @@ OMEN assumes an fp16 KV cache and ignores multi-GPU interconnect losses. The mul
 ## License
 
 MIT, see `LICENSE`.
+
+## Roadmap (from the product spec)
+
+OMEN is a static page, so only the parts that need no server are built. Not yet built: accounts and workspaces, an API, a benchmark runner and database, workload and percentile modelling, a cloud pricing catalog, and a recommendation engine.
+
+Built from Release 1 of the spec:
+- Evidence labels (measured vs estimated) and a four-level fit status.
+- Memory breakdown with the biggest component named, plus a context-length table.
+- GPU, quantization and context comparison tables, with quality loss per quantization.
+- A configuration ID for every setup, and shareable links.
