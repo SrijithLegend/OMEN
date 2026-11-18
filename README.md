@@ -134,7 +134,7 @@ OMEN_ADMIN_KEY=choose-a-secret uvicorn app.main:app --reload   # docs at http://
 
 `backend/omen_bench.py` measures any OpenAI-compatible server (vLLM, llama.cpp server) and writes a result file. It submits only with `--consent`.
 
-The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects PostgreSQL, and `docker compose up --build` in `backend/` starts the API, PostgreSQL and Prometheus. Neither the PostgreSQL path nor the Docker files have been run in this repository's test environment; only SQLite is tested.
+The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects PostgreSQL, and `docker compose up --build` in `backend/` starts the API, PostgreSQL and Prometheus. The PostgreSQL path and the Docker files are untested: the Docker daemon was not running when this was written. Only SQLite is tested.
 
 ## Not built, and why
 
