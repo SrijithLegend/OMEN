@@ -26,4 +26,15 @@ function recommend(cands, cons) {
     ["Best quality", by((a, b) => a.loss - b.loss || a.usd - b.usd)], ["Best value ($ per token)", by((a, b) => perTok(a) - perTok(b))]] : [];
   return { ok, dropped, picks };
 }
-if (typeof module !== 'undefined') module.exports = { cluster, workload, recommend, TP_EFF }; // for test.js
+// Hugging Face import: config.json + safetensors total (in params) -> [params_b, layers, kv_heads, head_dim]. Missing fields throw, never guessed.
+function parseHF(cfg, totalParams) {
+  const c = cfg.text_config || cfg, warn = [], need = (k, v) => { if (!(v > 0)) throw new Error("config.json has no usable " + k); return v; };
+  const layers = need("num_hidden_layers", c.num_hidden_layers), heads = need("num_attention_heads", c.num_attention_heads);
+  const kv = c.num_key_value_heads || heads, hd = c.head_dim || need("hidden_size", c.hidden_size) / heads;
+  need("parameter count (safetensors)", totalParams);
+  if (c.kv_lora_rank) throw new Error("MLA attention (compressed KV cache) is not supported for import");
+  if (c.num_local_experts || c.n_routed_experts || c.num_experts) warn.push("Mixture-of-experts: active parameters are unknown, so speed uses the total and is underestimated.");
+  if (c.sliding_window && c.use_sliding_window !== false) warn.push("Sliding-window attention: KV cache is overestimated at long context.");
+  return { entry: [+(totalParams / 1e9).toFixed(2), layers, kv, hd], warn };
+}
+if (typeof module !== 'undefined') module.exports = { cluster, workload, recommend, parseHF, TP_EFF }; // for test.js

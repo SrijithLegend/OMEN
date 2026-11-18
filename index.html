@@ -96,6 +96,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
       <div><label><em>6</em> Users <input id=u type=number min=1 placeholder="e.g. 4"></label><div class=pills data-for=u></div></div>
       <div><label><em>7</em> Number of GPUs <input id=n type=number min=1 placeholder="1"></label><div class=pills data-for=n></div></div>
     </div>
+    <div class=two style="margin-top:12px;align-items:end"><label>Not listed? Import from Hugging Face <input id=hf placeholder="org/model, e.g. Qwen/Qwen2.5-7B"></label><div><button type=button class=go2 id=hfgo style="margin:0">Import model</button></div></div><small id=hfmsg></small>
     <button type=button id=go>Calculate &rarr;</button><button type=button id=share>Copy share link</button> <small id=cid></small></div>
   <div class="card hero s2 r2 res" id=hero></div>
   <div class="card r2 s2 res" id=vc><span class=lab>Verdict</span><div class=big id=vt></div><div id=vs></div><span class=badge id=conf></span></div>
@@ -300,6 +301,22 @@ function renderCmp(p, L, h, d, act, ov, users) {
 document.querySelectorAll("#cmpTabs button").forEach(b => b.onclick = () => { cmpBy = b.dataset.v; render(); });
 $("share").onclick = () => navigator.clipboard.writeText(location.href).then(() => { $("share").textContent = "Copied!"; setTimeout(() => $("share").textContent = "Copy share link", 1500); });
 const N = () => Math.max(1, Math.floor(+$("n").value || 1));
+// Import a model from Hugging Face: the repo's own config.json and parameter count, pinned to its commit, added to the Model list.
+async function importHF() {
+  const id = $("hf").value.trim(), msg = t => $("hfmsg").textContent = t;
+  if (!/^[\w.-]+\/[\w.-]+$/.test(id)) return msg("Use the form org/model, for example Qwen/Qwen2.5-7B.");
+  msg("Loading...");
+  try {
+    const api = await fetch("https://huggingface.co/api/models/" + id); if (!api.ok) throw new Error(api.status == 404 ? "model not found (gated or private repos cannot be read)" : "Hugging Face returned " + api.status);
+    const info = await api.json(), cfg = await fetch(`https://huggingface.co/${id}/resolve/${info.sha}/config.json`);
+    if (!cfg.ok) throw new Error("no readable config.json in this repo");
+    const {entry, warn} = parseHF(await cfg.json(), info.safetensors?.total), name = id + " (HF)";
+    (MODELS_BY_CREATOR["Imported"] ||= {})[name] = entry; MODELS[name] = entry; MODEL_SOURCES[name] = `https://huggingface.co/${id}/tree/${info.sha}`;
+    fillModels(); $("m").value = name; render();
+    msg(`Imported ${id} at commit ${info.sha.slice(0, 7)}. ${warn.join(" ")} Imported models are not kept in shared links.`);
+  } catch (e) { msg("Import failed: " + e.message + "."); }
+}
+$("hfgo").onclick = importHF;
 const setPrice = () => $("pr").value = $("g").value ? GPUS[$("g").value][2] : "";
 const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32], n: [1, 2, 4, 8]};
 document.querySelectorAll(".pills[data-for]").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id].map(v => `<button type=button data-v=${v}>${id == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
@@ -308,7 +325,7 @@ document.querySelectorAll("select,input").forEach(e => e.oninput = render);
 document.querySelectorAll(".res").forEach((e, i) => e.style.setProperty("--i", i)); // staggered reveal order, hero first
 const go = () => { calculated = true; render(); const c = $("calc"); c.classList.remove("done"); void c.offsetWidth; c.classList.add("done"); setTimeout(() => $("hero").scrollIntoView({behavior: "smooth", block: "start"}), 60); };
 $("go").onclick = go;
-document.querySelectorAll("input").forEach(e => e.onkeydown = ev => { if (ev.key == "Enter") go(); });
+document.querySelectorAll("input").forEach(e => e.onkeydown = ev => { if (ev.key == "Enter") e.id == "hf" ? importHF() : go(); });
 $("g").addEventListener("input", () => { setPrice(); render(); });
 $("uc").oninput = () => { fillModels(); if ($("uc").value != "All") $("c").value = USE_CASE_CONTEXT[$("uc").value]; render(); };
 setPrice();

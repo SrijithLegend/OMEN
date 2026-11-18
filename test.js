@@ -47,4 +47,11 @@ assert.deepStrictEqual(rc.dropped, { "does not fit": 1, "over budget": 1, "too s
 const rn = recommend(cs, { maxUsd: 0, minTok: 0, maxLoss: "" });
 assert.strictEqual(rn.picks[0][1].gpu, "D"); assert.strictEqual(rn.picks[1][1].gpu, "B"); assert.strictEqual(rn.picks[2][1].gpu, "B");
 assert.deepStrictEqual(recommend([cs[2]], {}).picks, []);
+// HF import: Qwen2.5-7B config => 28 layers, 4 KV heads, head dim 3584/28 = 128
+const { parseHF } = require("./intel.js"), qc = { num_hidden_layers: 28, num_attention_heads: 28, num_key_value_heads: 4, hidden_size: 3584, sliding_window: 131072, use_sliding_window: false };
+assert.deepStrictEqual(parseHF(qc, 7615616512), { entry: [7.62, 28, 4, 128], warn: [] });
+assert.throws(() => parseHF({ num_attention_heads: 8, hidden_size: 64 }, 1e9), /num_hidden_layers/);
+assert.throws(() => parseHF(qc, 0), /parameter count/);
+assert.throws(() => parseHF({ ...qc, kv_lora_rank: 512 }, 1e9), /MLA/);
+assert.strictEqual(parseHF({ ...qc, num_local_experts: 8 }, 1e9).warn.length, 1);
 console.log("all tests pass");
