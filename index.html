@@ -99,6 +99,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
   <div class="card hero s2 r2" id=hero></div>
   <div class="card stat"><span class=lab>Max users</span><b id=su></b><small>sessions that fit</small></div>
 
+  <div class="card stat"><span class=lab>Quality loss</span><b id=sq></b><small id=sqs>vs fp16</small></div>
   <div class="card stat sand"><span class=lab>Cost per user-hour</span><b id=sc></b><small id=scs>GPU price / users that fit</small></div>
 
   <div class="card s4"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
@@ -126,6 +127,7 @@ const TERMS = [
   ["Model and parameters", "A model is the AI itself. Parameters are its learned numbers, and more of them usually means smarter but heavier. 8B means 8 billion.", "Example: Llama-3.1-8B has 8 billion parameters."],
   ["Weights", "The model's parameters stored in memory. This is the fixed cost of loading it, whether one person or a hundred use it.", "Example: an 8B model in fp16 is about 15 GiB."],
   ["Quantization", "Shrinking the model by storing each number with fewer bits. It uses much less memory for a small loss in quality, like compressing a photo.", "Example: int4 is roughly a quarter the size of fp16."],
+  ["Quality loss (perplexity)", "Quantizing is lossy. Perplexity measures how surprised the model is by real text, and lower is better. '+1%' means slightly worse answers than fp16, while very low bits (int2, Q2_K) can be clearly worse.", "Example: Q4_K_M is about +0.9%, Q2_K about +15%."],
   ["fp16 / int8 / int4", "How many bits each parameter uses: 16, 8 or 4. Fewer bits means smaller and faster, but slightly less accurate.", "Example: int4 (GPTQ / AWQ) fits big models on small cards."],
   ["Token", "A small piece of text, about three quarters of a word. Models read and write in tokens.", "Example: 'Hello there' is about 2 tokens."],
   ["Context length", "How much text the model can keep in mind at once: your question, the chat so far and its answer. Longer means more memory.", "Example: 8K tokens is about a 15 page document."],
@@ -207,7 +209,7 @@ function render() {
   if (!calculated || missing.length) { // blank or not yet calculated: show prompt, no numbers
     $("vc").className = "card r2"; $("vt").textContent = calculated ? "Almost there" : "Pick your setup";
     $("vs").textContent = calculated ? "Still needed: " + missing.join(", ") + "." : "Fill in the setup, then press Calculate.";
-    $("conf").textContent = ""; for (const i of ["sw", "skv", "su", "st", "sc"]) $(i).textContent = "-";
+    $("conf").textContent = ""; for (const i of ["sw", "skv", "su", "st", "sc", "sq"]) $(i).textContent = "-";
     $("sth").textContent = "single-user decode"; $("bar").innerHTML = ""; $("leg").innerHTML = "";
     $("meas").innerHTML = `<span class=lab>Measured vs predicted</span><p>Calculate a setup to compare it against measured runs.</p>`; $("cmp").hidden = true; return;
   }
@@ -217,7 +219,7 @@ function render() {
   const ok = r.users >= users;
   const run = RUNS.find(x => x.model == $("m").value && x.quant == $("q").value && x.gpu == $("g").value);
   const need = r.weights + ov + r.kv * users, scale = Math.max(gib, need), pc = x => (100 * x / scale) + "%";
-  $("asm").innerHTML = [`Overhead: CUDA context and activations, not part of weights or KV.`, `GPU: ${gib} GiB VRAM, ${bw} GB/s (vendor datasheet, from memory).`, `Price is assumed, not a quote.`, `Model config (layers, KV heads, head dim) from Hugging Face config.json, see models.js.`, `KV cache assumed fp16.`, ...(/MLA/.test($("m").value) ? ["MLA model: the head size fed to the KV formula is an effective value matching its compressed cache, not a literal one."] : []), `Speed = bandwidth / weight bytes read per token (active params for MoE).`].map(t => `<li>${t}</li>`).join("");
+  $("asm").innerHTML = [`Overhead: CUDA context and activations, not part of weights or KV.`, `GPU: ${gib} GiB VRAM, ${bw} GB/s (vendor datasheet, from memory).`, `Price is assumed, not a quote.`, `Model config (layers, KV heads, head dim) from Hugging Face config.json, see models.js.`, `KV cache assumed fp16.`, `Quality loss is the perplexity increase vs fp16: measured for GGUF (llama.cpp, Llama-2-7B), typical for the rest. Smaller models and lower bits lose more.`, ...(/MLA/.test($("m").value) ? ["MLA model: the head size fed to the KV formula is an effective value matching its compressed cache, not a literal one."] : []), `Speed = bandwidth / weight bytes read per token (active params for MoE).`].map(t => `<li>${t}</li>`).join("");
   document.querySelectorAll(".pills[data-for] button").forEach(b => b.classList.toggle("on", $(b.parentNode.dataset.for).value == b.dataset.v));
   const seg = (x, c) => `<i style="width:${pc(x)};background:${c}"></i>`;
   $("bar").innerHTML = seg(r.weights, "#ff6a2b") + seg(r.kv * users, "#ffffffcc") + seg(ov, "#ffffff55") + `<b style="left:${pc(gib)}"></b>`;
@@ -229,6 +231,9 @@ function render() {
   $("vs").textContent = `Headroom ${r.free.toFixed(1)} GiB before KV.` + (ok ? "" :
     ` Needs at least ${minGpus("fp16 / bf16", p, r.kv, users, gib)} x this GPU in fp16, or ${minGpus("GPTQ / AWQ int4", p, r.kv, users, gib)} in int4 (minimums: ignore per-GPU overhead and interconnect losses).`);
   $("conf").textContent = run ? "Speed MEASURED, rest estimated" : "Estimated";
+  const [ql, qm] = QUALITY_LOSS[$("q").value] || [0, 0];
+  $("sq").textContent = ql ? "+" + (ql < 1 ? ql : ql.toFixed(1)) + "%" : "None";
+  $("sqs").textContent = (ql ? "perplexity vs fp16, " : "same as fp16, ") + (qm ? "measured (llama.cpp, 7B)" : "typical, estimated");
   $("sw").textContent = r.weights.toFixed(1) + " GiB";
   $("skv").textContent = r.kv.toFixed(2) + " GiB";
   $("su").textContent = r.users;
@@ -248,8 +253,8 @@ function renderCmp(p, L, h, d, act, ov, users) {
     const [gib, bw, usd] = cmpBy == "g" ? spec : [...GPUS[$("g").value].slice(0, 2), +$("pr").value];
     return [n, fit(p, QUANTS[cmpBy == "g" ? $("q").value : n], L, h, d, KV_BYTES, +$("c").value, gib, bw, usd, ov, act), gib];
   }).sort((a, b) => (b[1].users >= users) - (a[1].users >= users) || (a[1].cost ?? 1e9) - (b[1].cost ?? 1e9));
-  $("cmpBody").innerHTML = `<table><tr><th>${cmpBy == "g" ? "GPU" : "Quantization"}</th><th>VRAM</th><th>Weights</th><th>Max users</th><th>tok/s ceiling</th><th>$/user-hr</th></tr>` + rows.map(([n, r, gib]) =>
-    `<tr class="${r.users >= users ? (n == $(cmpBy).value ? "hit" : "") : "no"}"><td>${n}${r.users >= users ? "" : " (no fit)"}</td><td>${gib} GiB</td><td>${r.weights.toFixed(1)} GiB</td><td>${r.users}</td><td>${r.users ? Math.round(r.tok) : "-"}</td><td>${r.cost == null ? "-" : "$" + r.cost.toFixed(3)}</td></tr>`).join("") + "</table>";
+  $("cmpBody").innerHTML = `<table><tr><th>${cmpBy == "g" ? "GPU" : "Quantization"}</th><th>VRAM</th><th>Weights</th><th>Max users</th><th>tok/s ceiling</th><th>Quality loss</th><th>$/user-hr</th></tr>` + rows.map(([n, r, gib]) =>
+    `<tr class="${r.users >= users ? (n == $(cmpBy).value ? "hit" : "") : "no"}"><td>${n}${r.users >= users ? "" : " (no fit)"}</td><td>${gib} GiB</td><td>${r.weights.toFixed(1)} GiB</td><td>${r.users}</td><td>${r.users ? Math.round(r.tok) : "-"}</td><td>${(q => q ? "+" + q + "%" : "none")(QUALITY_LOSS[cmpBy == "g" ? $("q").value : n][0])}</td><td>${r.cost == null ? "-" : "$" + r.cost.toFixed(3)}</td></tr>`).join("") + "</table>";
   document.querySelectorAll("#cmpTabs button").forEach(b => b.classList.toggle("on", b.dataset.v == cmpBy));
 }
 document.querySelectorAll("#cmpTabs button").forEach(b => b.onclick = () => { cmpBy = b.dataset.v; render(); });

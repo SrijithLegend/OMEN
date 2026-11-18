@@ -11,6 +11,7 @@ OMEN is a GPU fit calculator for open AI models. Pick a model, a graphics card a
 
 - **A clear verdict**: fits or does not fit, with the headroom left over (and how many GPUs you would need if it does not fit).
 - **Memory breakdown**: weights, per-user chat memory (KV cache) and overhead, drawn against your GPU's limit.
+- **Quality loss**: how much worse each quantization is than fp16 (perplexity increase). Measured for GGUF formats (llama.cpp, Llama-2-7B), typical estimates for the rest.
 - **Speed ceiling**: the best-case tokens per second for one user.
 - **Cost per user-hour**: the GPU price divided by the users that fit.
 - **Plenty of choices**: open models from Meta, Mistral, Qwen, Google, Microsoft, DeepSeek, OpenAI and others, filterable by use case (code, vision, finance, math and reasoning), many quantization formats, and a list of GPUs.
