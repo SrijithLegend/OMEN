@@ -16,11 +16,8 @@
       "type": "string"
     },
     "quant": {
-      "enum": [
-        "fp16",
-        "int8",
-        "int4"
-      ]
+      "type": "string",
+      "description": "a quantization name from the calculator, e.g. fp16 / bf16, Q4_0, GPTQ / AWQ int4"
     },
     "gpu": {
       "type": "string"

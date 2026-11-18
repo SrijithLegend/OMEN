@@ -37,4 +37,15 @@ function parseHF(cfg, totalParams) {
   if (c.sliding_window && c.use_sliding_window !== false) warn.push("Sliding-window attention: KV cache is overestimated at long context.");
   return { entry: [+(totalParams / 1e9).toFixed(2), layers, kv, hd], warn };
 }
-if (typeof module !== 'undefined') module.exports = { cluster, workload, recommend, parseHF, TP_EFF }; // for test.js
+// Benchmark validation: returns a list of problems (empty = acceptable). Names must match the calculator's lists so runs can be joined to estimates.
+function validateRun(r, known) {
+  const bad = [], num = (k, int) => { if (!(typeof r[k] == "number" && r[k] > 0) || (int && !Number.isInteger(r[k]))) bad.push(`${k} must be a positive ${int ? "whole " : ""}number`); };
+  if (!r || typeof r != "object") return ["not a JSON object"];
+  for (const k of ["model", "quant", "gpu", "engine"]) if (!r[k] || typeof r[k] != "string") bad.push(k + " is required");
+  num("context", true); num("users", true); num("tok_s");
+  for (const [k, list] of Object.entries(known)) if (r[k] && !list.includes(r[k])) bad.push(`${k} "${r[k]}" is not in the calculator's list`);
+  if (r.tok_s > 20000) bad.push("tok_s above 20000 per user is implausible");
+  if (!r.source) bad.push("source is missing: without a link this stays a Community record that cannot be checked");
+  return bad;
+}
+if (typeof module !== 'undefined') module.exports = { cluster, workload, recommend, parseHF, validateRun, TP_EFF }; // for test.js

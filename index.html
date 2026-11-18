@@ -45,16 +45,19 @@ input:hover,.dd>button:hover{border-color:#ff6a2b66}input:focus,.dd>button:focus
 .chip{display:inline-block;margin:0 12px 4px 0;font-size:.82rem;color:var(--mute)}.chip:before{content:"";display:inline-block;width:.7rem;height:.7rem;border-radius:50%;margin-right:6px;background:var(--c)}
 a{color:inherit;font-weight:700}
 table{width:100%;border-collapse:collapse;margin-top:12px;font-size:.85rem;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:7px 10px;white-space:nowrap}th{color:var(--mute);font-weight:500}tr.hit td{color:var(--orange);font-weight:700}tr.no td{color:#777}
-#share{margin-top:10px;padding:8px 16px;border:0;border-radius:99px;background:var(--field);color:#fff;font:700 .85rem Inter,system-ui;cursor:pointer}
+.sm,#share{margin-top:10px;padding:8px 16px;border:0;border-radius:99px;background:var(--field);color:#fff;font:700 .85rem Inter,system-ui;cursor:pointer}
 .tabs{max-width:72rem;margin:0 auto 12px;display:flex;gap:8px}
 .tabs button{border:0;border-radius:99px;padding:11px 20px;background:var(--white);color:var(--ink);font:700 .95rem Inter,system-ui;cursor:pointer;transition:filter .15s}
 .tabs button:hover{filter:brightness(.95)}.tabs button.on{background:var(--ink);color:#fff}
 .grid[hidden]{display:none}
+textarea{display:block;width:100%;margin-top:8px;padding:12px 14px;border:2px solid transparent;border-radius:14px;background:var(--field);color:#fff;font:500 .85rem/1.4 ui-monospace,Consolas,monospace;resize:vertical;outline:0}textarea:focus{border-color:var(--orange)}
+#runout{margin-top:12px;font-size:.9rem;line-height:1.5}#runout b{color:var(--orange)}
+.sm{margin:10px 8px 0 0}#wslist div{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #ffffff22}#wslist span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .res{display:none}#calc.done .res{display:block;animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 110ms)}
 #calc.done .res.stat{display:flex}#calc.done .res.hero{display:flex}#calc.done .res[hidden]{display:none}
-#learn:not([hidden]) .card{animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 60ms)}
+#learn:not([hidden]) .card,#bench:not([hidden]) .card{animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 60ms)}
 @keyframes pop{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:none}}
-@media(prefers-reduced-motion:reduce){#calc.done .res,#learn .card{animation:none!important}}
+@media(prefers-reduced-motion:reduce){#calc.done .res,#learn .card,#bench .card{animation:none!important}}
 .term b{display:block;font-size:1.6rem;line-height:1.1;margin-bottom:8px}.term p{margin:0 0 10px;font-size:1rem;line-height:1.5}
 .term small{display:block;padding:10px 12px;border-radius:12px;background:#ffffff14;font-size:.85rem;line-height:1.4}.sand.term small{background:#0000000d}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.steps div{padding:14px;border-radius:16px;background:#ffffff14;font-size:.95rem;line-height:1.4}
@@ -78,11 +81,18 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 .cta a:hover{filter:brightness(1.08)}
 @media(max-width:760px){.steps{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.s4,.s3,.s2{grid-column:span 2}.two{grid-template-columns:1fr}.r2{grid-row:auto}}
 </style>
-<nav class=tabs><button class=on data-tab=calc>GPU calculator</button><button data-tab=learn>Guide</button></nav>
+<nav class=tabs><button class=on data-tab=calc>GPU calculator</button><button data-tab=learn>Guide</button><button data-tab=bench>Benchmarks</button></nav>
 <div class=grid id=learn hidden>
   <div class="card s4"><h1>Plain English</h1><p class=tag>Never run an AI model yourself? Here is every term OMEN uses, with no jargon.</p>
     <div class=steps><div><em>1</em>Pick the AI model you want to run.</div><div><em>2</em>Pick the graphics card (GPU) you have or want to rent.</div><div><em>3</em>Say how much text and how many people, then press Calculate.</div></div>
     <button class=go2 data-tab=calc>Open the calculator &rarr;</button></div>
+</div>
+<div class=grid id=bench hidden>
+  <div class="card s4"><h1>Benchmarks</h1><p class=tag>Real measurements next to what the calculator predicts. Measured numbers are published by others; we link every source.</p></div>
+  <div class="card sand s4"><span class=lab>Measured vs predicted</span><div id=benchTable style="overflow:auto"></div><small id=benchSum></small></div>
+  <div class="card s4"><span class=lab>Check your own result</span><p class=tag>Paste a result as JSON (see run-template.json). Nothing is sent anywhere until you choose to submit.</p>
+    <textarea id=runjson rows=9 placeholder='{"model": "Llama-3.1-8B", "quant": "Q4_K_M", "gpu": "RTX 4090 24GB", "context": 8192, "users": 1, "engine": "llama.cpp b1234", "tok_s": 120, "source": "https://..."}'></textarea>
+    <button type=button class=go2 id=runcheck>Check result</button><div id=runout></div></div>
 </div>
 <div class=grid id=calc>
   <div class="card s4 title"><h1>OMEN</h1><p class=tag>GPU Calculator &middot; will it fit? How fast? What does it cost?</p></div>
@@ -108,6 +118,9 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
   <div class="card stat sand res s2"><span class=lab>Cost per user-hour</span><b id=sc></b><small id=scs>GPU price / users that fit</small></div>
   <div class="card sand s4 res" id=wl></div>
   <div class="card s4 res" id=rec></div>
+  <div class="card s4 res" id=ws><span class=lab>Saved setups (kept in this browser only)</span>
+    <div class=two style="align-items:end"><label>Name or note <input id=wsn placeholder="e.g. support bot on 2x 4090"></label><div><button type=button class=sm id=wssave style="margin:0">Save this setup</button> <button type=button class=sm id=wsexp style="margin:0">Export JSON</button></div></div>
+    <div id=wslist></div></div>
   <div class="card s4 res"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
   <div class="card s2 res"><span class=lab>Assumptions (editable)</span>
     <div class=two><label>Overhead GiB <input id=ov type=number step=0.1 placeholder="1.5"></label>
@@ -122,7 +135,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
   <div class="card sand s2 meas res" id=meas></div>
   <div class="card s4 res" id=cmp hidden><span class=lab>Compare (same model, context and users)</span>
     <div class=pills id=cmpTabs><button type=button data-v=g class=on>All GPUs</button><button type=button data-v=q>All quantizations</button><button type=button data-v=c>Context lengths</button></div>
-    <div id=cmpBody style="overflow:auto"></div></div>
+    <div id=cmpBody style="overflow:auto"></div><button type=button class=sm id=csv>Download table as CSV</button></div>
 </div>
 <script src="models.js"></script>
 <script src="usecases.js"></script>
@@ -155,10 +168,10 @@ const TERMS = [
 ];
 const g = id => document.getElementById(id);
 g("learn").insertAdjacentHTML("beforeend", TERMS.map(([t, d, e], i) => `<div class="card term s2 ${i % 2 ? "" : "sand"}"><span class=lab>Term ${i + 1}</span><b>${t}</b><p>${d}</p><small>${e}</small></div>`).join(""));
-document.querySelectorAll("#learn .card").forEach((e, i) => e.style.setProperty("--i", i));
+document.querySelectorAll("#learn .card,#bench .card").forEach((e, i) => e.style.setProperty("--i", i));
 document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
   document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x.dataset.tab == b.dataset.tab));
-  g("calc").hidden = b.dataset.tab != "calc"; g("learn").hidden = b.dataset.tab != "learn"; scrollTo(0, 0);
+  ["calc", "learn", "bench"].forEach(t => g(t).hidden = b.dataset.tab != t); scrollTo(0, 0);
 });
 const MODELS = Object.assign({}, ...Object.values(MODELS_BY_CREATOR));
 const QUANTS = Object.assign({}, ...Object.values(QUANTS_BY_FAMILY));
@@ -317,6 +330,29 @@ async function importHF() {
   } catch (e) { msg("Import failed: " + e.message + "."); }
 }
 $("hfgo").onclick = importHF;
+const dl = (name, text, type) => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name; a.click(); };
+$("csv").onclick = () => dl("omen-compare.csv", [...$("cmpBody").querySelectorAll("tr")].map(r => [...r.cells].map(c => `"${c.textContent.replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv");
+// Saved setups: the URL query string is the whole configuration, so saving it is enough. localStorage can be blocked, so every access is guarded.
+const WSK = "omen.saved", wsGet = () => { try { return JSON.parse(localStorage.getItem(WSK)) || []; } catch { return []; } }, wsSet = l => { try { localStorage.setItem(WSK, JSON.stringify(l)); } catch {} };
+function wsRender() {
+  $("wslist").innerHTML = wsGet().map((x, i) => `<div><span><b>${x.name.replace(/[<&]/g, "")}</b> <small>${x.date} · ${x.cid}</small></span><span><button type=button class=sm data-load=${i}>Load</button><button type=button class=sm data-del=${i}>Delete</button></span></div>`).join("") || "<small>Nothing saved yet.</small>";
+}
+$("wssave").onclick = () => { if (!$("m").value) return; wsSet([...wsGet(), {name: $("wsn").value.trim() || $("m").value, date: new Date().toISOString().slice(0, 10), cid: $("cid").textContent, qs: location.search || "?" + new URLSearchParams(IDS.filter(i => $(i).value).map(i => [i, $(i).value]))}]); $("wsn").value = ""; wsRender(); };
+$("wsexp").onclick = () => dl("omen-saved-setups.json", JSON.stringify(wsGet(), null, 2), "application/json");
+$("wslist").onclick = e => { const l = wsGet(), d = e.target.dataset;
+  if (d.del !== undefined) { l.splice(+d.del, 1); wsSet(l); wsRender(); }
+  else if (d.load !== undefined) { const P = new URLSearchParams(l[+d.load].qs); if (P.has("uc")) { $("uc").value = P.get("uc"); fillModels(); } for (const [k, v] of P) if (IDS.includes(k) && k != "uc") $(k).value = v; go(); } };
+wsRender();
+// Benchmarks tab: every measured run joined to what the calculator predicts for it.
+(() => { let sum = 0, cnt = 0;
+  $("benchTable").innerHTML = "<table><tr><th>Model</th><th>Quant</th><th>GPU</th><th>Context</th><th>Users</th><th>Engine</th><th>Measured</th><th>Predicted ceiling</th><th>Measured / predicted</th><th>Status</th></tr>" + RUNS.map(x => {
+    const [p, L, h, d, act] = MODELS[x.model], [gib, bw, usd] = GPUS[x.gpu], t = fit(p, QUANTS[x.quant], L, h, d, KV_BYTES, x.context, gib, bw, usd, 1.5, act).tok, e = 100 * x.tok_s / t; sum += Math.abs(100 - e); cnt++;
+    return `<tr><td>${x.model}</td><td>${x.quant}</td><td>${x.gpu}</td><td>${x.context}</td><td>${x.users}</td><td>${x.engine}</td><td>${x.tok_s} tok/s</td><td>${Math.round(t)} tok/s</td><td>${Math.round(e)}%</td><td><a href="${x.source}">Sourced</a></td></tr>`; }).join("") + "</table>";
+  $("benchSum").textContent = `Mean gap between prediction and measurement: ${Math.round(sum / cnt)}% over ${cnt} runs, all one model on one engine. Do not read this as accuracy for other models, engines or workloads.`; })();
+$("runcheck").onclick = () => { let r; try { r = JSON.parse($("runjson").value); } catch (e) { $("runout").innerHTML = "<b>Not valid JSON:</b> " + e.message; return; }
+  const bad = validateRun(r, {model: Object.keys(MODELS), quant: Object.keys(QUANTS), gpu: Object.keys(GPUS)});
+  $("runout").innerHTML = bad.length ? "<b>Fix these first:</b><ul>" + bad.map(b => `<li>${b.replace(/[<&]/g, "")}</li>`).join("") + "</ul>"
+    : `<b>Looks valid.</b> It would be labelled Community (not independently reproduced). <a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + r.model + " on " + r.gpu)}&body=${encodeURIComponent(FENCE + "json\n" + JSON.stringify(r, null, 2) + "\n" + FENCE)}">Submit it as an issue &rarr;</a>`; };
 const setPrice = () => $("pr").value = $("g").value ? GPUS[$("g").value][2] : "";
 const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32], n: [1, 2, 4, 8]};
 document.querySelectorAll(".pills[data-for]").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id].map(v => `<button type=button data-v=${v}>${id == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });

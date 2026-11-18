@@ -54,4 +54,10 @@ assert.throws(() => parseHF({ num_attention_heads: 8, hidden_size: 64 }, 1e9), /
 assert.throws(() => parseHF(qc, 0), /parameter count/);
 assert.throws(() => parseHF({ ...qc, kv_lora_rank: 512 }, 1e9), /MLA/);
 assert.strictEqual(parseHF({ ...qc, num_local_experts: 8 }, 1e9).warn.length, 1);
+// Benchmark validation
+const { validateRun } = require("./intel.js"), kn = { model: ["A"], gpu: ["G"], quant: ["Q"] }, good = { model: "A", quant: "Q", gpu: "G", engine: "e 1", context: 128, users: 1, tok_s: 50, source: "http://x" };
+assert.deepStrictEqual(validateRun(good, kn), []);
+assert.strictEqual(validateRun({ ...good, gpu: "Z" }, kn).length, 1);
+assert.strictEqual(validateRun({ ...good, tok_s: 0, context: 1.5 }, kn).length, 2);
+assert.strictEqual(validateRun({ ...good, source: "" }, kn).length, 1);
 console.log("all tests pass");
