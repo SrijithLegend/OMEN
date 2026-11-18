@@ -4,6 +4,25 @@ from .memory import estimate_memory
 from .performance import decode_ceiling
 
 
+HIGH_CONFIDENCE = 0.75  # product decision: a recommendation is labelled "high" only at or above this
+
+
+def confidence(model: str, quant: str, gpu: str, users: int) -> tuple[float, str]:
+    """Score from the evidence hierarchy in claude.md section K. Not a probability: a fixed ladder, so it can be audited."""
+    exact = [r for r in RUNS if (r["model"], r["quant"], r["gpu"]) == (model, quant, gpu)]
+    if any(r["users"] == users for r in exact):
+        return 0.9, "this exact model, quantization and GPU was measured at your concurrency"
+    if exact:
+        return 0.7, "this exact setup was measured, but at a different concurrency"
+    if any(r["gpu"] == gpu for r in RUNS):
+        return 0.5, "estimate calibrated on measured runs of other models on this GPU"
+    return 0.3, "first-principles estimate: nothing measured on this GPU"
+
+
+def label(score: float) -> str:
+    return "high" if score >= HIGH_CONFIDENCE else "moderate" if score >= 0.5 else "low"
+
+
 def candidates(model_name: str, *, n_gpus: int, context: int, users: int, overhead_gib: float) -> list[dict]:
     m = MODELS[model_name]
     active = m["active_params_b"] or m["params_b"]
@@ -11,17 +30,19 @@ def candidates(model_name: str, *, n_gpus: int, context: int, users: int, overhe
     for gname, g in GPUS.items():
         for qname, q in QUANTS.items():
             mem = estimate_memory(m, q, g, n_gpus=n_gpus, context=context, users=users, overhead_gib=overhead_gib)
+            score, basis = confidence(model_name, qname, gname, users)
             out.append({
                 "gpu": gname, "quantization": qname, "fits": mem["fits"], "usd_hr": g["usd_hr"] * n_gpus,
                 "decode_ceiling_tok_s": decode_ceiling(active, q["bytes_per_param"], g["bandwidth_gbs"], n_gpus),
                 "quality_loss_pct": q["quality_loss_pct"], "max_users": mem["max_users"],
                 "measured": any((r["model"], r["quant"], r["gpu"]) == (model_name, qname, gname) for r in RUNS),
+                "confidence": score, "confidence_label": label(score), "confidence_basis": basis,
             })
     return out
 
 
-def recommend(cands: list[dict], *, max_usd_hr: float | None, min_tok_s: float, max_quality_loss_pct: float) -> dict:
-    removed = {"does_not_fit": 0, "over_budget": 0, "too_slow": 0, "too_much_quality_loss": 0}
+def recommend(cands: list[dict], *, max_usd_hr: float | None, min_tok_s: float, max_quality_loss_pct: float, min_confidence: float = 0) -> dict:
+    removed = {"does_not_fit": 0, "over_budget": 0, "too_slow": 0, "too_much_quality_loss": 0, "low_confidence": 0}
     ok = []
     for c in cands:
         if not c["fits"]:
@@ -32,6 +53,8 @@ def recommend(cands: list[dict], *, max_usd_hr: float | None, min_tok_s: float, 
             removed["too_slow"] += 1
         elif c["quality_loss_pct"] > max_quality_loss_pct:
             removed["too_much_quality_loss"] += 1
+        elif c["confidence"] < min_confidence:
+            removed["low_confidence"] += 1
         else:
             ok.append(c)
     if not ok:
@@ -42,9 +65,9 @@ def recommend(cands: list[dict], *, max_usd_hr: float | None, min_tok_s: float, 
         "fastest": max(ok, key=lambda c: c["decode_ceiling_tok_s"]),
         "best_quality": min(ok, key=lambda c: (c["quality_loss_pct"], c["usd_hr"])),
         "best_value": min(ok, key=per_tok),
-        "best_evidence": min(ok, key=lambda c: (not c["measured"], c["usd_hr"])),
+        "best_evidence": min(ok, key=lambda c: (-c["confidence"], c["usd_hr"])),
     }
     for name, c in picks.items():
         c["why"] = f"{name.replace('_', ' ')} among {len(ok)} setups that pass your limits"
-        c["validate_before_production"] = "Benchmark this exact configuration: the speed is a ceiling estimate." if not c["measured"] else "Speed was measured on a different workload: re-measure yours."
+        c["validate_before_production"] = "Benchmark this exact configuration: the speed is a ceiling estimate." if c["confidence"] < HIGH_CONFIDENCE else "Measured at your concurrency, but on one engine and prompt length: re-measure on yours."
     return {"feasible": len(ok), "removed": removed, "picks": picks}

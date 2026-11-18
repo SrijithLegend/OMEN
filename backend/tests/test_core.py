@@ -173,3 +173,18 @@ def test_price_catalog_records_sources_and_feeds_cost():
     assert len(c.get("/api/v1/prices", params={"history": True}).json()["prices"]) == 2
     r = c.post("/api/v1/cost/estimate", json={**body, "gpu_count": 1}).json()
     assert r["price_used"]["usd_hr_per_gpu"] == 3.0 and "2026-11-15" in r["warnings"][0]
+
+
+def test_confidence_threshold_is_75_percent():
+    from app.recommend import HIGH_CONFIDENCE, confidence, label
+    assert HIGH_CONFIDENCE == 0.75
+    assert confidence("Llama-2-7B", "Q4_0", "H100 80GB SXM", 1)[0] == 0.9 and label(0.9) == "high"  # measured at that concurrency
+    assert confidence("Llama-2-7B", "Q4_0", "H100 80GB SXM", 4)[0] == 0.7 and label(0.7) == "moderate"  # measured, other concurrency: below threshold
+    assert confidence("Llama-3.1-70B", "Q4_K_M", "H100 80GB SXM", 1)[0] == 0.5  # other models measured on this GPU
+    assert confidence("Llama-3.1-70B", "Q4_K_M", "A10 24GB", 1)[0] == 0.3 and label(0.3) == "low"
+    body = {"model": "Llama-2-7B", "concurrency": 1, "min_tok_s": 1}
+    every = c.post("/api/v1/recommendations", json=body).json()
+    sure = c.post("/api/v1/recommendations", json={**body, "min_confidence": 0.75}).json()
+    assert sure["feasible"] < every["feasible"] and sure["removed"]["low_confidence"] > 0
+    assert all(p["confidence"] >= 0.75 and p["confidence_label"] == "high" for p in sure["picks"].values())
+    assert any(p["confidence_label"] != "high" for p in every["picks"].values()) or every["picks"]["best_evidence"]["confidence"] == 0.9

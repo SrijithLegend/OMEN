@@ -14,7 +14,7 @@ from . import benchmarks, db, prices
 from .catalog import CATALOG_BYTES, GPUS, MODELS, QUANTS, RUNS, get
 from .memory import estimate_memory
 from .performance import estimate_performance
-from .recommend import candidates, recommend
+from .recommend import HIGH_CONFIDENCE, candidates, recommend
 from .workload import HOURS_PER_MONTH, break_even_months, self_hosted_usd_hr, simulate
 
 @asynccontextmanager
@@ -185,14 +185,15 @@ class RecommendRequest(BaseModel):
     max_usd_hr: float | None = Field(None, gt=0)
     min_tok_s: float = Field(10, ge=0)
     max_quality_loss_pct: float = Field(5, ge=0)
+    min_confidence: float = Field(0, ge=0, le=1)  # 0.75 keeps only high-confidence picks
 
 
 @app.post("/api/v1/recommendations")
 def recommendations(r: RecommendRequest):
     _lookup(MODELS, r.model, "model")
     cands = candidates(r.model, n_gpus=r.gpu_count, context=r.context_length, users=r.concurrency, overhead_gib=r.overhead_gib)
-    return {"combinations_tried": len(cands), **recommend(cands, max_usd_hr=r.max_usd_hr, min_tok_s=r.min_tok_s, max_quality_loss_pct=r.max_quality_loss_pct),
-            "warnings": ["Estimates only: speeds are ceilings. Benchmark before buying."]}
+    return {"combinations_tried": len(cands), **recommend(cands, max_usd_hr=r.max_usd_hr, min_tok_s=r.min_tok_s, max_quality_loss_pct=r.max_quality_loss_pct, min_confidence=r.min_confidence),
+            "warnings": ["Estimates only: speeds are ceilings. Benchmark before buying.", f"Confidence is high at {HIGH_CONFIDENCE:.0%} or above; below that treat the pick as a lead to benchmark."]}
 
 
 @app.post("/api/v1/estimate/performance")

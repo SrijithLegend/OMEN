@@ -128,7 +128,7 @@ OMEN_ADMIN_KEY=choose-a-secret uvicorn app.main:app --reload   # docs at http://
 | `POST /api/v1/workloads/simulate`, `/cost/estimate` | Capacity, $ per 1M tokens, monthly cost, cloud vs self-hosted, break-even |
 | `GET /api/v1/prices`, `POST /api/v1/prices` | Cloud price catalog (AWS, Google Cloud, Azure, Oracle, CoreWeave, Lambda, RunPod, Vast.ai, Paperspace, DigitalOcean, Together AI). Reviewer-entered, each with a source URL and date, append-only. `/cost/estimate` takes `provider` and `pricing_model` to use it |
 | `POST /api/v1/configurations/compare` | Side by side; warns when workloads differ |
-| `POST /api/v1/recommendations` | Hard limits first, then one pick per priority |
+| `POST /api/v1/recommendations` | Hard limits first, then one pick per priority. Each pick carries a `confidence` (0.9 measured at your concurrency, 0.7 measured at another, 0.5 calibrated on other models on that GPU, 0.3 first-principles). **High confidence means 0.75 or above**, so only a measured setup qualifies today. `min_confidence: 0.75` drops everything else. The score is a fixed ladder, not a probability |
 | `POST /api/v1/benchmarks/submit`, `GET /benchmarks`, `POST /benchmarks/{id}/verify` | Consent-gated submission, background validation, duplicate and physics checks, reviewer verification |
 | `POST /api/v1/keys`, `/workspaces/{project}/analyses`, `/workspaces/{project}/changes` | Hashed API keys with a rate limit, private saved analyses, re-run and report material changes |
 | `GET /metrics` | Prometheus metrics |
