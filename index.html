@@ -50,6 +50,10 @@ table{width:100%;border-collapse:collapse;margin-top:12px;font-size:.85rem;font-
 .tabs button{border:0;border-radius:99px;padding:11px 20px;background:var(--white);color:var(--ink);font:700 .95rem Inter,system-ui;cursor:pointer;transition:filter .15s}
 .tabs button:hover{filter:brightness(.95)}.tabs button.on{background:var(--ink);color:#fff}
 .grid[hidden]{display:none}
+.res{display:none}#calc.done .res{display:block;animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 110ms)}
+#calc.done .res.stat{display:flex}#calc.done .res.hero{display:flex}#calc.done .res[hidden]{display:none}
+@keyframes pop{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){#calc.done .res{animation:none}}
 .term b{display:block;font-size:1.6rem;line-height:1.1;margin-bottom:8px}.term p{margin:0 0 10px;font-size:1rem;line-height:1.5}
 .term small{display:block;padding:10px 12px;border-radius:12px;background:#ffffff14;font-size:.85rem;line-height:1.4}.sand.term small{background:#0000000d}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.steps div{padding:14px;border-radius:16px;background:#ffffff14;font-size:.95rem;line-height:1.4}
@@ -80,6 +84,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
     <button class=go2 data-tab=calc>Open the calculator &rarr;</button></div>
 </div>
 <div class=grid id=calc>
+  <div class="card s4 title"><h1>OMEN</h1><p class=tag>GPU Calculator &middot; will it fit? How fast? What does it cost?</p></div>
   <div class="card sand s4"><span class=lab>Setup</span>
     <div class=two>
       <label><em>1</em> Use case <select id=uc data-ph="Any use case"></select></label>
@@ -90,26 +95,21 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
       <div><label><em>6</em> Users <input id=u type=number min=1 placeholder="e.g. 4"></label><div class=pills data-for=u></div></div>
     </div>
     <button type=button id=go>Calculate &rarr;</button><button type=button id=share>Copy share link</button></div>
-  <div class="card stat sand"><span class=lab>Weights</span><b id=sw></b><small>fixed cost of loading</small></div>
-  <div class="card stat"><span class=lab>KV cache / user</span><b id=skv></b><small>grows with context</small></div>
-  <div class="card stat sand"><span class=lab>Tokens/s ceiling</span><b id=st></b><small id=sth>single-user decode</small></div>
-  <div class="card r2" id=vc><span class=lab>Verdict</span><div class=big id=vt></div><div id=vs></div><span class=badge id=conf></span></div>
-
-  <div class="card r2"><h1>OMEN</h1><p class=tag>Will it fit? How fast? What does it cost? GPU fit calculator for open models.</p></div>
-  <div class="card hero s2 r2" id=hero></div>
-  <div class="card stat"><span class=lab>Max users</span><b id=su></b><small>sessions that fit</small></div>
-
-  <div class="card stat"><span class=lab>Quality loss</span><b id=sq></b><small id=sqs>vs fp16</small></div>
-  <div class="card stat sand"><span class=lab>Cost per user-hour</span><b id=sc></b><small id=scs>GPU price / users that fit</small></div>
-
-  <div class="card s4"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
-
-  <div class="card s2"><span class=lab>Assumptions (editable)</span>
+  <div class="card hero s2 r2 res" id=hero></div>
+  <div class="card r2 s2 res" id=vc><span class=lab>Verdict</span><div class=big id=vt></div><div id=vs></div><span class=badge id=conf></span></div>
+  <div class="card stat sand res"><span class=lab>Weights</span><b id=sw></b><small>fixed cost of loading</small></div>
+  <div class="card stat res"><span class=lab>KV cache / user</span><b id=skv></b><small>grows with context</small></div>
+  <div class="card stat sand res"><span class=lab>Tokens/s ceiling</span><b id=st></b><small id=sth>single-user decode</small></div>
+  <div class="card stat res"><span class=lab>Max users</span><b id=su></b><small>sessions that fit</small></div>
+  <div class="card stat res s2"><span class=lab>Quality loss</span><b id=sq></b><small id=sqs>vs fp16</small></div>
+  <div class="card stat sand res s2"><span class=lab>Cost per user-hour</span><b id=sc></b><small id=scs>GPU price / users that fit</small></div>
+  <div class="card s4 res"><span class=lab>Memory</span><div class=bar id=bar></div><div id=leg></div></div>
+  <div class="card s2 res"><span class=lab>Assumptions (editable)</span>
     <div class=two><label>Overhead GiB <input id=ov type=number step=0.1 placeholder="1.5"></label>
     <label>GPU price $/hr <input id=pr type=number step=0.01 placeholder="auto from GPU"></label></div>
     <details><summary>How this is estimated</summary><ul id=asm></ul></details></div>
-  <div class="card sand s2 meas" id=meas></div>
-  <div class="card s4" id=cmp hidden><span class=lab>Compare (same model, context and users)</span>
+  <div class="card sand s2 meas res" id=meas></div>
+  <div class="card s4 res" id=cmp hidden><span class=lab>Compare (same model, context and users)</span>
     <div class=pills id=cmpTabs><button type=button data-v=g class=on>All GPUs</button><button type=button data-v=q>All quantizations</button></div>
     <div id=cmpBody style="overflow:auto"></div></div>
 </div>
@@ -207,7 +207,7 @@ function render() {
   $("hero").innerHTML = heroHtml();
   const missing = [["m", "model"], ["q", "quantization"], ["g", "GPU"], ["c", "context"], ["u", "users"]].filter(([i]) => !(i == "c" || i == "u" ? +$(i).value > 0 : $(i).value)).map(x => x[1]);
   if (!calculated || missing.length) { // blank or not yet calculated: show prompt, no numbers
-    $("vc").className = "card r2"; $("vt").textContent = calculated ? "Almost there" : "Pick your setup";
+    $("vc").className = "card r2 s2 res"; $("vt").textContent = calculated ? "Almost there" : "Pick your setup";
     $("vs").textContent = calculated ? "Still needed: " + missing.join(", ") + "." : "Fill in the setup, then press Calculate.";
     $("conf").textContent = ""; for (const i of ["sw", "skv", "su", "st", "sc", "sq"]) $(i).textContent = "-";
     $("sth").textContent = "single-user decode"; $("bar").innerHTML = ""; $("leg").innerHTML = "";
@@ -226,7 +226,7 @@ function render() {
   const chip = (c, t) => `<span class=chip style="--c:${c}">${t}</span>`;
   $("leg").innerHTML = chip("#ff6a2b", `weights ${r.weights.toFixed(1)} GiB`) + chip("#ffffffcc", `KV for ${users} users ${(r.kv * users).toFixed(1)} GiB`)
     + chip("#ffffff55", `overhead ${ov} GiB`) + chip("#ff6a2b", `GPU limit ${gib} GiB`) + (need > gib ? "<b>OVER LIMIT</b>" : "");
-  $("vc").className = "card r2 " + (ok ? "ok" : "no");
+  $("vc").className = "card r2 s2 res " + (ok ? "ok" : "no");
   $("vt").textContent = (ok ? "Fits " : "Does not fit ") + users + " users";
   $("vs").textContent = `Headroom ${r.free.toFixed(1)} GiB before KV.` + (ok ? "" :
     ` Needs at least ${minGpus("fp16 / bf16", p, r.kv, users, gib)} x this GPU in fp16, or ${minGpus("GPTQ / AWQ int4", p, r.kv, users, gib)} in int4 (minimums: ignore per-GPU overhead and interconnect losses).`);
@@ -264,14 +264,15 @@ const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32]};
 document.querySelectorAll(".pills[data-for]").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id].map(v => `<button type=button data-v=${v}>${id == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
 document.querySelectorAll(".pills[data-for] button").forEach(b => b.onclick = () => { $(b.parentNode.dataset.for).value = b.dataset.v; render(); });
 document.querySelectorAll("select,input").forEach(e => e.oninput = render);
-const go = () => { calculated = true; render(); $("vc").scrollIntoView({behavior: "smooth", block: "center"}); };
+document.querySelectorAll(".res").forEach((e, i) => e.style.setProperty("--i", i)); // staggered reveal order, hero first
+const go = () => { calculated = true; render(); const c = $("calc"); c.classList.remove("done"); void c.offsetWidth; c.classList.add("done"); setTimeout(() => $("hero").scrollIntoView({behavior: "smooth", block: "start"}), 60); };
 $("go").onclick = go;
 document.querySelectorAll("input").forEach(e => e.onkeydown = ev => { if (ev.key == "Enter") go(); });
 $("g").addEventListener("input", () => { setPrice(); render(); });
 $("uc").oninput = () => { fillModels(); if ($("uc").value != "All") $("c").value = USE_CASE_CONTEXT[$("uc").value]; render(); };
 setPrice();
 const P = new URLSearchParams(location.search);
-calculated = P.has("m");
+calculated = P.has("m"); $("calc").classList.toggle("done", calculated);
 if (P.has("uc")) { $("uc").value = P.get("uc"); fillModels(); } // filter first so the model can be set
 for (const [k, v] of P) if (IDS.includes(k) && k != "uc") $(k).value = v; // shared link
 if (P.has("g") && !P.has("pr")) setPrice(); // link without a price: use the GPU's default
