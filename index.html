@@ -95,7 +95,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
       <div><label><em>5</em> Context (tokens) <input id=c type=number min=1 placeholder="e.g. 8192"></label><div class=pills data-for=c></div></div>
       <div><label><em>6</em> Users <input id=u type=number min=1 placeholder="e.g. 4"></label><div class=pills data-for=u></div></div>
     </div>
-    <button type=button id=go>Calculate &rarr;</button><button type=button id=share>Copy share link</button></div>
+    <button type=button id=go>Calculate &rarr;</button><button type=button id=share>Copy share link</button> <small id=cid></small></div>
   <div class="card hero s2 r2 res" id=hero></div>
   <div class="card r2 s2 res" id=vc><span class=lab>Verdict</span><div class=big id=vt></div><div id=vs></div><span class=badge id=conf></span></div>
   <div class="card stat sand res"><span class=lab>Weights</span><b id=sw></b><small>fixed cost of loading</small></div>
@@ -207,6 +207,9 @@ function render() {
   document.querySelectorAll(".pills[data-for] button").forEach(b => b.classList.toggle("on", $(b.parentNode.dataset.for).value == b.dataset.v));
   history.replaceState(null, "", "?" + new URLSearchParams(IDS.filter(i => $(i).value).map(i => [i, $(i).value])));
   $("hero").innerHTML = heroHtml();
+  // Configuration ID: stable short hash of the inputs, so the same setup always gets the same ID and any change gives a new one.
+  const cfg = IDS.map(i => $(i).value).join("|"); let hv = 5381; for (const ch of cfg) hv = (hv * 33 ^ ch.charCodeAt(0)) >>> 0;
+  $("cid").textContent = $("m").value ? "Config ID " + hv.toString(36).padStart(7, "0") : "";
   const missing = [["m", "model"], ["q", "quantization"], ["g", "GPU"], ["c", "context"], ["u", "users"]].filter(([i]) => !(i == "c" || i == "u" ? +$(i).value > 0 : $(i).value)).map(x => x[1]);
   if (!calculated || missing.length) { // blank or not yet calculated: show prompt, no numbers
     $("vc").className = "card r2 s2 res"; $("vt").textContent = calculated ? "Almost there" : "Pick your setup";
