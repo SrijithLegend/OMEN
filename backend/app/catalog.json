@@ -132,6 +132,18 @@
    ],
    "source": "https://huggingface.co/unsloth/Llama-3.2-11B-Vision/blob/main/config.json"
   },
+  "Llama-4-Scout (MoE)": {
+   "creator": "Meta",
+   "params_b": 108.64,
+   "layers": 48,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": 17,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/unsloth/Llama-4-Scout-17B-16E/blob/main/config.json"
+  },
   "Mistral-7B": {
    "creator": "Mistral AI",
    "params_b": 7.24,
@@ -191,6 +203,18 @@
     "General"
    ],
    "source": "https://huggingface.co/mistralai/Mistral-Small-24B-Base-2501/blob/main/config.json"
+  },
+  "Ministral-8B": {
+   "creator": "Mistral AI",
+   "params_b": 8.02,
+   "layers": 36,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/mistralai/Ministral-8B-Instruct-2410/blob/main/config.json"
   },
   "Qwen2.5-0.5B": {
    "creator": "Alibaba (Qwen)",
@@ -473,6 +497,18 @@
    ],
    "source": "https://huggingface.co/unsloth/gemma-2-27b/blob/main/config.json"
   },
+  "Gemma-3-1B": {
+   "creator": "Google",
+   "params_b": 1,
+   "layers": 26,
+   "kv_heads": 1,
+   "head_dim": 256,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/unsloth/gemma-3-1b-pt/blob/main/config.json"
+  },
   "Gemma-3-4B": {
    "creator": "Google",
    "params_b": 4.3,
@@ -559,6 +595,18 @@
     "Vision"
    ],
    "source": "https://huggingface.co/microsoft/Phi-3.5-vision-instruct/blob/main/config.json"
+  },
+  "Phi-3-medium": {
+   "creator": "Microsoft",
+   "params_b": 13.96,
+   "layers": 40,
+   "kv_heads": 10,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/microsoft/Phi-3-medium-4k-instruct/blob/main/config.json"
   },
   "R1-Distill-Qwen-7B": {
    "creator": "DeepSeek",
@@ -790,6 +838,90 @@
     "Math & reasoning"
    ],
    "source": "https://huggingface.co/SUFE-AIFLM-Lab/Fin-R1/blob/main/config.json"
+  },
+  "Granite-3.3-2B": {
+   "creator": "IBM",
+   "params_b": 2.53,
+   "layers": 40,
+   "kv_heads": 8,
+   "head_dim": 64,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/ibm-granite/granite-3.3-2b-base/blob/main/config.json"
+  },
+  "Granite-3.3-8B": {
+   "creator": "IBM",
+   "params_b": 8.17,
+   "layers": 40,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/ibm-granite/granite-3.3-8b-base/blob/main/config.json"
+  },
+  "Llama-3.1-Nemotron-70B": {
+   "creator": "NVIDIA",
+   "params_b": 70.55,
+   "layers": 80,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-70B-Instruct-HF/blob/main/config.json"
+  },
+  "Mistral-NeMo-Minitron-8B": {
+   "creator": "NVIDIA",
+   "params_b": 8.41,
+   "layers": 40,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": null,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/nvidia/Mistral-NeMo-Minitron-8B-Base/blob/main/config.json"
+  },
+  "GLM-4.5-Air (MoE)": {
+   "creator": "Zhipu AI",
+   "params_b": 110.47,
+   "layers": 46,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": 12,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/zai-org/GLM-4.5-Air/blob/main/config.json"
+  },
+  "MiniMax-M2 (MoE)": {
+   "creator": "MiniMax",
+   "params_b": 228.69,
+   "layers": 62,
+   "kv_heads": 8,
+   "head_dim": 128,
+   "active_params_b": 10,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/MiniMaxAI/MiniMax-M2/blob/main/config.json"
+  },
+  "ERNIE-4.5-21B-A3B (MoE)": {
+   "creator": "Baidu",
+   "params_b": 21.95,
+   "layers": 28,
+   "kv_heads": 4,
+   "head_dim": 128,
+   "active_params_b": 3,
+   "use_cases": [
+    "General"
+   ],
+   "source": "https://huggingface.co/baidu/ERNIE-4.5-21B-A3B-PT/blob/main/config.json"
   }
  },
  "quants": {

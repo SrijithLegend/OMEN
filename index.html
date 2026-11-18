@@ -192,7 +192,7 @@ const FENCE = "\x60\x60\x60"; // markdown code fence
 const IDS = ["uc", "m", "q", "g", "c", "u", "n", "ov", "pr", "ot", "rq", "ut", "it", "bd", "mt", "ml"]; // inputs stored in the URL
 const LOGOS = {Meta: "meta", "Mistral AI": "mistralai", "Alibaba (Qwen)": "alibabacloud", Google: "google", Microsoft: "microsoft", DeepSeek: "deepseek", OpenAI: "openai"}; // simple-icons slugs
 const OLD_ICONS = ["openai", "microsoft"]; // dropped from the latest simple-icons, served from v9 (black SVG, inverted to white)
-const FAVS = [[/OLMo/, "allenai.org"], [/Falcon/, "tii.ae"], [/^Yi-/, "01.ai"], [/InternLM/, "internlm.intern-ai.org.cn"], [/StarCoder/, "bigcode-project.org"], [/Fin-R1/, "sufe.edu.cn"]]; // org sites, logo via favicon service
+const FAVS = [[/OLMo/, "allenai.org"], [/Falcon/, "tii.ae"], [/^Yi-/, "01.ai"], [/InternLM/, "internlm.intern-ai.org.cn"], [/StarCoder/, "bigcode-project.org"], [/Fin-R1/, "sufe.edu.cn"], [/Granite/, "ibm.com"], [/Nemotron|NeMo/, "nvidia.com"], [/GLM/, "z.ai"], [/MiniMax/, "minimax.io"], [/ERNIE/, "baidu.com"]]; // org sites, logo via favicon service
 const iconUrl = s => OLD_ICONS.includes(s) ? `https://cdn.jsdelivr.net/npm/simple-icons@9.21.0/icons/${s}.svg` : `https://cdn.simpleicons.org/${s}/fff`;
 const KV_BYTES = 2; // fp16 KV cache
 // Calibration: real decode speed vs the formula's ceiling across the published runs. Used as the default utilization.
