@@ -84,9 +84,20 @@ def test_usage_counts_are_exact_even_when_chunks_hold_several_tokens(tmp_path):
     res = _bench(_stub(["ab"] * 10, {"prompt_tokens": 300, "completion_tokens": 20}), tmp_path, "--input-tokens", "128", "--output-tokens", "20")
     assert res["token_count_method"] == "usage" and res["tokens_exact"] is True
     assert res["chunk_token_ratio"] == 0.5 and any("tokens per chunk" in n for n in res["notes"].split("; "))
-    assert res["tpot_ms"] < 7  # ~90 ms of decode over 19 tokens, not over 9 chunks
     assert res["context_tokens"] == 320  # prompt tokens from usage (300), not the 128 words sent
     assert res["aggregate_tok_s"] > 0
+
+
+def test_tpot_divides_decode_time_by_tokens_not_chunks():
+    srv = _serve(_stub(["ab"] * 10, {"prompt_tokens": 300, "completion_tokens": 20}))
+    try:
+        with omen_bench.httpx.Client() as client:
+            r = omen_bench.one_request(client, f"http://127.0.0.1:{srv.server_port}", "x", 128, 20)
+    finally:
+        srv.shutdown()
+    assert (r["tokens"], r["chunks"], r["method"]) == (20, 10, "usage")
+    decode_ms = r["seconds"] * 1000 - r["ttft_ms"]  # time from the first chunk to the end, whatever the machine's timer resolution
+    assert abs(r["tpot_ms"] - decode_ms / 19) < 1e-6  # 19 intervals between 20 tokens, not 9 between 10 chunks
 
 
 def test_tokenizer_counts_when_the_server_reports_no_usage(tmp_path, monkeypatch):

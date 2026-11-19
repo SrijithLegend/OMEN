@@ -175,10 +175,12 @@ To measure a running server, use `backend/omen_bench.py`: it works with any Open
 
 ```bash
 node test.js                    # page maths
-cd backend && python -m pytest  # API, 28 tests
+cd backend && python -m pytest  # API, 44 tests
 ```
 
 GitHub Actions runs both on every push, and runs the API tests against PostgreSQL as well as SQLite.
+
+`backend/tests/test_e2e_benchmark_lifecycle.py` follows one benchmark through the whole path: submit, pending, community, verified, the public explorer, and the speed estimate. It checks that only a verified run changes the estimate, and that pending, community, rejected and later-rejected runs never do.
 
 ## Limits
 
@@ -195,7 +197,7 @@ The web page does not use this server: everything in it, including the **Recomme
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m pytest                                # 28 tests
+python -m pytest                                # 44 tests
 python -m uvicorn app.main:app --port 8787      # docs at http://localhost:8787/docs
 ```
 
@@ -220,4 +222,4 @@ The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects Po
 
 **Production.** Set `OMEN_ENV=production`: the server then refuses to start unless `OMEN_CORS` lists your site's origin (`*` is only the local default). Compose requires `OMEN_ADMIN_KEY`, `POSTGRES_PASSWORD` and `OMEN_CORS`, restarts services, and keeps data in the `pgdata` volume; back it up with `docker compose exec db pg_dump -U omen omen > omen-backup.sql`. Behind a proxy, run uvicorn with `--proxy-headers` so the submission rate limit sees real client addresses (it is per process; use Redis if you run several workers).
 
-**Tested so far.** SQLite: 28 backend tests and all page tests. PostgreSQL: the same suite runs in GitHub Actions. Docker Compose and a real deployment have not been tested yet: do that before launch.
+**Tested so far.** SQLite: 44 backend tests and all page tests. PostgreSQL: the same suite runs in GitHub Actions. Docker Compose and a real deployment have not been tested yet: do that before launch.
