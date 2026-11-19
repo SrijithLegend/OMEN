@@ -3,8 +3,15 @@
   python omen_bench.py --url http://localhost:8000 --served-model my-model --model Llama-3.1-8B --quant "Q4_K_M" \
       --gpu "RTX 4090 24GB" --engine "llama.cpp b4567" --users 1 --output-tokens 256
 
-Nothing is sent anywhere unless you pass --submit API_URL --consent. Tokens are counted as streamed chunks, which matches tokens for most servers
-(one chunk per token) but can differ if a server batches tokens per chunk; the result records this in notes.
+Nothing is sent anywhere unless you pass --submit API_URL --consent.
+
+Tokens are counted, best method first, and the result records which one was used:
+  usage      the server's own completion token count (stream_options.include_usage). Exact.
+  tokenizer  the generated text re-tokenized with --tokenizer (a Hugging Face tokenizer name or path). Exact only if it is the served model's tokenizer.
+  chunks     one streamed chunk = one token. An ESTIMATE: a chunk can hold several tokens or part of one, so tokens/s and TPOT can be off.
+
+GPU memory is sampled every 0.5 s through the whole run (warm-up included) with nvidia-smi: the result carries the peak of the summed memory of the
+GPUs you name and each GPU's own peak. It is what was in use on those GPUs, including other processes and anything the engine pre-allocated.
 """
 import argparse
 import json
@@ -18,43 +25,117 @@ import time
 import httpx
 
 PROMPT_WORD = "benchmark "
+EXACTNESS = ["usage", "tokenizer", "chunks"]  # best to worst; a run is only as exact as its weakest request
 
 
-def one_request(client: httpx.Client, url: str, served_model: str, input_tokens: int, output_tokens: int) -> dict:
-    body = {"model": served_model, "stream": True, "max_tokens": output_tokens, "temperature": 0,
+def load_tokenizer(name: str):
+    try:
+        from transformers import AutoTokenizer
+    except ImportError:
+        sys.exit("--tokenizer needs the transformers package: pip install transformers")
+    return AutoTokenizer.from_pretrained(name)
+
+
+def one_request(client: httpx.Client, url: str, served_model: str, input_tokens: int, output_tokens: int, tokenizer=None) -> dict:
+    body = {"model": served_model, "stream": True, "stream_options": {"include_usage": True}, "max_tokens": output_tokens, "temperature": 0,
             "messages": [{"role": "user", "content": PROMPT_WORD * input_tokens}]}
     t0 = time.perf_counter()
     first = None
-    chunks = 0
+    chunks, usage, text = 0, None, []
     with client.stream("POST", url.rstrip("/") + "/v1/chat/completions", json=body, timeout=600) as r:
         r.raise_for_status()
         for line in r.iter_lines():
             if not line.startswith("data:") or line.strip() == "data: [DONE]":
                 continue
             try:
-                delta = json.loads(line[5:])["choices"][0]["delta"].get("content")
-            except (KeyError, IndexError, ValueError):
+                obj = json.loads(line[5:])
+            except ValueError:
                 continue
-            if delta:
+            usage = obj.get("usage") or usage  # the final chunk carries it; its choices list is empty
+            try:
+                delta = obj["choices"][0]["delta"]
+            except (KeyError, IndexError, TypeError):
+                continue
+            piece = delta.get("content") or delta.get("reasoning_content")
+            if piece:
                 chunks += 1
+                text.append(piece)
                 if first is None:
                     first = time.perf_counter()
     end = time.perf_counter()
-    if first is None or chunks < 2:
+    if usage and usage.get("completion_tokens"):
+        method, n, prompt = "usage", int(usage["completion_tokens"]), usage.get("prompt_tokens")
+    elif tokenizer is not None:
+        method, n, prompt = "tokenizer", len(tokenizer.encode("".join(text), add_special_tokens=False)), len(tokenizer.encode(PROMPT_WORD * input_tokens, add_special_tokens=False))
+    else:
+        method, n, prompt = "chunks", chunks, None
+    if first is None or n < 2:
         raise RuntimeError("server returned fewer than 2 tokens")
-    return {"ttft_ms": (first - t0) * 1000, "tpot_ms": (end - first) / (chunks - 1) * 1000, "tokens": chunks, "seconds": end - t0}
+    # the first chunk is assumed to hold one token, so decode time covers the other n - 1
+    return {"ttft_ms": (first - t0) * 1000, "tpot_ms": (end - first) / (n - 1) * 1000, "tokens": n, "chunks": chunks, "prompt_tokens": prompt, "method": method, "seconds": end - t0}
+
+
+def read_gpu_mem() -> dict[int, float] | None:
+    """{GPU index: MiB in use} from nvidia-smi, or None when it is missing or fails."""
+    if not shutil.which("nvidia-smi"):
+        return None
+    try:
+        out = subprocess.run(["nvidia-smi", "--query-gpu=index,memory.used", "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=10).stdout
+        return {int(i): float(m) for i, m in (ln.split(",") for ln in out.strip().splitlines())}
+    except (ValueError, OSError, subprocess.SubprocessError):
+        return None
+
+
+class VramSampler:
+    """Polls GPU memory in the background and keeps the peak of the summed memory of `gpu_ids` and each GPU's own peak."""
+
+    def __init__(self, gpu_ids: list[int], interval: float = 0.5):
+        self.gpu_ids, self.interval, self.samples, self.missing = gpu_ids, interval, 0, False
+        self.peak_total, self.peak_each = 0.0, {i: 0.0 for i in gpu_ids}
+        self._stop, self._thread = threading.Event(), None
+
+    def sample(self) -> None:
+        mem = read_gpu_mem()
+        if mem is None or any(i not in mem for i in self.gpu_ids):
+            self.missing = True
+            return
+        self.samples += 1
+        self.peak_total = max(self.peak_total, sum(mem[i] for i in self.gpu_ids))
+        for i in self.gpu_ids:
+            self.peak_each[i] = max(self.peak_each[i], mem[i])
+
+    def __enter__(self):
+        self.sample()
+        self._thread = threading.Thread(target=lambda: [self.sample() for _ in iter(lambda: self._stop.wait(self.interval), True)], daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *a):
+        self._stop.set()
+        self._thread.join()
+        self.sample()
+
+    def result(self) -> dict:
+        if self.missing or not self.samples:
+            return {"vram_gib": None, "vram_gib_per_gpu": None, "vram_sampling": None}
+        return {"vram_gib": round(self.peak_total / 1024, 2), "vram_gib_per_gpu": [round(self.peak_each[i] / 1024, 2) for i in self.gpu_ids],
+                "vram_sampling": {"interval_s": self.interval, "samples": self.samples, "gpu_ids": self.gpu_ids}}
 
 
 def run(args) -> dict:
-    with httpx.Client() as client:
+    gpu_ids = args.gpu_ids if args.gpu_ids else list(range(args.gpu_count))
+    if len(gpu_ids) != args.gpu_count:
+        sys.exit(f"--gpu-ids lists {len(gpu_ids)} GPUs but --gpu-count is {args.gpu_count}")
+    tok = load_tokenizer(args.tokenizer) if args.tokenizer else None
+    with VramSampler(gpu_ids) as vram, httpx.Client() as client:
         for _ in range(args.warmup):  # warm-up requests are discarded
-            one_request(client, args.url, args.served_model, args.input_tokens, args.output_tokens)
+            one_request(client, args.url, args.served_model, args.input_tokens, args.output_tokens, tok)
         results, errors, lock = [], [], threading.Lock()
 
         def worker():
             try:
                 for _ in range(args.requests):
-                    r = one_request(client, args.url, args.served_model, args.input_tokens, args.output_tokens)
+                    r = one_request(client, args.url, args.served_model, args.input_tokens, args.output_tokens, tok)
                     with lock:
                         results.append(r)
             except Exception as e:  # keep going: one failed request must not lose the others
@@ -67,26 +148,36 @@ def run(args) -> dict:
         wall = time.perf_counter() - t0
     if not results:
         raise SystemExit("no successful requests: " + "; ".join(errors[:3]))
+    method = max({r["method"] for r in results}, key=EXACTNESS.index)  # the weakest method used by any request
     tpot = statistics.median(r["tpot_ms"] for r in results)
+    ratio = statistics.median(r["chunks"] / r["tokens"] for r in results)
+    known = all(r["prompt_tokens"] is not None for r in results)
+    context = max((r["prompt_tokens"] if known else args.input_tokens) + r["tokens"] for r in results)
+    notes = [f"{len(results)} requests ({len(errors)} failed), {args.warmup} warm-up, medians",
+             {"usage": "tokens counted from the server's usage report (exact)", "tokenizer": f"tokens counted by re-tokenizing the output with {args.tokenizer}",
+              "chunks": "tokens ESTIMATED as one per streamed chunk: tokens/s and TPOT may be off"}[method],
+             "context_tokens is the largest prompt + completion seen" + ("" if known else " (prompt length assumed from --input-tokens)")]
+    if ratio < 0.9 and method != "chunks":
+        notes.append(f"the server packs about {1 / ratio:.1f} tokens per chunk, so TPOT assumes the first chunk held one token")
+    vr = vram.result()
+    if vr["vram_gib"] is None:
+        notes.append("GPU memory not measured (nvidia-smi missing or did not list the GPUs asked for)")
+    else:
+        notes.append("vram_gib is the sampled peak of the named GPUs' used memory, including other processes and engine pre-allocation")
     return {
         "model": args.model, "quant": args.quant, "gpu": args.gpu, "engine": args.engine,
-        "context_tokens": args.input_tokens + args.output_tokens, "users": args.users,
+        "context_tokens": context, "users": args.users,
         "tok_s_per_user": 1000 / tpot, "ttft_ms": statistics.median(r["ttft_ms"] for r in results), "tpot_ms": tpot,
-        "vram_gib": vram_gib(args.gpu_count), "gpu_count": args.gpu_count, "kv_dtype": args.kv_dtype, "source_url": args.source_url, "submitter": args.submitter, "consent_to_publish": False, "attribute_me": args.attribute,
-        "aggregate_tok_s": sum(r["tokens"] for r in results) / wall,
-        "notes": f"{len(results)} requests ({len(errors)} failed), {args.warmup} warm-up, medians; tokens counted as streamed chunks",
+        **vr, "gpu_count": args.gpu_count, "kv_dtype": args.kv_dtype,
+        "token_count_method": method, "tokens_exact": method == "usage", "chunk_token_ratio": round(ratio, 3),
+        "source_url": args.source_url, "submitter": args.submitter, "consent_to_publish": False, "attribute_me": args.attribute,
+        "aggregate_tok_s": sum(r["tokens"] for r in results) / wall,  # output tokens of all users / wall time of the measured window
+        "notes": "; ".join(notes),
     }
 
 
-def vram_gib(gpu_count: int = 1) -> float | None:
-    """memory.used summed over the first `gpu_count` GPUs, sampled after the run. It is the footprint at that moment (engines such as vLLM pre-allocate), not a minimum."""
-    if not shutil.which("nvidia-smi"):
-        return None
-    try:
-        out = subprocess.run(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=10).stdout
-        return round(sum(float(x) for x in out.split()[:gpu_count]) / 1024, 2)
-    except (ValueError, OSError, subprocess.SubprocessError):
-        return None
+SUBMIT_FIELDS = ("model", "quant", "gpu", "engine", "context_tokens", "users", "tok_s_per_user", "ttft_ms", "tpot_ms", "vram_gib", "vram_gib_per_gpu", "gpu_count", "kv_dtype",
+                 "token_count_method", "source_url", "submitter", "consent_to_publish", "attribute_me")
 
 
 def main(argv=None):
@@ -97,8 +188,10 @@ def main(argv=None):
     p.add_argument("--quant", required=True, help="OMEN catalog quantization name")
     p.add_argument("--gpu", required=True, help="OMEN catalog GPU name")
     p.add_argument("--engine", required=True, help='engine and version, e.g. "vllm 0.6.3"')
-    p.add_argument("--gpu-count", type=int, default=1, help="GPUs the server uses (VRAM is summed over this many)")
+    p.add_argument("--gpu-count", type=int, default=1, help="GPUs the server uses")
+    p.add_argument("--gpu-ids", type=lambda s: [int(x) for x in s.split(",")], default=None, help="nvidia-smi indices the server uses, e.g. 0,1 (default: the first --gpu-count)")
     p.add_argument("--kv-dtype", default="fp16", choices=["fp16", "bf16", "fp8", "int8"], help="KV cache type the server runs with")
+    p.add_argument("--tokenizer", default=None, help="Hugging Face tokenizer for the served model, used only when the server does not report usage")
     p.add_argument("--users", type=int, default=1, help="concurrent requests")
     p.add_argument("--requests", type=int, default=5, help="requests per user")
     p.add_argument("--warmup", type=int, default=2)
@@ -116,12 +209,12 @@ def main(argv=None):
     res = run(a)
     if a.submit:
         res["consent_to_publish"] = True
-        body = {k: v for k, v in res.items() if k not in ("aggregate_tok_s", "notes")}
+        body = {k: res[k] for k in SUBMIT_FIELDS if res.get(k) is not None}
         r = httpx.post(a.submit.rstrip("/") + "/api/v1/benchmarks/submit", json=body, timeout=30)
         print("submit:", r.status_code, r.text)
     with open(a.output, "w", encoding="utf-8") as f:
         json.dump(res, f, indent=2)
-    print(f"wrote {a.output}: {res['tok_s_per_user']:.1f} tok/s per user, TTFT {res['ttft_ms']:.0f} ms, TPOT {res['tpot_ms']:.1f} ms")
+    print(f"wrote {a.output}: {res['tok_s_per_user']:.1f} tok/s per user, TTFT {res['ttft_ms']:.0f} ms, TPOT {res['tpot_ms']:.1f} ms, tokens counted by {res['token_count_method']}")
     return res
 
 

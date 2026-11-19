@@ -4,6 +4,7 @@ import os
 import secrets
 import time
 from contextlib import asynccontextmanager
+from typing import Annotated
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -256,8 +257,10 @@ class BenchmarkSubmission(BaseModel):
     ttft_ms: float | None = Field(None, gt=0, le=3_600_000)
     tpot_ms: float | None = Field(None, gt=0, le=3_600_000)
     vram_gib: float | None = Field(None, gt=0, le=100_000)  # peak VRAM across all GPUs; without it the run says nothing about memory
+    vram_gib_per_gpu: list[Annotated[float, Field(gt=0, le=100_000)]] | None = Field(None, max_length=64)  # each GPU's own peak; must match gpu_count and sum to vram_gib
     gpu_count: int = Field(1, ge=1, le=64)
     kv_dtype: str = Field("fp16", pattern="^(" + "|".join(KV_BYTES) + ")$")
+    token_count_method: str | None = Field(None, pattern="^(usage|tokenizer|chunks)$")  # how tokens/s was counted; chunks is an estimate
     source_url: str | None = Field(None, pattern=r"^https?://\S{1,500}$")
     submitter: str | None = Field(None, max_length=64)
     consent_to_publish: bool

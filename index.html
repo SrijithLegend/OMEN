@@ -517,7 +517,7 @@ async function api(path, opt = {}) { // JSON in and out, 5 s timeout, server's e
     const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(typeof j.detail == "string" ? j.detail : j.detail ? j.detail.map(d => (d.loc || []).slice(1).join(".") + " " + d.msg).join("; ") : "HTTP " + r.status); return j; }
   catch (e) { throw e.name == "AbortError" ? new Error("no answer from " + apiBase()) : e; } finally { clearTimeout(t); } }
 const STATUS = { sourced: ["Sourced", "Imported from a traceable external publication"], verified: ["Verified", "Checked by a reviewer"], community: ["Community", "Submitted by a user, not independently reproduced"] };
-const toRun = r => ({ id: r.id, model: r.model, quant: r.quant, gpu: r.gpu, gpu_count: r.gpu_count || 1, engine: r.engine, context: r.context_tokens, users: r.users, tok_s: r.tok_s_per_user, vram_gib: r.vram_gib, kv_dtype: r.kv_dtype, source: r.source_url, status: r.status });
+const toRun = r => ({ id: r.id, model: r.model, quant: r.quant, gpu: r.gpu, gpu_count: r.gpu_count || 1, engine: r.engine, context: r.context_tokens, users: r.users, tok_s: r.tok_s_per_user, vram_gib: r.vram_gib, kv_dtype: r.kv_dtype, token_count_method: r.token_count_method, source: r.source_url, status: r.status });
 let BENCH = [], BF = { model: "All", gpu: "All", quant: "All", engine: "All", status: "all" };
 async function loadBench() {
   const base = apiBase(); let note;
@@ -541,7 +541,7 @@ function renderBench() {
     const e = ceil ? 100 * x.tok_s / ceil : null; if (e != null) { sum += Math.abs(100 - e); cnt++; }
     const [label, why] = STATUS[x.status] || [x.status, ""], link = safeUrl(x.source);
     return `<tr><td>${esc(x.model)}</td><td>${esc(x.quant)}</td><td>${esc(x.gpu)}${x.gpu_count > 1 ? " x" + x.gpu_count : ""}</td><td>${esc(x.context)}</td><td>${esc(x.users)}</td><td>${esc(x.engine)}</td><td>${+x.tok_s.toFixed(2)} tok/s</td><td>${ceil ? Math.round(ceil) + " tok/s" : "n/a"}</td><td>${e == null ? "n/a" : Math.round(e) + "%"}</td>`
-      + `<td title="Speed only: this run says nothing about memory">${x.vram_gib > 0 ? esc(x.vram_gib) + " GiB" : "not recorded"}</td><td><span class="conf${x.status == "verified" ? " high" : ""}" title="${esc(why)}">${esc(label)}</span>${link ? ` <a href="${link}" target=_blank rel=noopener>source</a>` : ""}</td></tr>`; }).join("");
+      + `<td title="Speed only: this run says nothing about memory">${x.vram_gib > 0 ? esc(x.vram_gib) + " GiB" : "not recorded"}</td><td><span class="conf${x.status == "verified" ? " high" : ""}" title="${esc(why + (x.token_count_method ? " · tokens counted by " + x.token_count_method + (x.token_count_method == "chunks" ? " (an estimate)" : "") : ""))}">${esc(label)}</span>${link ? ` <a href="${link}" target=_blank rel=noopener>source</a>` : ""}</td></tr>`; }).join("");
   $("benchTable").innerHTML = rows.length ? "<table><tr><th>Model</th><th>Quant</th><th>GPU</th><th>Context</th><th>Users</th><th>Engine</th><th>Measured</th><th>Predicted ceiling</th><th>Measured / predicted</th><th>Peak memory</th><th>Status</th></tr>" + body + "</table>" : "<p>No runs match these filters.</p>";
   const spread = k => new Set(rows.map(x => x[k])).size;
   $("benchSum").textContent = !cnt ? "No measured runs to compare." : `Mean gap between prediction and measurement: ${Math.round(sum / cnt)}% over ${cnt} run(s) (${spread("model")} model(s), ${spread("engine")} engine(s)). Do not read this as accuracy for other models, engines or workloads.`;

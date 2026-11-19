@@ -320,3 +320,17 @@ def test_a_submitter_can_follow_their_run_by_id():
     bad = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 7778, "gpu": "Imaginary 9000"}).json()["id"]
     assert c.get(f"/api/v1/benchmarks/{bad}").json()["status"] == "rejected" and "not in the catalog" in c.get(f"/api/v1/benchmarks/{bad}").json()["problems"][0]
     assert c.get("/api/v1/benchmarks/999999").status_code == 404
+
+
+def test_per_gpu_vram_and_token_method_are_validated():
+    base = {**GOOD, "gpu_count": 2, "vram_gib": 18.0, "vram_gib_per_gpu": [9.0, 9.0], "context_tokens": 9101, "token_count_method": "usage"}
+    ok = c.post("/api/v1/benchmarks/submit", json=base).json()["id"]
+    assert c.get(f"/api/v1/benchmarks/{ok}").json()["status"] == "community"
+    assert c.get(f"/api/v1/benchmarks/{ok}").json()["vram_gib_per_gpu"] == [9.0, 9.0]
+    for i, patch in enumerate(({"vram_gib_per_gpu": [9.0]}, {"vram_gib_per_gpu": [9.0, 30.0], "vram_gib": 39.0}, {"vram_gib": 40.0}), start=1):
+        rid = c.post("/api/v1/benchmarks/submit", json={**base, **patch, "context_tokens": 9101 + i}).json()["id"]
+        assert c.get(f"/api/v1/benchmarks/{rid}").json()["status"] == "rejected", patch
+    est = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 9200, "token_count_method": "chunks"}).json()["id"]
+    got = c.get(f"/api/v1/benchmarks/{est}").json()
+    assert got["status"] == "community" and any("estimated from streamed chunks" in p for p in got["problems"])  # accepted, but flagged
+    assert c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 9201, "token_count_method": "guess"}).status_code == 422

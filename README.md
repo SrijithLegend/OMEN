@@ -145,6 +145,9 @@ Real measurements beat estimates. If you have run a model, open the calculator f
 
 To measure a running server, use `backend/omen_bench.py`: it works with any OpenAI-compatible server (vLLM, the llama.cpp server), records time to first token, time per token and throughput, and submits only when you pass `--consent`.
 
+- **Tokens are counted, best method first, and the result says which**: the server's own `usage` report (exact), your `--tokenizer` applied to the generated text (exact if it matches the model), or streamed chunks (an estimate, because a chunk can hold several tokens). Estimated runs are accepted but flagged.
+- **GPU memory is sampled every 0.5 s through the whole run** with `nvidia-smi`. The result carries the peak of the summed memory of the GPUs you name (`--gpu-ids 0,1`) and each GPU's own peak. It includes other processes and anything the engine pre-allocated, so it is the footprint, not the minimum.
+
 ## Contributing
 
 - **Report a measured speed**: use **Submit your measured run** in the calculator (see above).

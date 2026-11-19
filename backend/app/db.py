@@ -15,6 +15,8 @@ benchmark_runs = Table(
     Column("model", String, nullable=False), Column("quant", String, nullable=False), Column("gpu", String, nullable=False),
     Column("engine", String, nullable=False), Column("context_tokens", Integer, nullable=False), Column("users", Integer, nullable=False),
     Column("tok_s_per_user", Float, nullable=False), Column("ttft_ms", Float), Column("tpot_ms", Float), Column("vram_gib", Float),  # peak VRAM across all GPUs; the only field that can establish "measured to fit"
+    Column("vram_gib_per_gpu", JSON),  # each GPU's own peak, when the runner sampled them
+    Column("token_count_method", String),  # usage (exact) | tokenizer | chunks (estimate); null for imported runs
     Column("gpu_count", Integer, nullable=False, default=1, server_default="1"), Column("kv_dtype", String, nullable=False, default="fp16", server_default="fp16"),
     Column("source_url", String), Column("submitter", String), Column("consent_to_publish", Boolean, nullable=False, default=False),
     Column("attribute_me", Boolean, nullable=False, default=False),  # opt-in: show the submitter name publicly
