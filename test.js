@@ -147,4 +147,29 @@ cc = compareRuns([R(), R()]); assert.strictEqual(cc.kind, "identical"); assert.o
 cc = compareRuns([R({ token_count_method: "usage" }), R({ gpu: "G2", token_count_method: "chunks" })]); assert.ok(cc.warnings.some(w => /different ways/.test(w)));
 cc = compareRuns([R(), R({ gpu: "G2", local: true })]); assert.ok(cc.warnings.some(w => /your own result/.test(w)));
 cc = compareRuns([R(), R({ gpu_count: 2 })]); assert.deepStrictEqual(cc.compared, "GPU count");
+// Benchmark report: one object, three consistent exports
+const { buildBenchReport, reportMarkdown, reportCsv } = require("./intel.js");
+const cat = { MODELS: { M: [8, 32, 8, 128] }, GPUS: { G1: [24, 1000, 0.4], G2: [80, 3000, 2] }, GPU_TFLOPS: { G2: 989 }, GPU_SOURCES: { G2: { source: "https://x/h", date: "2026-01-01", checked: ["vram", "bandwidth"] } },
+  gpuSpecStatus: (g, t) => g == "G2" ? "partial" : "unverified", MODEL_SLIDING: {}, ceil: r => r.gpu == "G1" ? 200 : r.gpu == "G2" ? 600 : null };
+const RR = (o = {}) => ({ model: "M", gpu: "G1", quant: "Q4", engine: "llama.cpp b1", context: 128, users: 1, tok_s: 100, source: "https://s/1", ...o });
+const rep = buildBenchReport([RR(), RR({ gpu: "G2", tok_s: 300, tpot_ms: 3.3, ttft_ms: 40, vram_gib: 9 }), RR({ local: true, tok_s: 150, source: undefined }), RR({ gpu: "Z", tok_s: 10 })], cat,
+  { now: "2026-02-02T00:00:00Z", scope: "selected", comparison: compareRuns([RR(), RR({ gpu: "G2" })]) });
+assert.strictEqual(rep.results.length, 4);
+assert.deepStrictEqual([rep.results[0].measured_over_predicted_pct, rep.results[0].tpot_ms, rep.results[0].tpot_derived], [50, 10, true]);
+assert.deepStrictEqual([rep.results[1].measured_over_predicted_pct, rep.results[1].tpot_derived, rep.results[1].vram_gib], [50, false, 9]);
+assert.strictEqual(rep.results[3].predicted_ceiling_tok_s, null); // unknown GPU: no prediction, not a made-up one
+assert.deepStrictEqual([rep.accuracy.n, rep.accuracy.mean_abs_pct_error, rep.accuracy.median_abs_pct_error, rep.accuracy.measured_over_predicted_pct_range], [2, 50, 50, [50, 50]]); // the local run is excluded
+assert.deepStrictEqual(rep.accuracy.by_gpu.map(g => g.gpu), ["G1", "G2"]);
+assert.deepStrictEqual(rep.hardware.map(h => [h.gpu, h.spec_status, h.tflops_fp16, h.checked_on]), [["G1", "unverified", null, null], ["G2", "partial", 989, "2026-01-01"]]);
+assert.deepStrictEqual(rep.models, [{ model: "M", params_b: 8, active_params_b: null, layers: 32, kv_heads: 8, head_dim: 128, sliding_window: null }]);
+assert.strictEqual(rep.charts[0].series.length, 4); assert.strictEqual(rep.charts[1].series.length, 3); // both reference runs and the local one that has a predicted ceiling
+assert.strictEqual(rep.results[2].origin, "local (yours, unverified)"); assert.strictEqual(rep.results[2].source, null);
+const md = reportMarkdown(rep);
+for (const h of ["# OMEN benchmark report", "## Comparison", "## Results", "## Performance charts", "## Prediction accuracy", "## Hardware", "## Model configuration", "## Methodology", "## Limitations"]) assert.ok(md.includes(h), h);
+assert.ok(md.includes("Clean comparison: only GPU differs.") && md.includes("\\* TPOT derived") && md.includes("unverified: written from memory") && md.includes("https://x/h"));
+assert.ok(md.includes("```") && md.includes("#".repeat(30))); // the chart bars: the fastest run gets the full width
+assert.ok(!md.includes("undefined") && !md.includes("NaN"));
+const csv = reportCsv(rep).split("\n"); assert.strictEqual(csv.length, 5); assert.ok(csv[0].startsWith("model,gpu,gpu_count")); assert.ok(csv[3].includes("local (yours, unverified)"));
+assert.strictEqual(buildBenchReport([], cat, { now: "x" }).accuracy.n, 0); assert.ok(reportMarkdown(buildBenchReport([], cat, { now: "x" })).includes("No reference run"));
+JSON.parse(JSON.stringify(rep)); // a plain JSON-safe object
 console.log("all tests pass");

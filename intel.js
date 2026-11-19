@@ -126,4 +126,73 @@ function compareRuns(runs) {
   if (runs.some(r => r.local)) warnings.push("Includes your own result: it is not independently verified and is not part of OMEN's reference data.");
   return { kind, compared, differs, warnings };
 }
-if (typeof module !== 'undefined') module.exports = { confidence, HIGH_CONFIDENCE, cluster, workload, recommend, parseHF, validateRun, ttft, median, TP_EFF, KV_TYPES, effLayers, memoryMeasured, calibrate, compareRuns }; // for test.js
+// Benchmark report: one object holds everything (hardware, model configuration, results, comparison, prediction accuracy, charts, method, limits);
+// Markdown and CSV are rendered from it, so the three exports never disagree.
+// cat = {MODELS, GPUS, GPU_TFLOPS, GPU_SOURCES, gpuSpecStatus, MODEL_SLIDING, ceil(run) -> predicted ceiling tok/s or null}
+const REPORT_METHOD = [
+  "Reference rows are published measurements; each cites its source. A dash means the source did not report that figure.",
+  "Predicted ceiling = memory bandwidth / bytes of weights read per token (active parameters for MoE, summed bandwidth x 0.85 for several GPUs). It is an upper bound, not a prediction of real speed.",
+  "Measured / predicted = measured tokens/s per user divided by the predicted ceiling. It is only meaningful for a single user at short context, where the ceiling applies.",
+  "TPOT is time per output token. Where a source reports only tokens/s, TPOT is derived as 1000 / tokens/s and marked.",
+  "Quantization sizes, GPU specifications and model architectures come from OMEN's catalog; a GPU is marked verified only where its figures were read from a vendor page, with the date."];
+const REPORT_LIMITS = [
+  "The reference set is small: all published runs are one model on one engine, so accuracy figures do not transfer to other models, engines or workloads.",
+  "Runs on different engine builds, quantizations, context lengths or concurrency are not directly comparable; the comparison section says what differs.",
+  "Runs marked yours are local and unverified, and are not part of OMEN's reference data.",
+  "Memory (VRAM) is shown only where a source reported peak memory; a speed benchmark says nothing about whether a setup fits.",
+  "Do not read a single accuracy number as a promise: benchmark your own configuration before relying on it."];
+function buildBenchReport(runs, cat, o = {}) {
+  const num = (v, d = 2) => v == null ? null : +(+v).toFixed(d), uniq = k => [...new Set(runs.map(r => r[k]))];
+  const results = runs.map(r => { const ceil = cat.ceil(r), vs = ceil ? 100 * r.tok_s / ceil : null, tpot = r.tpot_ms ?? 1000 / r.tok_s;
+    return { model: r.model, gpu: r.gpu, gpu_count: r.gpu_count || 1, quantization: r.quant, engine: r.engine, context_tokens: r.context, users: r.users, kv_dtype: r.kv_dtype || "fp16",
+      tokens_per_s_per_user: num(r.tok_s), aggregate_tokens_per_s: num(r.tok_s * r.users, 1), ttft_ms: num(r.ttft_ms, 1), tpot_ms: num(tpot, 2), tpot_derived: r.tpot_ms == null,
+      vram_gib: r.vram_gib > 0 ? r.vram_gib : null, token_count_method: r.token_count_method ?? null, predicted_ceiling_tok_s: ceil ? Math.round(ceil) : null,
+      measured_over_predicted_pct: num(vs, 1), abs_error_tok_s: ceil ? num(Math.abs(ceil - r.tok_s), 1) : null, abs_pct_error: vs == null ? null : num(Math.abs(100 - vs), 1),
+      source: r.local ? null : r.source ?? null, origin: r.local ? "local (yours, unverified)" : "reference" }; });
+  const ref = results.filter(r => r.origin == "reference" && r.measured_over_predicted_pct != null), errs = ref.map(r => r.abs_pct_error).sort((a, b) => a - b);
+  const gm = ref.map(r => r.measured_over_predicted_pct), byGpu = [...new Set(ref.map(r => r.gpu))].map(g => { const x = ref.filter(r => r.gpu == g).map(r => r.measured_over_predicted_pct);
+    return { gpu: g, n: x.length, mean_measured_over_predicted_pct: num(x.reduce((a, b) => a + b, 0) / x.length, 1) }; });
+  const accuracy = { n: ref.length, mean_abs_pct_error: ref.length ? num(errs.reduce((a, b) => a + b, 0) / ref.length, 1) : null, median_abs_pct_error: ref.length ? num(median(errs), 1) : null,
+    measured_over_predicted_pct_range: ref.length ? [Math.min(...gm), Math.max(...gm)] : null, by_gpu: byGpu,
+    note: !ref.length ? "No reference run with a predicted ceiling in this report." : `Over ${ref.length} reference run(s) on ${byGpu.length} GPU(s) and ${new Set(ref.map(r => r.model)).size} model(s). Errors differ by GPU, so no single accuracy figure is given; local runs are excluded.` };
+  const label = r => `${r.gpu}${r.gpu_count > 1 ? " x" + r.gpu_count : ""} | ${r.quantization} | ${r.engine} | ctx ${r.context_tokens} | ${r.users} user(s)`;
+  const charts = [{ title: "Tokens/s per user (higher is faster)", unit: "tok/s", series: results.map(r => ({ label: label(r), value: r.tokens_per_s_per_user })) },
+    ...(ref.length ? [{ title: "Measured as a share of the predicted ceiling", unit: "%", series: results.filter(r => r.measured_over_predicted_pct != null).map(r => ({ label: label(r), value: r.measured_over_predicted_pct })) }] : [])];
+  const hardware = uniq("gpu").filter(g => cat.GPUS[g]).map(g => { const [gib, bw] = cat.GPUS[g], src = cat.GPU_SOURCES[g], hasT = g in cat.GPU_TFLOPS;
+    return { gpu: g, vram_gib: gib, bandwidth_gbs: bw, tflops_fp16: hasT ? cat.GPU_TFLOPS[g] : null, spec_status: cat.gpuSpecStatus(g, hasT), source: src ? src.source : null, checked_on: src ? src.date : null, checked_fields: src ? src.checked : [] }; });
+  const models = uniq("model").filter(m => cat.MODELS[m]).map(m => { const [p, L, h, d, act] = cat.MODELS[m], sl = (cat.MODEL_SLIDING || {})[m];
+    return { model: m, params_b: p, active_params_b: act ?? null, layers: L, kv_heads: h, head_dim: d, sliding_window: sl ? { local_layers: sl[0], window_tokens: sl[1] } : null }; });
+  return { schema: "omen-benchmark-report/1", generated_at: o.now || new Date().toISOString(), scope: o.scope || "shown", comparison: o.comparison || null,
+    hardware, models, results, accuracy, charts, methodology: REPORT_METHOD, limitations: REPORT_LIMITS };
+}
+const mdCell = v => String(v ?? "-").replace(/\|/g, "\\|").replace(/\n/g, " ");
+function reportMarkdown(rep) {
+  const L = [`# OMEN benchmark report`, "", `Generated ${rep.generated_at} - ${rep.results.length} run(s), ${rep.scope == "selected" ? "the runs you picked" : "all runs shown in the explorer"}.`, ""];
+  if (rep.comparison) { const c = rep.comparison;
+    L.push("## Comparison", "", { clean: `Clean comparison: only ${c.compared} differs.`, caveat: `Comparable with a caveat: ${c.compared} differs, and so do the engine builds.`, identical: "Identical configuration: repeat measurements.",
+      not_comparable: `Not directly comparable: ${c.differs.map(d => d.label).join(", ")} differ.` }[c.kind], "", ...c.warnings.map(w => "- " + w), ""); }
+  L.push("## Results", "", "| Model | GPU | Quantization | Engine | Context | Users | Tokens/s per user | TTFT | TPOT | VRAM | Predicted ceiling | Measured / predicted | Source |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+  for (const r of rep.results) L.push(`| ${[r.model, r.gpu + (r.gpu_count > 1 ? " x" + r.gpu_count : ""), r.quantization, r.engine, r.context_tokens, r.users, r.tokens_per_s_per_user, r.ttft_ms == null ? "-" : r.ttft_ms + " ms",
+    r.tpot_ms + " ms" + (r.tpot_derived ? "*" : ""), r.vram_gib == null ? "-" : r.vram_gib + " GiB", r.predicted_ceiling_tok_s == null ? "-" : r.predicted_ceiling_tok_s + " tok/s",
+    r.measured_over_predicted_pct == null ? "-" : r.measured_over_predicted_pct + "%", r.source || r.origin].map(mdCell).join(" | ")} |`);
+  if (rep.results.some(r => r.tpot_derived)) L.push("", "\\* TPOT derived from tokens/s.");
+  L.push("", "## Performance charts", "");
+  for (const ch of rep.charts) { const top = Math.max(...ch.series.map(s => s.value), 1);
+    L.push(`**${ch.title}**`, "", "```", ...ch.series.map(s => `${"#".repeat(Math.max(1, Math.round(30 * s.value / top))).padEnd(30)} ${s.value} ${ch.unit}  ${s.label}`), "```", ""); }
+  const a = rep.accuracy;
+  L.push("## Prediction accuracy", "", a.note, "");
+  if (a.n) L.push(`- Mean absolute error: ${a.mean_abs_pct_error}% (median ${a.median_abs_pct_error}%).`, `- Measured as a share of the predicted ceiling: ${a.measured_over_predicted_pct_range[0]}% to ${a.measured_over_predicted_pct_range[1]}%.`,
+    ...a.by_gpu.map(g => `- ${g.gpu}: ${g.mean_measured_over_predicted_pct}% of the ceiling (${g.n} run(s)).`), "");
+  L.push("## Hardware", "", "| GPU | VRAM | Bandwidth | FP16 TFLOPS | Specification status | Source |", "|---|---|---|---|---|---|");
+  for (const h of rep.hardware) L.push(`| ${[h.gpu, h.vram_gib + " GiB", h.bandwidth_gbs + " GB/s", h.tflops_fp16 ?? "-", h.spec_status + (h.checked_on ? " (" + h.checked_fields.join(", ") + ", " + h.checked_on + ")" : ""), h.source || "unverified: written from memory"].map(mdCell).join(" | ")} |`);
+  L.push("", "## Model configuration", "", "| Model | Parameters | Active parameters | Layers | KV heads | Head dimension | Sliding window |", "|---|---|---|---|---|---|---|");
+  for (const m of rep.models) L.push(`| ${[m.model, m.params_b + "B", m.active_params_b == null ? "-" : m.active_params_b + "B", m.layers, m.kv_heads, m.head_dim, m.sliding_window ? m.sliding_window.local_layers + " layers, " + m.sliding_window.window_tokens + " tokens" : "-"].map(mdCell).join(" | ")} |`);
+  L.push("", "## Methodology", "", ...rep.methodology.map(x => "- " + x), "", "## Limitations", "", ...rep.limitations.map(x => "- " + x), "");
+  return L.join("\n");
+}
+function reportCsv(rep) {
+  const cols = ["model", "gpu", "gpu_count", "quantization", "engine", "context_tokens", "users", "kv_dtype", "tokens_per_s_per_user", "aggregate_tokens_per_s", "ttft_ms", "tpot_ms", "tpot_derived", "vram_gib",
+    "token_count_method", "predicted_ceiling_tok_s", "measured_over_predicted_pct", "abs_error_tok_s", "abs_pct_error", "source", "origin"], q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  return [cols.join(","), ...rep.results.map(r => cols.map(c => q(r[c])).join(","))].join("\n");
+}
+if (typeof module !== 'undefined') module.exports = { confidence, HIGH_CONFIDENCE, cluster, workload, recommend, parseHF, validateRun, ttft, median, TP_EFF, KV_TYPES, effLayers, memoryMeasured, calibrate, compareRuns, buildBenchReport, reportMarkdown, reportCsv }; // for test.js

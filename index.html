@@ -115,6 +115,10 @@ tr.sel td{background:#ff6a2b14}.cmpv{margin:0 0 12px;padding:12px 14px;border-ra
   <div class="card s4" id=cmpBench><span class=lab>Compare runs</span>
     <p class=tag style="margin:0 0 4px">Pick 2 to 4 runs with <b>+</b> in the table, or start from a suggestion. OMEN checks whether the gap in speed can be put down to one thing, and warns when it cannot.</p>
     <div class=pills id=cmpSuggest></div><div id=cmpOut style="margin-top:14px;overflow:auto"></div></div>
+  <div class="card sand s4"><span class=lab>Benchmark report</span>
+    <p class=tag style="margin:0 0 4px;color:#777">A downloadable report with the hardware specifications, model configuration, results, comparison, performance charts, prediction accuracy, methodology and limitations.</p>
+    <div class=pills id=repScope><button type=button class=on data-v=auto>Compared runs, or all shown</button><button type=button data-v=shown>All runs shown</button></div>
+    <div class=acts><button type=button id=repMd>Markdown</button><button type=button id=repJson>JSON</button><button type=button id=repCsv>CSV</button><small id=repNote></small></div></div>
   <div class="card sand s4"><span class=lab>Add your own result</span>
     <p class=tag style="margin:0 0 10px;color:#777">Run <code>backend/omen_bench.py</code> on your hardware, then paste its JSON file here or choose it. It is used only in this browser to compare and report: nothing is uploaded, and it is never added to OMEN's reference data.</p>
     <textarea id=localjson rows=6 placeholder='{"model": "Llama-3.1-8B", "quant": "Q4_K_M", "gpu": "RTX 4090 24GB", "engine": "vllm 0.6.3", "context_tokens": 8192, "users": 4, "tok_s_per_user": 95, ...}'></textarea>
@@ -515,7 +519,7 @@ function renderBench() {
   $("benchTable").innerHTML = rows.length ? "<table><tr><th></th><th>Model</th><th>GPU</th><th>Quantization</th><th>Engine</th><th>Context</th><th>Users</th><th>Tokens/s</th><th>TTFT</th><th>TPOT</th><th>VRAM</th><th>Measured / predicted</th><th>Source</th></tr>" + body + "</table>" : "<p>No runs match these filters.</p>";
   const spread = k => new Set(rows.filter(x => !x.local).map(x => x[k])).size;
   $("benchSum").textContent = !cnt ? "No measured runs to compare." : `Mean gap between prediction and measurement: ${Math.round(sum / cnt)}% over ${cnt} run(s) (${spread("model")} model(s), ${spread("engine")} engine build(s)). Do not read this as accuracy for other models, engines or workloads.` + (rows.some(x => x.tpot_derived) ? " * TPOT derived from tokens/s." : "");
-  renderSuggest(rows); renderCompare();
+  renderSuggest(rows); renderCompare(); if (typeof showRepNote == "function") showRepNote();
 }
 // Comparison: pick 2-4 runs; OMEN says whether one thing explains the gap.
 function renderSuggest(rows) { // pairs that differ in a single thing are the clean comparisons
@@ -568,6 +572,18 @@ function addLocal(text) {
 }
 $("localadd").onclick = () => { $("localmsg").textContent = addLocal($("localjson").value); };
 $("localfile").onchange = async e => { const f = e.target.files[0]; if (f) { $("localjson").value = await f.text(); $("localmsg").textContent = addLocal($("localjson").value); } };
+// Report: built by buildBenchReport (intel.js), so Markdown, JSON and CSV always agree.
+let REPSCOPE = "auto";
+document.querySelectorAll("#repScope button").forEach(b => b.onclick = () => { REPSCOPE = b.dataset.v; document.querySelectorAll("#repScope button").forEach(x => x.classList.toggle("on", x == b)); showRepNote(); });
+const repRuns = () => REPSCOPE == "auto" && SEL.length ? SEL.map(k => benchAll().find(r => r.key == k)).filter(Boolean).map(benchRow) : visibleRuns();
+const showRepNote = () => { const sel = REPSCOPE == "auto" && SEL.length; $("repNote").textContent = `${repRuns().length} run(s): ${sel ? "the runs you picked" : "all shown in the table"}.`; };
+const makeReport = () => { const runs = repRuns(), sel = REPSCOPE == "auto" && SEL.length;
+  return buildBenchReport(runs, { MODELS, GPUS, GPU_TFLOPS, GPU_SOURCES, gpuSpecStatus, MODEL_SLIDING, ceil: r => { try { return runCeil(r); } catch { return null; } } },
+    { scope: sel ? "selected" : "shown", comparison: sel && runs.length > 1 ? compareRuns(runs) : null }); };
+const repDownload = (ext, type, fn) => () => { const r = makeReport(); if (!r.results.length) { $("repNote").textContent = "Nothing to report: no runs match the filters."; return; } dl("omen-benchmark-report." + ext, fn(r), type); };
+$("repMd").onclick = repDownload("md", "text/markdown", reportMarkdown);
+$("repJson").onclick = repDownload("json", "application/json", r => JSON.stringify(r, null, 2));
+$("repCsv").onclick = repDownload("csv", "text/csv", reportCsv);
 fillFilters(); renderBench();
 const setPrice = () => $("pr").value = $("g").value ? GPUS[$("g").value][2] : "";
 const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32], n: [1, 2, 4, 8]};

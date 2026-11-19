@@ -78,7 +78,16 @@ Each row shows model, GPU, quantization, engine, context length, users, tokens/s
 
 The comparison shows each run's settings with the differing cells highlighted, tokens/s per user and aggregate, the gap against the first run, TTFT, TPOT, VRAM, the predicted ceiling and how far off it was, and a bar chart.
 
-**Add your own result.** Paste or choose the JSON file written by the local runner. It is checked with the same rules, appears in the table marked as yours (local, unverified), and can be compared and exported. It stays in your browser: nothing is uploaded and it never joins OMEN's reference data.
+**Benchmark report.** Download a report as **Markdown**, **JSON** or **CSV** for the runs you picked (or for everything the filters show). All three come from one report object, so they never disagree. It contains:
+- the hardware specifications of every GPU involved, with each GPU's verification status, source and date;
+- the model configuration (parameters, active parameters, layers, KV heads, head size, sliding window);
+- every result with TTFT, TPOT, VRAM, tokens/s per user and aggregate, the predicted ceiling and how far off it was;
+- the comparison verdict and its warnings, when you picked two or more runs;
+- performance charts (text bar charts in Markdown, the chart data in JSON);
+- prediction accuracy: mean and median absolute error, the range, and the figure per GPU (local runs excluded, and no single accuracy number given);
+- the methodology and the limitations.
+
+**Add your own result.** Paste or choose the JSON file written by the local runner. It is checked with the same rules, appears in the table marked as yours (local, unverified), and can be compared, reported and exported. It stays in your browser: nothing is uploaded and it never joins OMEN's reference data.
 
 ### Guide
 
