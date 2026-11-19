@@ -27,6 +27,8 @@ input:hover,.dd>button:hover{border-color:#ff6a2b66}input:focus,.dd>button:focus
 .panel div{padding:9px 12px;border-radius:10px;color:#fff;font:500 .95rem Inter,system-ui;cursor:pointer}
 .panel div:hover{background:#ffffff1f}.panel div.sel{background:var(--orange);color:var(--ink);font-weight:700}
 .sand input,.sand .dd>button{background-color:#ececee;color:var(--ink)}.sand input:focus,.sand .dd>button:focus,.sand .dd.open>button{background-color:#fff}.sand input::placeholder,.sand .dd .ph{color:#999}
+.pick>b{display:block;margin:.1rem 0;font-size:1.7rem;line-height:1.1;font-weight:900;letter-spacing:-.03em}.pick>small{display:block}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0 14px}.mini b{display:block;margin-top:3px;font-size:1.1rem;font-weight:900;letter-spacing:-.02em}
 .big{font-size:2.2rem;line-height:1.05;margin:.2rem 0}
 .stat{display:flex;flex-direction:column;justify-content:space-between;min-height:8rem}
 .stat b{font-size:1.9rem;line-height:1}
@@ -35,8 +37,8 @@ input:hover,.dd>button:hover{border-color:#ff6a2b66}input:focus,.dd>button:focus
 .hero img.fav{background:#fff;padding:1.7rem}
 .hero .mono{display:grid;place-items:center;font:900 4rem Inter,system-ui;color:#fff;padding:0}
 .hero b{display:block;font-size:2rem;line-height:1.1}.hero small{color:#777}
-#vc.ok{background:var(--pink);color:var(--ink)}#vc.ok .lab,#vc.ok small{color:#8a4a44}
-#vc.no{background:var(--orange);color:var(--ink)}#vc.no .lab,#vc.no small{color:#5a2300}
+#vc.ok,.rv.ok{background:var(--pink);color:var(--ink)}#vc.ok .lab,#vc.ok small,.rv.ok .lab,.rv.ok small{color:#8a4a44}
+#vc.no,.rv.no{background:var(--orange);color:var(--ink)}#vc.no .lab,#vc.no small,.rv.no .lab,.rv.no small{color:#5a2300}.rv small{display:block;margin-top:10px}
 .badge{display:inline-block;margin-top:.6rem;padding:3px 10px;border-radius:99px;background:#0000001a;font-size:.78rem}
 
 .bar{position:relative;display:flex;height:2.4rem;background:var(--field);border-radius:12px;margin:14px 0 10px;overflow:visible}
@@ -54,7 +56,7 @@ textarea{display:block;width:100%;margin-top:8px;padding:12px 14px;border:2px so
 #runout{margin-top:12px;font-size:.9rem;line-height:1.5}#runout b{color:var(--orange)}
 .sm{margin:10px 8px 0 0}#wslist div{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #ffffff22}#wslist span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .res{display:none}#calc.done .res,#api.done .res{display:block;animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 110ms)}
-#calc.done .res.stat{display:flex}#calc.done .res.hero{display:flex}#calc.done .res[hidden]{display:none}
+#calc.done .res.stat,#api.done .res.stat{display:flex}#calc.done .res.hero,#api.done .res.hero{display:flex}#calc.done .res[hidden]{display:none}
 #learn:not([hidden]) .card,#bench:not([hidden]) .card,#method:not([hidden]) .card{animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 60ms)}
 @keyframes pop{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){#calc.done .res,#api.done .res,#learn .card,#bench .card,#method .card{animation:none!important}}
@@ -282,8 +284,8 @@ document.addEventListener("keydown", e => { if (e.key == "Escape") dds.forEach(d
 // Minimum GPUs: (weights + users*KV) / VRAM, rounded up. Ignores per-GPU overhead and interconnect losses.
 const minGpus = (q, p, kv, users, gib) => Math.ceil((p * 1e9 * QUANTS[q] / 2 ** 30 + users * kv) / gib);
 
-function heroHtml() {
-  const m = $("m").value, SRC_LINK = MODEL_SOURCES[m] ? ` · <a href="${MODEL_SOURCES[m]}" target=_blank rel=noopener>source</a>` : ""; if (!m) return `<div><b>Choose a model</b><small>to see its details here</small></div>`;
+function heroHtml(m = $("m").value) {
+  const SRC_LINK = MODEL_SOURCES[m] ? ` · <a href="${MODEL_SOURCES[m]}" target=_blank rel=noopener>source</a>` : ""; if (!m) return `<div><b>Choose a model</b><small>to see its details here</small></div>`;
   const cr = Object.keys(MODELS_BY_CREATOR).find(k => m in MODELS_BY_CREATOR[k]), slug = LOGOS[cr] || (/\(HF\)/.test(m) ? "huggingface" : /Kimi/.test(m) ? "kimi" : ""), fav = (FAVS.find(([r]) => r.test(m)) || [])[1];
   if (!slug && fav) return `<img class=fav src="https://www.google.com/s2/favicons?domain=${fav}&sz=128" alt="${m}" onerror="this.outerHTML='<div class=mono>${cr[0]}</div>'"><div><b>${m}</b><small>${cr}${SRC_LINK}</small></div>`;
   return (slug ? `<img src="${iconUrl(slug)}" alt="${cr}"${OLD_ICONS.includes(slug) ? ' style="filter:invert(1)"' : ""} onerror="this.outerHTML='<div class=mono>${cr[0]}</div>'">` : `<div class=mono>${cr[0]}</div>`)
@@ -367,7 +369,7 @@ function render() {
     + `<div class=cta><span>${run ? "Got a different result?" : "Ran this on real hardware?"} Add your tokens/s.</span><a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + $("m").value + " on " + $("g").value)}&body=${encodeURIComponent(FENCE + "json\n" + issue + "\n" + FENCE)}">Submit your measured run &rarr;</a></div>`;
 }
 // Recommendations: try every GPU x quantization for the chosen model, context, users and GPU count, then apply the limits in Assumptions.
-function recHTML(o) { // shared by the calculator card and the Recommend tab
+function recData(o) { // every GPU x quantization for one model, filtered by the limits: shared by the calculator card and the Recommend tab
   const [p, , h, d, act] = MODELS[o.model], L = Leff(o.model, o.ctx, !!o.slide), hi = x => x.conf >= HIGH_CONFIDENCE;
   const cands = Object.entries(GPUS).flatMap(([gpu, spec]) => Object.keys(QUANTS).map(quant => {
     const [gib, bw, usd] = cluster(spec, o.n), r = fit(p, QUANTS[quant], L, h, d, o.kv ?? 2, o.ctx, gib, bw, usd, o.ov, act), [conf, basis] = confidence(RUNS, o.model, quant, gpu, o.users);
@@ -375,10 +377,30 @@ function recHTML(o) { // shared by the calculator card and the Recommend tab
   }));
   const res = recommend(cands, { maxUsd: o.maxUsd, minTok: o.minTok, maxLoss: o.maxLoss, minConf: o.minConf });
   const gone = Object.entries(res.dropped).filter(([, v]) => v).map(([k, v]) => `${v} ${k}`).join(", ");
+  return { cands, res, gone, hi };
+}
+function recHTML(o) {
+  const { cands, res, gone, hi } = recData(o);
   const row = ([why, x]) => `<tr><td>${why}</td><td>${x.gpu}${o.n > 1 ? " x" + o.n : ""}</td><td>${x.quant}</td><td>$${x.usd.toFixed(2)}/hr</td><td>${Math.round(x.tok)} tok/s</td><td title="${qualityText(x.quant)[1]}">${qualityText(x.quant)[0]}</td><td><span class="conf${hi(x) ? " high" : ""}" title="${x.basis}">${hi(x) ? "high" : x.conf >= 0.5 ? "moderate" : "low"} ${Math.round(x.conf * 100)}%</span></td></tr>`;
   return `<span class=lab>Recommended setups for ${o.users} users at ${o.ctx} tokens (${cands.length} combinations tried${gone ? "; removed: " + gone : ""})</span>`
     + (res.picks.length ? `<table><tr><th>Best for</th><th>GPU</th><th>Quantization</th><th>Price</th><th>Speed ceiling</th><th>Quality loss</th><th>Confidence</th></tr>${res.picks.map(row).join("")}</table><small>Each row wins on one priority among the ${res.ok.length} setups that pass your limits. Confidence is high at 75% or above, which only a measured setup reaches; hover a badge for the reason. Speeds are ceilings: benchmark before you buy.</small>`
       : `<p>No setup passes your limits. Loosen the budget, speed, quality or confidence limit.</p>`);
+}
+function recCards(o) { // Recommend tab: one card per fact, same bento grid and reveal as the calculator
+  const { cands, res, gone, hi } = recData(o), ok = res.ok.length, plural = o.n > 1 ? "s" : "";
+  const limits = [`${o.users} user${o.users > 1 ? "s" : ""}`, `${o.ctx.toLocaleString("en")} tokens`, `${o.n} GPU${plural}`, ...(o.maxUsd ? [`max $${o.maxUsd}/hr`] : []), `min ${o.minTok} tok/s`, `max quality loss ${o.maxLoss}%`, ...(o.minConf ? ["high confidence only"] : [])].join(" · ");
+  const pick = ([why, x], i) => `<div class="card pick res s2${i == 0 || i == 3 ? " sand" : ""}"><span class=lab>${why}</span><b>${x.gpu}${o.n > 1 ? " x" + o.n : ""}</b><small>${x.quant}</small>
+    <div class=mini><div><small>Price</small><b>$${x.usd.toFixed(2)}/hr</b></div><div><small>Speed ceiling</small><b>${Math.round(x.tok)} tok/s</b></div><div><small>Quality loss</small><b title="${qualityText(x.quant)[1]}">${qualityText(x.quant)[0]}</b></div></div>
+    <span class="conf${hi(x) ? " high" : ""}" title="${x.basis}">${hi(x) ? "high" : x.conf >= 0.5 ? "moderate" : "low"} confidence ${Math.round(x.conf * 100)}%</span></div>`;
+  const cards = [
+    `<div class="card hero s2 r2 res">${heroHtml(o.model)}</div>`,
+    `<div class="card rv s2 res ${ok ? "ok" : "no"}"><span class=lab>Result</span><div class=big>${ok ? ok + " of " + cands.length : "None"}</div><div>${ok ? "setups pass your limits" : "of " + cands.length + " setups pass your limits"}</div><small>${limits}</small></div>`,
+    ...(ok ? [`<div class="card stat res"><span class=lab>High confidence</span><b>${res.ok.filter(hi).length}</b><small>passing setups at 75%+</small></div>`,
+      `<div class="card stat sand res"><span class=lab>Removed</span><b>${cands.length - ok}</b><small>did not meet a limit</small></div>`, ...res.picks.map(pick)] : []),
+    `<div class="card s4 res"><span class=lab>${ok ? "How to read this" : "Nothing passed"}</span>` + (ok
+      ? `<p>Each card wins one priority among the ${ok} setups that pass your limits. Removed: ${gone || "nothing"}.</p><small>Confidence is high at 75% or above, which only a measured setup reaches; hover a badge for the reason. Speeds are ceilings: benchmark before you buy.</small>`
+      : `<p>Loosen the budget, speed, quality or confidence limit. Removed: ${gone}.</p>`) + `</div>`];
+  return cards.map((c, i) => c.replace('<div class="card', `<div style="--i:${i}" class="card`));
 }
 function renderRec(ov, users, n) {
   $("rec").innerHTML = recHTML({ model: $("m").value, n, ctx: +$("c").value, users, maxUsd: +$("bd").value, minTok: $("mt").value === "" ? 10 : +$("mt").value, maxLoss: $("ml").value === "" ? 5 : +$("ml").value, minConf: 0, ov, kv: kvb(), slide: slideOn() });
@@ -389,9 +411,9 @@ document.querySelectorAll("#rhi button").forEach(b => b.onclick = () => { RHI = 
 $("rm").addEventListener("input", () => dds.forEach(d => d.sync()));
 const rgo = () => {
   const num = (id, d) => $(id).value === "" ? d : +$(id).value, out = g("aout");
-  out.innerHTML = `<div class="card s4 res" style="--i:0">` + ($("rm").value
-    ? recHTML({ model: $("rm").value, n: Math.max(1, num("rn", 1)), ctx: Math.max(1, num("rc", 8192)), users: Math.max(1, num("ru", 1)), maxUsd: num("rb", 0), minTok: num("rt", 10), maxLoss: num("rl", 5), minConf: RHI, ov: 1.5 })
-    : "<span class=lab>Choose a model first</span>") + "</div>";
+  out.innerHTML = $("rm").value
+    ? recCards({ model: $("rm").value, n: Math.max(1, num("rn", 1)), ctx: Math.max(1, num("rc", 8192)), users: Math.max(1, num("ru", 1)), maxUsd: num("rb", 0), minTok: num("rt", 10), maxLoss: num("rl", 5), minConf: RHI, ov: 1.5 }).join("")
+    : `<div class="card s4 res" style="--i:0"><span class=lab>Choose a model first</span></div>`;
   const a = $("api"); a.classList.remove("done"); void a.offsetWidth; a.classList.add("done"); // replay the reveal
   setTimeout(() => out.firstElementChild.scrollIntoView({behavior: "smooth", block: "start"}), 60);
 };
