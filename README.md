@@ -64,13 +64,11 @@ High confidence means 75% or more, so only a measured setup qualifies. Speeds ar
 
 ### Benchmarks
 
-Every published measured run, set next to what the calculator predicts for it.
+The published reference measurements, set next to what the calculator predicts for each.
 
 ![The Benchmarks tab: five measured llama.cpp runs next to their predicted ceilings](docs/benchmarks.png)
 
-When an OMEN server is reachable (by default `http://localhost:8787` when you open the page locally, or set it under the table, or pass `?api=...`), the tab loads its runs live and labels each one **Sourced**, **Verified** or **Community**. You can filter by model, GPU, quantization, engine and status, and submit your own run from the page: it needs your explicit consent, shows the automatic checks as they finish, and lists the reasons if a run is rejected. Without a server it falls back to the bundled published runs.
-
-Each row links its source and shows peak memory when the run recorded it. The five published runs are Llama-2-7B in Q4_0 on llama.cpp, so the "mean gap" shown is not accuracy for other setups. **Download as CSV** exports the table, and **Check your own result** validates a run you paste in as JSON before you decide to submit it. Nothing is sent anywhere until you choose to.
+Each row shows model, GPU, quantization, engine, context length, users, tokens/s, time to first token, time per token, VRAM and the source link. A dash means the source did not report that figure (the five bundled llama.cpp runs report only tokens/s, so their TPOT is derived and marked `*`, and none recorded memory). You can filter by model, GPU, quantization and engine, and **Download as CSV** exports the table. The five runs are Llama-2-7B in Q4_0 on llama.cpp, so the "mean gap" shown is not accuracy for other setups.
 
 ### Guide
 
