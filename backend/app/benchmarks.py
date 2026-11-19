@@ -1,4 +1,6 @@
 """Benchmark Intelligence: submission, validation (schema, plausibility, duplicates), search, verification."""
+from datetime import datetime, timezone
+
 from sqlalchemy import insert, select, update
 
 from . import db
@@ -50,7 +52,8 @@ def process(run_id: int) -> None:
         fatal = [p for p in problems if not p.startswith(("source_url", "note:"))]  # missing source and estimated token counts are warnings
         dup = c.execute(select(T.c.id, T.c.tok_s_per_user).where(
             (T.c.id != run_id) & (T.c.model == r["model"]) & (T.c.quant == r["quant"]) & (T.c.gpu == r["gpu"]) & (T.c.engine == r["engine"])
-            & (T.c.context_tokens == r["context_tokens"]) & (T.c.users == r["users"]) & (T.c.status != "rejected"))).all()
+            & (T.c.context_tokens == r["context_tokens"]) & (T.c.users == r["users"]) & (T.c.gpu_count == r["gpu_count"]) & (T.c.kv_dtype == r["kv_dtype"])
+            & (T.c.status != "rejected"))).all()  # the same setup means the same GPUs, count and KV type too: 2 GPUs or an fp8 cache is a different measurement
         same = next((d.id for d in dup if abs(d.tok_s_per_user - r["tok_s_per_user"]) / d.tok_s_per_user < 0.02), None)
         if same:
             fatal.append("duplicate")
@@ -67,10 +70,38 @@ def _public(r) -> dict:
     return {k: v for k, v in r.items() if k != "attribute_me" and (k != "submitter" or r["attribute_me"])}
 
 
+R = db.benchmark_reviews
+_REVIEW_FIELDS = ("id", "action", "reviewer", "reviewed_at", "notes", "evidence_reviewed", "rejection_reason", "status_before", "status_after")
+
+
+def reviews(run_id: int) -> list[dict]:
+    """The full audit trail of one run, oldest first."""
+    with db.engine.connect() as c:
+        return [{k: r[k] for k in _REVIEW_FIELDS} for r in c.execute(select(R).where(R.c.run_id == run_id).order_by(R.c.id)).mappings()]
+
+
 def get(run_id: int) -> dict | None:
     with db.engine.connect() as c:
         r = c.execute(select(T).where(T.c.id == run_id)).mappings().first()
-    return None if r is None else _public(r)
+    return None if r is None else {**_public(r), "reviews": reviews(run_id)}
+
+
+def review(run_id: int, action: str, reviewer: str, *, notes: str | None = None, evidence: str | None = None, reason: str | None = None) -> str:
+    """Verify or reject a run and record who, when, why and on what evidence, in one transaction. The run's own data (including the source URL
+    it was submitted with) is never touched: only its status moves. Raises LookupError for an unknown run and ValueError for a move that is not allowed."""
+    allowed = {"verify": ({"community"}, "verified"), "reject": ({"community", "verified"}, "rejected")}[action]  # imported (sourced) runs carry their own provenance
+    with db.engine.begin() as c:
+        row = c.execute(select(T.c.status).where(T.c.id == run_id)).first()
+        if row is None:
+            raise LookupError(run_id)
+        if row.status not in allowed[0]:
+            raise ValueError(f"a {row.status} run cannot be {action}ed")
+        n = c.execute(update(T).where((T.c.id == run_id) & (T.c.status == row.status)).values(status=allowed[1])).rowcount  # guards against two reviewers racing
+        if n != 1:
+            raise ValueError("the run changed while you were reviewing it: reload and retry")
+        c.execute(insert(R).values(run_id=run_id, action=action, reviewer=reviewer, reviewed_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                                   notes=notes, evidence_reviewed=evidence, rejection_reason=reason, status_before=row.status, status_after=allowed[1]))
+    return allowed[1]
 
 
 def search(**f) -> list[dict]:
@@ -79,13 +110,11 @@ def search(**f) -> list[dict]:
         if f.get(k):
             q = q.where(T.c[k] == f[k])
     with db.engine.connect() as c:
-        return [_public(r) for r in c.execute(q.order_by(T.c.id)).mappings()]
-
-
-def verify(run_id: int) -> bool:
-    with db.engine.begin() as c:
-        n = c.execute(update(T).where((T.c.id == run_id) & (T.c.status == "community")).values(status="verified")).rowcount
-    return n == 1
+        rows = [_public(r) for r in c.execute(q.order_by(T.c.id)).mappings()]
+        last = {}  # latest verify per run, so the public list can say who stood behind a Verified label
+        for v in c.execute(select(R).where(R.c.action == "verify").order_by(R.c.id)).mappings():
+            last[v["run_id"]] = v
+    return [{**r, "verified_by": last[r["id"]]["reviewer"], "verified_at": last[r["id"]]["reviewed_at"]} if r["status"] == "verified" and r["id"] in last else r for r in rows]
 
 
 def trusted_runs() -> list[dict]:

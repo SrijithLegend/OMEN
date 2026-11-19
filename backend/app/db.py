@@ -24,6 +24,14 @@ benchmark_runs = Table(
     Column("problems", JSON, nullable=False, default=list),
     Column("duplicate_of", Integer), Column("created_at", String, server_default=func.now()),
 )
+benchmark_reviews = Table(  # append-only audit trail: every verify or reject is a new row, nothing is ever updated or deleted
+    "benchmark_reviews", meta,
+    Column("id", Integer, primary_key=True), Column("run_id", Integer, nullable=False, index=True),
+    Column("action", String, nullable=False),  # verify | reject
+    Column("reviewer", String, nullable=False), Column("reviewed_at", String, nullable=False),  # UTC ISO timestamp
+    Column("notes", Text), Column("evidence_reviewed", Text),  # what the reviewer actually checked
+    Column("rejection_reason", Text), Column("status_before", String, nullable=False), Column("status_after", String, nullable=False),
+)
 pricing_records = Table(  # append-only: a new price is a new row, so a saved report can cite the price it used
     "pricing_records", meta,
     Column("id", Integer, primary_key=True), Column("provider", String, nullable=False), Column("instance_type", String, nullable=False),

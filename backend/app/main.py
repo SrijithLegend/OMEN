@@ -305,14 +305,53 @@ def get_benchmark(run_id: int):
     return r
 
 
+def _reviewer(key: str | None, declared: str | None) -> str:
+    """Who is acting. OMEN_REVIEWER_KEYS="alice:key1,bob:key2" gives each reviewer their own key and the name comes from the key. The shared
+    OMEN_ADMIN_KEY also works, but then the name is only what the caller declares, and is recorded as such."""
+    if key:
+        for pair in os.environ.get("OMEN_REVIEWER_KEYS", "").split(","):
+            name, _, k = pair.partition(":")
+            if name and k and secrets.compare_digest(key, k):
+                return name.strip()
+        admin = os.environ.get("OMEN_ADMIN_KEY")
+        if admin and secrets.compare_digest(key, admin):
+            if not declared:
+                raise HTTPException(422, "reviewer: say who you are (the shared admin key does not identify a person)")
+            return f"{declared.strip()} (declared, shared admin key)"
+    raise HTTPException(403, "reviewer key required")
+
+
+class ReviewBody(BaseModel):
+    reviewer: str | None = Field(None, min_length=1, max_length=64)  # only used with the shared admin key
+    notes: str = Field(min_length=10, max_length=2000)  # the reasoning, in the reviewer's words
+    evidence_reviewed: str = Field(min_length=5, max_length=1000)  # what was checked: the source page, a reproduction run, the raw output ...
+
+
+class RejectBody(ReviewBody):
+    reason: str = Field(min_length=5, max_length=1000)  # shown to the submitter
+
+
+def _review(run_id: int, action: str, key: str | None, b: ReviewBody, reason: str | None = None):
+    who = _reviewer(key, b.reviewer)
+    try:
+        status = benchmarks.review(run_id, action, who, notes=b.notes, evidence=b.evidence_reviewed, reason=reason)
+    except LookupError:
+        raise HTTPException(404, "no such run")
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    return {"id": run_id, "status": status, "reviewer": who}
+
+
 @app.post("/api/v1/benchmarks/{run_id}/verify")
-def verify_benchmark(run_id: int, x_admin_key: str | None = Header(None)):
-    """Reviewer action. Needs OMEN_ADMIN_KEY set on the server; promotes a Community run to Verified."""
-    if not os.environ.get("OMEN_ADMIN_KEY") or x_admin_key != os.environ["OMEN_ADMIN_KEY"]:
-        raise HTTPException(403, "reviewer key required")
-    if not benchmarks.verify(run_id):
-        raise HTTPException(409, "only community runs can be verified")
-    return {"id": run_id, "status": "verified"}
+def verify_benchmark(run_id: int, b: ReviewBody, x_admin_key: str | None = Header(None)):
+    """Reviewer action: promote a Community run to Verified. Records who, when, the notes and the evidence reviewed; the run's own data is never altered."""
+    return _review(run_id, "verify", x_admin_key, b)
+
+
+@app.post("/api/v1/benchmarks/{run_id}/reject")
+def reject_benchmark(run_id: int, b: RejectBody, x_admin_key: str | None = Header(None)):
+    """Reviewer action: reject a Community or Verified run, with a reason the submitter can read. A rejected run drops out of calibration at once."""
+    return _review(run_id, "reject", x_admin_key, b, b.reason)
 
 
 class PriceRecord(BaseModel):
@@ -330,8 +369,7 @@ class PriceRecord(BaseModel):
 @app.post("/api/v1/prices", status_code=201)
 def add_price(p: PriceRecord, x_admin_key: str | None = Header(None)):
     """Reviewer action (same key as /verify). Every price needs a source URL and the date it was read; rows are never overwritten."""
-    if not os.environ.get("OMEN_ADMIN_KEY") or x_admin_key != os.environ["OMEN_ADMIN_KEY"]:
-        raise HTTPException(403, "reviewer key required")
+    _reviewer(x_admin_key, "price entry")  # same keys as benchmark review
     if p.provider not in prices.PROVIDERS or p.pricing_model not in prices.PRICING_MODELS:
         raise HTTPException(422, f"provider must be one of {prices.PROVIDERS}, pricing_model one of {prices.PRICING_MODELS}")
     _lookup(GPUS, p.gpu, "GPU")

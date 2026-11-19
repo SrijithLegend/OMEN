@@ -92,15 +92,19 @@ def test_benchmark_flow():
     assert [x["id"] for x in row] == [dup] and row[0]["duplicate_of"] == r.json()["id"]
 
 
+ADMIN = {"x-admin-key": "test-admin"}
+REVIEW = {"reviewer": "Test Reviewer", "notes": "Checked the linked page: the numbers match.", "evidence_reviewed": "source page and raw log"}
+
+
 def test_implausible_and_unknown_runs_are_rejected_and_verify_needs_key():
     fast = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 1, "tok_s_per_user": 5000}).json()["id"]  # 8B Q4 on a 4090 cannot do 5000 tok/s
     bogus = c.post("/api/v1/benchmarks/submit", json={**GOOD, "gpu": "Imaginary 9000"}).json()["id"]
     rej = {x["id"]: x for x in c.get("/api/v1/benchmarks", params={"status": "rejected"}).json()["results"]}
     assert "ceiling" in rej[fast]["problems"][0] and "not in the catalog" in rej[bogus]["problems"][0]
     ok = c.get("/api/v1/benchmarks", params={"status": "community"}).json()["results"][0]["id"]
-    assert c.post(f"/api/v1/benchmarks/{ok}/verify").status_code == 403
-    assert c.post(f"/api/v1/benchmarks/{ok}/verify", headers={"x-admin-key": "test-admin"}).json()["status"] == "verified"
-    assert c.post(f"/api/v1/benchmarks/{ok}/verify", headers={"x-admin-key": "test-admin"}).status_code == 409
+    assert c.post(f"/api/v1/benchmarks/{ok}/verify", json=REVIEW).status_code == 403
+    assert c.post(f"/api/v1/benchmarks/{ok}/verify", json=REVIEW, headers=ADMIN).json()["status"] == "verified"
+    assert c.post(f"/api/v1/benchmarks/{ok}/verify", json=REVIEW, headers=ADMIN).status_code == 409
 
 
 def _key(owner):
@@ -219,7 +223,7 @@ def test_verified_vram_run_promotes_to_measured_to_fit_and_bad_vram_is_rejected(
            "vram_gib": 9.1, "source_url": "https://example.com/vram", "consent_to_publish": True}
     rid = c.post("/api/v1/benchmarks/submit", json=run).json()["id"]
     assert c.post("/api/v1/estimate/memory", json=BASE).json()["memory"]["status"] == "likely_fits"  # community runs are not evidence yet
-    assert c.post(f"/api/v1/benchmarks/{rid}/verify", headers={"x-admin-key": "test-admin"}).status_code == 200
+    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json=REVIEW, headers=ADMIN).status_code == 200
     m = c.post("/api/v1/estimate/memory", json=BASE).json()
     assert m["memory"]["status"] == "measured_to_fit" and m["evidence"]["type"] == "memory_measured" and m["evidence"]["peak_vram_gib"] == 9.1
     assert c.post("/api/v1/estimate/memory", json={**BASE, "context_length": 16384}).json()["memory"]["status"] != "measured_to_fit"
@@ -363,3 +367,69 @@ def test_per_gpu_vram_and_token_method_are_validated():
     got = c.get(f"/api/v1/benchmarks/{est}").json()
     assert got["status"] == "community" and any("estimated from streamed chunks" in p for p in got["problems"])  # accepted, but flagged
     assert c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 9201, "token_count_method": "guess"}).status_code == 422
+
+
+def _community(**kw):
+    rid = c.post("/api/v1/benchmarks/submit", json={**GOOD, "source_url": "https://example.com/original", **kw}).json()["id"]
+    assert c.get(f"/api/v1/benchmarks/{rid}").json()["status"] == "community"
+    return rid
+
+
+def test_verification_leaves_an_audit_trail_and_never_touches_the_submitted_data():
+    rid = _community(context_tokens=11001)
+    before = c.get(f"/api/v1/benchmarks/{rid}").json()
+    assert before["reviews"] == []
+    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json={k: v for k, v in REVIEW.items() if k != "reviewer"}, headers=ADMIN).status_code == 422  # the shared key names nobody
+    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json={**REVIEW, "notes": "ok"}, headers=ADMIN).status_code == 422  # reasoning is required, not a shrug
+    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json=REVIEW, headers=ADMIN).json()["reviewer"] == "Test Reviewer (declared, shared admin key)"
+    after = c.get(f"/api/v1/benchmarks/{rid}").json()
+    (rev,) = after["reviews"]
+    assert (rev["action"], rev["status_before"], rev["status_after"]) == ("verify", "community", "verified") and rev["reviewed_at"].endswith("+00:00")
+    assert rev["notes"] == REVIEW["notes"] and rev["evidence_reviewed"] == REVIEW["evidence_reviewed"] and rev["reviewer"].startswith("Test Reviewer")
+    assert {k: after[k] for k in before if k not in ("status", "reviews")} == {k: before[k] for k in before if k not in ("status", "reviews")}  # only the status moved
+    assert after["source_url"] == "https://example.com/original"  # the original source is preserved
+    listed = next(x for x in c.get("/api/v1/benchmarks", params={"status": "verified"}).json()["results"] if x["id"] == rid)
+    assert listed["verified_by"].startswith("Test Reviewer") and listed["verified_at"] == rev["reviewed_at"]
+
+
+def test_each_reviewer_can_have_their_own_key_and_the_name_comes_from_the_key(monkeypatch):
+    monkeypatch.setenv("OMEN_REVIEWER_KEYS", "alice:alice-key,bob:bob-key")
+    rid = _community(context_tokens=11002)
+    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json=REVIEW, headers={"x-admin-key": "wrong"}).status_code == 403
+    r = c.post(f"/api/v1/benchmarks/{rid}/verify", json={**REVIEW, "reviewer": "Mallory"}, headers={"x-admin-key": "bob-key"}).json()
+    assert r["reviewer"] == "bob"  # an identity claim in the body cannot override the key's owner
+    assert c.get(f"/api/v1/benchmarks/{rid}").json()["reviews"][0]["reviewer"] == "bob"
+    price = {"provider": "AWS", "instance_type": "alice.1x", "region": "us-east-1", "gpu": "RTX 4090 24GB", "gpu_count": 1, "usd_hr": 1.0, "source_url": "https://example.com/p", "observed_at": "2026-11-02"}
+    assert c.post("/api/v1/prices", json=price, headers={"x-admin-key": "wrong"}).status_code == 403
+    assert c.post("/api/v1/prices", json=price, headers={"x-admin-key": "alice-key"}).status_code == 201  # reviewer keys work for prices too
+
+
+def test_rejection_needs_a_reason_is_audited_and_drops_the_run_from_calibration():
+    from app import benchmarks
+    rid = _community(context_tokens=11003)
+    c.post(f"/api/v1/benchmarks/{rid}/verify", json=REVIEW, headers=ADMIN)
+    assert any(r["context"] == 11003 for r in benchmarks.trusted_runs())  # verified: it is evidence
+    assert c.post(f"/api/v1/benchmarks/{rid}/reject", json=REVIEW, headers=ADMIN).status_code == 422  # no reason
+    rej = {**REVIEW, "reason": "The linked page shows a different GPU.", "notes": "Source says RTX 3090, the run claims RTX 4090."}
+    assert c.post(f"/api/v1/benchmarks/{rid}/reject", json=rej).status_code == 403
+    assert c.post(f"/api/v1/benchmarks/{rid}/reject", json=rej, headers=ADMIN).json()["status"] == "rejected"
+    assert not any(r["context"] == 11003 for r in benchmarks.trusted_runs())  # a rejected run never influences calibration
+    got = c.get(f"/api/v1/benchmarks/{rid}").json()
+    assert [(r["action"], r["status_after"]) for r in got["reviews"]] == [("verify", "verified"), ("reject", "rejected")]  # history kept, in order
+    assert got["reviews"][1]["rejection_reason"] == "The linked page shows a different GPU."
+    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json=REVIEW, headers=ADMIN).status_code == 409  # no quiet un-rejecting
+    assert c.post(f"/api/v1/benchmarks/{rid}/reject", json=rej, headers=ADMIN).status_code == 409
+    sourced = c.get("/api/v1/benchmarks", params={"status": "sourced"}).json()["results"][0]["id"]
+    assert c.post(f"/api/v1/benchmarks/{sourced}/reject", json=rej, headers=ADMIN).status_code == 409  # imported runs carry their own provenance
+    assert c.post("/api/v1/benchmarks/999999/verify", json=REVIEW, headers=ADMIN).status_code == 404
+
+
+def test_duplicate_detection_compares_gpu_count_and_kv_dtype_too():
+    base = {**GOOD, "context_tokens": 12001, "tok_s_per_user": 100, "vram_gib": None}
+    first = c.post("/api/v1/benchmarks/submit", json=base).json()["id"]
+    twin = c.post("/api/v1/benchmarks/submit", json={**base, "tok_s_per_user": 101}).json()["id"]
+    two_gpus = c.post("/api/v1/benchmarks/submit", json={**base, "tok_s_per_user": 101, "gpu_count": 2}).json()["id"]
+    fp8 = c.post("/api/v1/benchmarks/submit", json={**base, "tok_s_per_user": 101, "kv_dtype": "fp8"}).json()["id"]
+    status = lambda i: c.get(f"/api/v1/benchmarks/{i}").json()
+    assert status(first)["status"] == "community" and status(twin)["status"] == "rejected" and status(twin)["duplicate_of"] == first
+    assert status(two_gpus)["status"] == "community" and status(fp8)["status"] == "community"  # different setups, not duplicates

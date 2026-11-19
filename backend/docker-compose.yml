@@ -16,6 +16,7 @@ services:
       OMEN_DB: "postgresql+psycopg://omen:${POSTGRES_PASSWORD}@db/omen"
       OMEN_ADMIN_KEY: ${OMEN_ADMIN_KEY:?set OMEN_ADMIN_KEY}
       OMEN_ENV: production
+      OMEN_REVIEWER_KEYS: ${OMEN_REVIEWER_KEYS:-}  # optional "alice:key1,bob:key2": one key per reviewer, so the audit trail names real people
       OMEN_CORS: ${OMEN_CORS:?set OMEN_CORS to your site origin}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/api/v1/quantizations')"]
