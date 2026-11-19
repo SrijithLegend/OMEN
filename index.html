@@ -57,7 +57,7 @@ table{width:100%;border-collapse:collapse;margin-top:12px;font-size:.85rem;font-
 .grid[hidden]{display:none}
 textarea{display:block;width:100%;margin-top:8px;padding:12px 14px;border:2px solid transparent;border-radius:14px;background:var(--field);color:#fff;font:500 .85rem/1.4 ui-monospace,Consolas,monospace;resize:vertical;outline:0}textarea:focus{border-color:var(--orange)}
 #runout{margin-top:12px;font-size:.9rem;line-height:1.5}#runout b{color:var(--orange)}
-.sm{margin:10px 8px 0 0}#wslist div{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #ffffff22}#wslist span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.sm{margin:10px 8px 0 0}.sand .sm{background:var(--ink)}#wslist div{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #ffffff22}#wslist span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .res{display:none}#calc.done .res,#api.done .res{display:block;animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 110ms)}
 #calc.done .res.stat,#api.done .res.stat{display:flex}#calc.done .res.hero,#api.done .res.hero{display:flex}#calc.done .res[hidden]{display:none}
 #learn:not([hidden]) .card,#bench:not([hidden]) .card,#method:not([hidden]) .card{animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 60ms)}
@@ -472,7 +472,7 @@ $("benchcsv").onclick = () => dl("omen-benchmarks.csv", [...$("benchTable").quer
 (() => { let sum = 0, cnt = 0;
   $("benchTable").innerHTML = "<table><tr><th>Model</th><th>Quant</th><th>GPU</th><th>Context</th><th>Users</th><th>Engine</th><th>Measured</th><th>Predicted ceiling</th><th>Measured / predicted</th><th>Peak memory</th><th>Status</th></tr>" + RUNS.map(x => {
     const [p, L, h, d, act] = MODELS[x.model], [gib, bw, usd] = GPUS[x.gpu], t = fit(p, QUANTS[x.quant], L, h, d, KV_TYPES[x.kv_dtype || "fp16"], x.context, gib, bw, usd, 1.5, act).tok, e = 100 * x.tok_s / t; sum += Math.abs(100 - e); cnt++;
-    return `<tr><td>${x.model}</td><td>${x.quant}</td><td>${x.gpu}</td><td>${x.context}</td><td>${x.users}</td><td>${x.engine}</td><td>${x.tok_s} tok/s</td><td>${Math.round(t)} tok/s</td><td>${Math.round(e)}%</td><td>${x.vram_gib > 0 ? x.vram_gib + " GiB" : "not recorded: speed only"}</td><td><a href="${x.source}">Sourced</a></td></tr>`; }).join("") + "</table>";
+    return `<tr><td>${x.model}</td><td>${x.quant}</td><td>${x.gpu}</td><td>${x.context}</td><td>${x.users}</td><td>${x.engine}</td><td>${x.tok_s} tok/s</td><td>${Math.round(t)} tok/s</td><td>${Math.round(e)}%</td><td title="Speed only: this run says nothing about memory">${x.vram_gib > 0 ? x.vram_gib + " GiB" : "not recorded"}</td><td><a href="${x.source}">Sourced</a></td></tr>`; }).join("") + "</table>";
   $("benchSum").textContent = !cnt ? "No measured runs yet. Submit yours below." : `Mean gap between prediction and measurement: ${Math.round(sum / cnt)}% over ${cnt} runs, all one model on one engine. Do not read this as accuracy for other models, engines or workloads.`; })();
 $("runcheck").onclick = () => { let r; try { r = JSON.parse($("runjson").value); } catch (e) { $("runout").innerHTML = "<b>Not valid JSON:</b> " + e.message; return; }
   const bad = validateRun(r, {model: Object.keys(MODELS), quant: Object.keys(QUANTS), gpu: Object.keys(GPUS)});
