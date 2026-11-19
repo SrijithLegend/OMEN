@@ -53,19 +53,19 @@ table{width:100%;border-collapse:collapse;margin-top:12px;font-size:.85rem;font-
 textarea{display:block;width:100%;margin-top:8px;padding:12px 14px;border:2px solid transparent;border-radius:14px;background:var(--field);color:#fff;font:500 .85rem/1.4 ui-monospace,Consolas,monospace;resize:vertical;outline:0}textarea:focus{border-color:var(--orange)}
 #runout{margin-top:12px;font-size:.9rem;line-height:1.5}#runout b{color:var(--orange)}
 .sm{margin:10px 8px 0 0}#wslist div{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #ffffff22}#wslist span{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.res{display:none}#calc.done .res{display:block;animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 110ms)}
+.res{display:none}#calc.done .res,#api.done .res{display:block;animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 110ms)}
 #calc.done .res.stat{display:flex}#calc.done .res.hero{display:flex}#calc.done .res[hidden]{display:none}
-#learn:not([hidden]) .card,#bench:not([hidden]) .card,#api:not([hidden]) .card,#method:not([hidden]) .card{animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 60ms)}
+#learn:not([hidden]) .card,#bench:not([hidden]) .card,#method:not([hidden]) .card{animation:pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 60ms)}
 @keyframes pop{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:none}}
-@media(prefers-reduced-motion:reduce){#calc.done .res,#learn .card,#bench .card,#api .card,#method .card{animation:none!important}}
+@media(prefers-reduced-motion:reduce){#calc.done .res,#api.done .res,#learn .card,#bench .card,#method .card{animation:none!important}}
 .term b{display:block;font-size:1.6rem;line-height:1.1;margin-bottom:8px}.term p{margin:0 0 10px;font-size:1rem;line-height:1.5}
 .term small{display:block;padding:10px 12px;border-radius:12px;background:#ffffff14;font-size:.85rem;line-height:1.4}.sand.term small{background:#0000000d}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.steps div{padding:14px;border-radius:16px;background:#ffffff14;font-size:.95rem;line-height:1.4}
 .steps em{display:grid;place-items:center;width:1.7rem;height:1.7rem;margin-bottom:8px;border-radius:50%;background:var(--orange);color:var(--ink);font:900 .85rem Inter,system-ui;font-style:normal}
 .go2{display:inline-block;margin-top:16px;padding:12px 20px;border:0;border-radius:99px;background:var(--orange);color:var(--ink);font:900 .95rem Inter,system-ui;cursor:pointer}
 label em{display:inline-grid;place-items:center;width:1.3rem;height:1.3rem;margin-right:6px;border-radius:50%;background:var(--ink);color:#fff;font:700 .7rem Inter,system-ui;font-style:normal}.card:not(.sand) label em{background:var(--orange);color:var(--ink)}
-#go{display:block;width:100%;margin-top:18px;padding:15px;border:0;border-radius:16px;background:var(--orange);color:var(--ink);font:900 1.05rem Inter,system-ui;letter-spacing:-.01em;cursor:pointer;transition:filter .15s,transform .1s}
-#go:hover{filter:brightness(1.08)}#go:active{transform:scale(.99)}
+#go,#rgo{display:block;width:100%;margin-top:18px;padding:15px;border:0;border-radius:16px;background:var(--orange);color:var(--ink);font:900 1.05rem Inter,system-ui;letter-spacing:-.01em;cursor:pointer;transition:filter .15s,transform .1s}
+#go:hover,#rgo:hover{filter:brightness(1.08)}#go:active,#rgo:active{transform:scale(.99)}
 input[type=number]{appearance:textfield;-moz-appearance:textfield}input::-webkit-inner-spin-button,input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
 .pills button{border:0;border-radius:99px;padding:5px 11px;background:var(--field);color:var(--mute);font:600 .78rem Inter,system-ui;cursor:pointer}
@@ -119,18 +119,17 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
     <p>Multi-GPU pooling uses a flat 0.85 bandwidth factor, not your interconnect. Prices are assumptions unless a recorded price is used. Benchmarks so far are few and cover one model on one engine, so error figures do not transfer to other setups. Always benchmark your own configuration before buying.</p></div>
 </div>
 <div class=grid id=api hidden>
-  <div class="card s4"><h1>Recommend</h1><p class=tag>Pick a model and your limits. OMEN finds the GPU and quantization that fit, with a confidence level for each answer.</p></div>
+  <div class="card s4 title"><h1>OMEN</h1><p class=tag>Recommend &middot; which GPU and quantization fit your limits? Each answer carries a confidence level.</p></div>
   <div class="card sand s4"><span class=lab>Setup</span>
     <div class=two>
       <label><em>1</em> Model <select id=rm data-ph="Choose a model"></select></label>
-      <div><label><em>2</em> Number of GPUs <input id=rn type=number min=1 placeholder="1"></label></div>
-      <div><label><em>3</em> Context (tokens) <input id=rc type=number min=1 placeholder="e.g. 8192"></label></div>
-      <div><label><em>4</em> Users <input id=ru type=number min=1 placeholder="e.g. 4"></label></div>
+      <div><label><em>2</em> Number of GPUs <input id=rn type=number min=1 placeholder="1"></label><div class=pills data-for=rn></div></div>
+      <div><label><em>3</em> Context (tokens) <input id=rc type=number min=1 placeholder="e.g. 8192"></label><div class=pills data-for=rc></div></div>
+      <div><label><em>4</em> Users <input id=ru type=number min=1 placeholder="e.g. 4"></label><div class=pills data-for=ru></div></div>
       <div><label><em>5</em> Max $ per hour <input id=rb type=number min=0 step=any placeholder="no limit"></label></div>
       <div><label><em>6</em> Min tokens/s per user <input id=rt type=number min=0 placeholder="10"></label></div>
       <div><label><em>7</em> Max quality loss (%) <input id=rl type=number min=0 step=any placeholder="5"></label></div>
-      <div><span class=lab style="margin-bottom:0"><em style="display:inline-grid;place-items:center;width:1.3rem;height:1.3rem;margin-right:6px;border-radius:50%;background:var(--ink);color:#fff;font:700 .7rem Inter,system-ui;font-style:normal">8</em>Confidence</span>
-        <div class=pills id=rhi style="margin-top:14px"><button type=button class=on data-v=0>Any</button><button type=button data-v=0.75>High only (75%+)</button></div></div>
+      <div><label><em>8</em> Confidence</label><div class=pills id=rhi><button type=button class=on data-v=0>Any</button><button type=button data-v=0.75>High only (75%+)</button></div></div>
     </div>
     <button type=button id=rgo>Recommend &rarr;</button></div>
   <div id=aout style="display:contents"></div>
@@ -388,12 +387,15 @@ function renderRec(ov, users, n) {
 let RHI = 0;
 document.querySelectorAll("#rhi button").forEach(b => b.onclick = () => { RHI = +b.dataset.v; document.querySelectorAll("#rhi button").forEach(x => x.classList.toggle("on", x == b)); });
 $("rm").addEventListener("input", () => dds.forEach(d => d.sync()));
-$("rgo").onclick = () => {
+const rgo = () => {
   const num = (id, d) => $(id).value === "" ? d : +$(id).value, out = g("aout");
-  out.innerHTML = `<div class="card sand s4" style="--i:0">` + ($("rm").value
+  out.innerHTML = `<div class="card s4 res" style="--i:0">` + ($("rm").value
     ? recHTML({ model: $("rm").value, n: Math.max(1, num("rn", 1)), ctx: Math.max(1, num("rc", 8192)), users: Math.max(1, num("ru", 1)), maxUsd: num("rb", 0), minTok: num("rt", 10), maxLoss: num("rl", 5), minConf: RHI, ov: 1.5 })
     : "<span class=lab>Choose a model first</span>") + "</div>";
+  const a = $("api"); a.classList.remove("done"); void a.offsetWidth; a.classList.add("done"); // replay the reveal
+  setTimeout(() => out.firstElementChild.scrollIntoView({behavior: "smooth", block: "start"}), 60);
 };
+$("rgo").onclick = rgo;
 // Compare table: rows are every GPU or every quantization, other inputs held fixed. Best (fits, cheapest) first.
 let cmpBy = "g";
 function renderCmp(p, L, h, d, act, ov, users) {
@@ -455,13 +457,13 @@ $("runcheck").onclick = () => { let r; try { r = JSON.parse($("runjson").value);
     : `<b>Looks valid.</b> It would be labelled Community (not independently reproduced). <a href="https://github.com/SrijithLegend/OMEN/issues/new?title=${encodeURIComponent("Measured run: " + r.model + " on " + r.gpu)}&body=${encodeURIComponent(FENCE + "json\n" + JSON.stringify(r, null, 2) + "\n" + FENCE)}">Submit it as an issue &rarr;</a>`; };
 const setPrice = () => $("pr").value = $("g").value ? GPUS[$("g").value][2] : "";
 const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32], n: [1, 2, 4, 8]};
-document.querySelectorAll(".pills[data-for]").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id].map(v => `<button type=button data-v=${v}>${id == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
+document.querySelectorAll(".pills[data-for]").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id.slice(-1)].map(v => `<button type=button data-v=${v}>${id.slice(-1) == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
 document.querySelectorAll(".pills[data-for] button").forEach(b => b.onclick = () => { $(b.parentNode.dataset.for).value = b.dataset.v; render(); });
 document.querySelectorAll("select,input").forEach(e => e.oninput = render);
 document.querySelectorAll(".res").forEach((e, i) => e.style.setProperty("--i", i)); // staggered reveal order, hero first
 const go = () => { calculated = true; render(); const c = $("calc"); c.classList.remove("done"); void c.offsetWidth; c.classList.add("done"); setTimeout(() => $("hero").scrollIntoView({behavior: "smooth", block: "start"}), 60); };
 $("go").onclick = go;
-document.querySelectorAll("input").forEach(e => e.onkeydown = ev => { if (ev.key == "Enter") e.id == "hf" ? importHF() : go(); });
+document.querySelectorAll("input").forEach(e => e.onkeydown = ev => { if (ev.key == "Enter") e.id == "hf" ? importHF() : e.closest("#api") ? rgo() : go(); });
 $("g").addEventListener("input", () => { setPrice(); render(); });
 $("uc").oninput = () => { fillModels(); if ($("uc").value != "All") $("c").value = USE_CASE_CONTEXT[$("uc").value]; render(); };
 setPrice();
