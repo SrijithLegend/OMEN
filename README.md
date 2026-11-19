@@ -137,7 +137,7 @@ The speed ceiling is a best case, and real runs land below it. Against the five 
 
 So the ceiling reads about 1.5x too high on consumer cards and about 3x too high on datacenter cards in this case. This is five rows from one model and one quantization on four different llama.cpp builds, so do not read it as accuracy for other setups.
 
-To turn the ceiling into an expected speed, the calculator uses the most specific evidence it has: runs on this GPU and engine, then this GPU, and only then other GPUs, which it flags as "extrapolated". It shows how many runs back the number, their range, and what they covered. With 1 run on a GPU it says "thin".
+To turn the ceiling into an expected speed, the calculator averages only runs that match your workload: the same number of users and a context within 4x of yours, on this GPU and engine first. Runs at a different concurrency or context are never mixed in. When nothing matches it steps down (this GPU at your concurrency with a different context, then other GPUs, then the nearest hardware unmatched) and labels every step down "extrapolated". It shows how many of the runs on that hardware were used, their range, and what they covered. Only a matched same-GPU sample escapes "extrapolated", and with fewer than 3 runs it says "thin".
 
 ## Contribute a measured run
 

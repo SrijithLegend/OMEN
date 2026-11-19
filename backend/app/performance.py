@@ -27,41 +27,67 @@ def family(engine: str | None) -> str:
     return (engine or "").split()[0].lower()  # "llama.cpp b3900" -> "llama.cpp": builds differ, engines are what matter here
 
 
+CONTEXT_BAND = 4  # ponytail: a run counts as the same workload when its context is within 4x of yours and its user count equals yours
+
+
 def calibrate(runs: list[dict], *, gpu: str, engine: str | None = None, context: int, users: int) -> dict:
-    """Real/ceiling ratio from measured runs, from the most specific evidence available: this GPU (and engine) first, other GPUs only as a flagged
-    extrapolation. Never one global factor presented as reliable: the result carries how many runs back it, how far they spread, and what they covered."""
+    """Real/ceiling ratio from measured runs. The SAMPLE is chosen by hardware and by workload, not just described afterwards:
+      1. this GPU (and engine), same concurrency and similar context     -> gpu_specific / thin
+      2. this GPU, same concurrency, different context                   -> extrapolated
+      3. other GPUs, same concurrency and similar context, then 4. same concurrency only -> extrapolated
+      5. nothing matches your concurrency anywhere: the nearest hardware's runs as they are -> extrapolated, workload_match "none"
+    Runs at other concurrency or context never dilute a better-matched sample. The result carries the sample size, the spread and what it covered."""
     rows = []
     for r in runs:
         m, q, g = MODELS[r["model"]], QUANTS[r["quant"]], GPUS[r["gpu"]]
         rows.append((r, r["tok_s"] / decode_ceiling(m["active_params_b"] or m["params_b"], q["bytes_per_param"], g["bandwidth_gbs"], r.get("gpu_count", 1))))
     same_gpu, same_engine = (lambda r: r["gpu"] == gpu), (lambda r: family(r["engine"]) == family(engine))
-    tiers = ([("this GPU and engine", lambda r: same_gpu(r) and same_engine(r)), ("this GPU, other engines", same_gpu),
-              ("other GPUs, same engine", same_engine), ("other GPUs and engines", lambda r: True)] if engine else
-             [("this GPU", same_gpu), ("other GPUs", lambda r: True)])
-    for tier, ok in tiers:
-        got = [(r, x) for r, x in rows if ok(r)]
-        if got:
-            break
-    else:
-        return {"tier": None, "level": "none", "runs": 0, "utilization": None, "low": None, "high": None, "caveats": ["No measured runs: speed is a bandwidth ceiling only."]}
+    tiers = ([("this GPU and engine", lambda r: same_gpu(r) and same_engine(r), True), ("this GPU, other engines", same_gpu, True),
+              ("other GPUs, same engine", same_engine, False), ("other GPUs and engines", lambda r: True, False)] if engine else
+             [("this GPU", same_gpu, True), ("other GPUs", lambda r: True, False)])
+    same_users = lambda r: r["users"] == users
+    similar_ctx = lambda r: 1 / CONTEXT_BAND <= r["context"] / context <= CONTEXT_BAND
+    strata = [("context_and_concurrency", lambda r: same_users(r) and similar_ctx(r)), ("concurrency_only", same_users)]
+    for local, (match, ok_w) in [(True, strata[0]), (True, strata[1]), (False, strata[0]), (False, strata[1])]:
+        for tier, ok_h, is_local in tiers:
+            if is_local != local:
+                continue
+            got = [(r, x) for r, x in rows if ok_h(r) and ok_w(r)]
+            if got:
+                break
+        else:
+            continue
+        break
+    else:  # no run anywhere at your concurrency: say so, and use the nearest hardware's runs unmatched
+        match = "none"
+        for tier, ok_h, is_local in tiers:
+            got = [(r, x) for r, x in rows if ok_h(r)]
+            if got:
+                break
+        else:
+            return {"tier": None, "level": "none", "workload_match": None, "runs": 0, "runs_in_tier": 0, "conditions_matched": 0, "utilization": None, "low": None, "high": None,
+                    "caveats": ["No measured runs: speed is a bandwidth ceiling only."]}
+    in_tier = sum(1 for r, _ in rows if next(ok for t, ok, _ in tiers if t == tier)(r))
     xs, rs = [x for _, x in got], [r for r, _ in got]
-    level = "extrapolated" if not tier.startswith("this GPU") else "gpu_specific" if len(rs) >= MIN_RUNS and tier != "this GPU, other engines" else "thin"
-    matched = sum(1 for r in rs if r["users"] == users and 0.25 <= r["context"] / context <= 4)
+    local_tier = tier.startswith("this GPU")
+    level = ("gpu_specific" if len(rs) >= MIN_RUNS and tier != "this GPU, other engines" else "thin") if local_tier and match == "context_and_concurrency" else "extrapolated"
     cover = {"models": sorted({r["model"] for r in rs}), "quants": sorted({r["quant"] for r in rs}), "engines": sorted({family(r["engine"]) for r in rs}),
              "contexts": sorted({r["context"] for r in rs}), "users": sorted({r["users"] for r in rs})}
     caveats = []
-    if level == "extrapolated":
-        caveats.append(f"No measured run on {gpu}{' with this engine' if engine else ''}: this borrows the ratio from {len(rs)} run(s) on other hardware and can be far off.")
+    if match == "none":
+        caveats.append(f"No measured run at {users} concurrent user(s) anywhere: this uses {len(rs)} run(s) at users {cover['users']}, context {cover['contexts']}, so the speed is an extrapolation across workloads.")
+    elif match == "concurrency_only":
+        caveats.append(f"No measured run at a context near {context}: this uses {len(rs)} run(s) at {users} user(s) but context {cover['contexts']}. Longer context reads more KV cache per token, so real speed is likely lower.")
+    if not local_tier:
+        caveats.append(f"No usable measured run on {gpu}{' with this engine' if engine and 'same engine' in tier else ''}: this borrows the ratio from {len(rs)} run(s) on other hardware and can be far off.")
     elif level == "thin":
-        caveats.append(f"Only {len(rs)} measured run(s) on this GPU (need {MIN_RUNS}+ for a gpu_specific label): treat the speed as a lead, not a prediction.")
+        caveats.append(f"Only {len(rs)} measured run(s) match your workload on this GPU (need {MIN_RUNS}+ for a gpu_specific label): treat the speed as a lead, not a prediction.")
     if tier == "this GPU, other engines":
         caveats.append("Measured with a different engine than requested; engines differ in kernel efficiency.")
-    if not matched:
-        caveats.append(f"None of the supporting runs match your conditions (context {context}, {users} user(s)); they used context {cover['contexts']}, users {cover['users']}.")
     if len(cover["models"]) == 1 or len(cover["quants"]) == 1:
         caveats.append(f"Supporting runs cover {len(cover['models'])} model(s) and {len(cover['quants'])} quantization(s): the ratio may not transfer to others.")
-    return {"tier": tier, "level": level, "runs": len(rs), "utilization": median(xs), "low": min(xs) if len(xs) > 1 else None, "high": max(xs) if len(xs) > 1 else None,
-            "conditions_matched": matched, "coverage": cover, "caveats": caveats}
+    return {"tier": tier, "level": level, "workload_match": match, "runs": len(rs), "runs_in_tier": in_tier, "conditions_matched": len(rs) if match == "context_and_concurrency" else 0,
+            "utilization": median(xs), "low": min(xs) if len(xs) > 1 else None, "high": max(xs) if len(xs) > 1 else None, "coverage": cover, "caveats": caveats}
 
 
 def estimate_performance(model: dict, quant: dict, gpu: dict, *, n_gpus: int = 1, input_tokens: int, output_tokens: int,

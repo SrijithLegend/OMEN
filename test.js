@@ -92,16 +92,27 @@ assert.strictEqual(memoryMeasured([{ ...mem, gpu_count: 2 }], ask), 0);
 assert.strictEqual(memoryMeasured([{ ...mem, kv_dtype: "fp8" }], ask), 0);
 assert.strictEqual(memoryMeasured([mem], { ...ask, kv: "fp8" }), 1);
 assert.strictEqual(memoryMeasured([{ ...mem, vram_gib: 30 }], ask), 0); // peak larger than the card: not evidence of fit
-// Calibration: most specific evidence first, thin and extrapolated are labelled, never one global factor
-const ceil = r => 100, cr = (o = {}) => ({ ...base, ...o }), want = { gpu: "G", ctx: 8192, users: 4 };
+// Calibration: the sample is chosen by hardware and workload; thin and extrapolated are labelled, never one global factor
+const ceil = r => 100, cr = (o = {}) => ({ ...base, ...o }), want = { gpu: "G", ctx: 8192, users: 4 }, at = (o = {}) => cr({ context: 8192, users: 4, ...o });
 assert.strictEqual(calibrate([], ceil, want).level, "none");
-const ex = calibrate([cr({ gpu: "H", tok_s: 50 })], ceil, want);
-assert.deepStrictEqual([ex.level, ex.tier, ex.low], ["extrapolated", "other GPUs", null]);
-assert.strictEqual(calibrate([cr()], ceil, want).level, "thin");
-const many = calibrate([cr({ tok_s: 40 }), cr({ tok_s: 60 }), cr({ tok_s: 50 }), cr({ tok_s: 99, engine: "vllm 1" })], ceil, { ...want, engine: "llama.cpp" });
+const ex = calibrate([at({ gpu: "H", tok_s: 50 })], ceil, want);
+assert.deepStrictEqual([ex.level, ex.tier, ex.workloadMatch, ex.low], ["extrapolated", "other GPUs", "context_and_concurrency", null]);
+const one = calibrate([at()], ceil, want);
+assert.deepStrictEqual([one.level, one.tier, one.runs, one.conditionsMatched], ["thin", "this GPU", 1, 1]);
+const many = calibrate([at({ tok_s: 40 }), at({ tok_s: 60 }), at({ tok_s: 50 }), at({ tok_s: 99, engine: "vllm 1" })], ceil, { ...want, engine: "llama.cpp" });
 assert.deepStrictEqual([many.tier, many.level, many.runs, many.low, many.high, many.utilization], ["this GPU and engine", "gpu_specific", 3, 0.4, 0.6, 0.5]);
-assert.strictEqual(calibrate([cr({ engine: "vllm 1" })], ceil, { ...want, engine: "llama.cpp" }).tier, "this GPU, other engines");
-assert.strictEqual(calibrate([cr({ context: 8192, users: 4 })], ceil, want).conditionsMatched, 1);
+assert.deepStrictEqual([calibrate([at({ engine: "vllm 1" })], ceil, { ...want, engine: "llama.cpp" }).tier, calibrate([at({ engine: "vllm 1" })], ceil, { ...want, engine: "llama.cpp" }).level], ["this GPU, other engines", "thin"]);
+// workload stratification: fast single-user runs must not lift a 4-user estimate
+const solo = [0, 1, 2].map(() => cr({ tok_s: 80, users: 1, context: 8192 })), busy = [at({ tok_s: 30 }), at({ tok_s: 40, context: 4096 })];
+const mixed = calibrate([...solo, ...busy], ceil, want);
+assert.deepStrictEqual([mixed.workloadMatch, mixed.runs, mixed.runsInTier, mixed.low, mixed.high, mixed.level], ["context_and_concurrency", 2, 5, 0.3, 0.4, "thin"]);
+assert.ok(Math.abs(mixed.utilization - 0.35) < 1e-9);
+const far = calibrate([...[0, 1, 2].map(() => cr({ tok_s: 50, users: 4, context: 128 })), ...solo], ceil, want);
+assert.deepStrictEqual([far.workloadMatch, far.runs, far.level], ["concurrency_only", 3, "extrapolated"]); assert.ok(far.caveats.some(c => /context/.test(c)));
+const hw = calibrate([cr({ tok_s: 50, users: 4, context: 128 }), cr({ gpu: "H", tok_s: 99, users: 4, context: 8192 })], ceil, want);
+assert.deepStrictEqual([hw.tier, hw.workloadMatch], ["this GPU", "concurrency_only"]); // hardware first
+const none = calibrate(solo, ceil, want);
+assert.deepStrictEqual([none.workloadMatch, none.level, none.tier], ["none", "extrapolated", "this GPU"]); assert.ok(none.caveats.some(c => /No measured run at 4 concurrent/.test(c)));
 // Quality loss: unknown cannot satisfy a limit; measured vs estimated is explicit
 const uq = recommend([{ gpu: "U", quant: "q", fits: true, usd: 1, tok: 50, loss: null }, { gpu: "K", quant: "q", fits: true, usd: 2, tok: 50, loss: 1 }], { maxLoss: 5 });
 assert.deepStrictEqual(uq.ok.map(x => x.gpu), ["K"]); assert.strictEqual(uq.dropped["unknown quality loss"], 1);

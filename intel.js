@@ -72,25 +72,34 @@ const effLayers = (layers, sliding, ctx) => sliding ? layers - sliding[0] + slid
 // o = {model, quant, gpu, vram (total GiB), n (GPUs), ctx, users, kv ("fp16"...)}. Returns how many runs establish memory.
 const memoryMeasured = (runs, o) => runs.filter(r => r.model == o.model && r.quant == o.quant && r.gpu == o.gpu && (r.gpu_count || 1) == o.n && r.vram_gib > 0 && r.vram_gib <= o.vram
   && r.context >= o.ctx && r.users >= o.users && KV_TYPES[r.kv_dtype || "fp16"] >= KV_TYPES[o.kv]).length;
-// Calibration (mirrors backend/app/performance.py): real/ceiling ratio from the most specific evidence: this GPU (and engine) first, other GPUs only as a flagged extrapolation.
-const family = e => (e || "").split(" ")[0].toLowerCase(), MIN_RUNS = 3; // ponytail: fewer than 3 runs on one GPU is "thin"; raise as the dataset grows
+// Calibration (mirrors backend/app/performance.py). The SAMPLE is chosen by hardware and workload, not just described afterwards:
+// this GPU (and engine) at your concurrency and a similar context first; then this GPU at your concurrency; then other GPUs the same way;
+// and only if nothing matches your concurrency anywhere, the nearest hardware's runs unmatched. Only a fully matched same-GPU sample escapes "extrapolated".
+const family = e => (e || "").split(" ")[0].toLowerCase(), MIN_RUNS = 3, CONTEXT_BAND = 4; // ponytail: <3 runs on one GPU is "thin"; same workload = same users and context within 4x
 function calibrate(runs, ceilOf, o) { // ceilOf(run) = that run's bandwidth ceiling in tok/s; o = {gpu, engine?, ctx, users}
   const rows = runs.map(r => [r, r.tok_s / ceilOf(r)]), gpu = r => r.gpu == o.gpu, eng = r => family(r.engine) == family(o.engine);
-  const tiers = o.engine ? [["this GPU and engine", r => gpu(r) && eng(r)], ["this GPU, other engines", gpu], ["other GPUs, same engine", eng], ["other GPUs and engines", () => true]]
-    : [["this GPU", gpu], ["other GPUs", () => true]];
-  for (const [tier, ok] of tiers) {
-    const got = rows.filter(([r]) => ok(r)); if (!got.length) continue;
-    const rs = got.map(x => x[0]), xs = got.map(x => x[1]), uniq = k => [...new Set(rs.map(r => r[k]))].sort();
-    const level = !tier.startsWith("this GPU") ? "extrapolated" : rs.length >= MIN_RUNS && tier != "this GPU, other engines" ? "gpu_specific" : "thin";
-    const matched = rs.filter(r => r.users == o.users && r.context / o.ctx >= 0.25 && r.context / o.ctx <= 4).length, caveats = [];
-    if (level == "extrapolated") caveats.push(`No measured run on ${o.gpu}${o.engine ? " with this engine" : ""}: this borrows the ratio from ${rs.length} run(s) on other hardware and can be far off.`);
-    else if (level == "thin") caveats.push(`Only ${rs.length} measured run(s) on this GPU (need ${MIN_RUNS}+ for a gpu_specific label): treat the speed as a lead, not a prediction.`);
-    if (tier == "this GPU, other engines") caveats.push("Measured with a different engine than requested; engines differ in kernel efficiency.");
-    if (!matched) caveats.push(`None of the supporting runs match your conditions (context ${o.ctx}, ${o.users} user(s)); they used context ${uniq("context")}, users ${uniq("users")}.`);
-    const models = uniq("model"), quants = uniq("quant");
-    if (models.length == 1 || quants.length == 1) caveats.push(`Supporting runs cover ${models.length} model(s) and ${quants.length} quantization(s): the ratio may not transfer to others.`);
-    return { tier, level, runs: rs.length, utilization: median(xs), low: xs.length > 1 ? Math.min(...xs) : null, high: xs.length > 1 ? Math.max(...xs) : null, conditionsMatched: matched, caveats };
+  const tiers = o.engine ? [["this GPU and engine", r => gpu(r) && eng(r), true], ["this GPU, other engines", gpu, true], ["other GPUs, same engine", eng, false], ["other GPUs and engines", () => true, false]]
+    : [["this GPU", gpu, true], ["other GPUs", () => true, false]];
+  const sameUsers = r => r.users == o.users, similarCtx = r => r.context / o.ctx >= 1 / CONTEXT_BAND && r.context / o.ctx <= CONTEXT_BAND;
+  const strata = [["context_and_concurrency", r => sameUsers(r) && similarCtx(r)], ["concurrency_only", sameUsers]];
+  let pick = null;
+  for (const [local, [match, okW]] of [[true, strata[0]], [true, strata[1]], [false, strata[0]], [false, strata[1]]]) {
+    for (const [tier, okH, isLocal] of tiers) { if (isLocal != local) continue; const got = rows.filter(([r]) => okH(r) && okW(r)); if (got.length) { pick = { tier, match, got }; break; } }
+    if (pick) break;
   }
-  return { tier: null, level: "none", runs: 0, utilization: null, low: null, high: null, caveats: ["No measured runs: speed is a bandwidth ceiling only."] };
+  if (!pick) for (const [tier, okH] of tiers) { const got = rows.filter(([r]) => okH(r)); if (got.length) { pick = { tier, match: "none", got }; break; } }
+  if (!pick) return { tier: null, level: "none", workloadMatch: null, runs: 0, runsInTier: 0, conditionsMatched: 0, utilization: null, low: null, high: null, caveats: ["No measured runs: speed is a bandwidth ceiling only."] };
+  const { tier, match, got } = pick, rs = got.map(x => x[0]), xs = got.map(x => x[1]), uniq = k => [...new Set(rs.map(r => r[k]))].sort((a, b) => a < b ? -1 : 1);
+  const inTier = rows.filter(([r]) => tiers.find(t => t[0] == tier)[1](r)).length, local = tier.startsWith("this GPU");
+  const level = local && match == "context_and_concurrency" ? (rs.length >= MIN_RUNS && tier != "this GPU, other engines" ? "gpu_specific" : "thin") : "extrapolated", caveats = [];
+  if (match == "none") caveats.push(`No measured run at ${o.users} concurrent user(s) anywhere: this uses ${rs.length} run(s) at users ${uniq("users")}, context ${uniq("context")}, so the speed is an extrapolation across workloads.`);
+  else if (match == "concurrency_only") caveats.push(`No measured run at a context near ${o.ctx}: this uses ${rs.length} run(s) at ${o.users} user(s) but context ${uniq("context")}. Longer context reads more KV cache per token, so real speed is likely lower.`);
+  if (!local) caveats.push(`No usable measured run on ${o.gpu}${o.engine && tier.includes("same engine") ? " with this engine" : ""}: this borrows the ratio from ${rs.length} run(s) on other hardware and can be far off.`);
+  else if (level == "thin") caveats.push(`Only ${rs.length} measured run(s) match your workload on this GPU (need ${MIN_RUNS}+ for a gpu_specific label): treat the speed as a lead, not a prediction.`);
+  if (tier == "this GPU, other engines") caveats.push("Measured with a different engine than requested; engines differ in kernel efficiency.");
+  const models = uniq("model"), quants = uniq("quant");
+  if (models.length == 1 || quants.length == 1) caveats.push(`Supporting runs cover ${models.length} model(s) and ${quants.length} quantization(s): the ratio may not transfer to others.`);
+  return { tier, level, workloadMatch: match, runs: rs.length, runsInTier: inTier, conditionsMatched: match == "context_and_concurrency" ? rs.length : 0,
+    utilization: median(xs), low: xs.length > 1 ? Math.min(...xs) : null, high: xs.length > 1 ? Math.max(...xs) : null, caveats };
 }
 if (typeof module !== 'undefined') module.exports = { confidence, HIGH_CONFIDENCE, cluster, workload, recommend, parseHF, validateRun, ttft, median, TP_EFF, KV_TYPES, effLayers, memoryMeasured, calibrate }; // for test.js

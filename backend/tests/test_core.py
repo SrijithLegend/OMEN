@@ -248,25 +248,54 @@ def test_kv_cache_dtype_and_sliding_window():
 def test_calibration_prefers_this_gpu_and_never_hides_how_thin_it_is():
     from app.performance import calibrate
     ask = dict(gpu="RTX 4090 24GB", context=8192, users=4)
-    none = calibrate([], **ask)
-    assert none["utilization"] is None and none["level"] == "none"
-    other = calibrate([_run(gpu="H100 80GB SXM", tok_s=200)], **ask)
-    assert other["level"] == "extrapolated" and other["tier"] == "other GPUs" and other["low"] is None and other["caveats"]
-    mine = [_run(tok_s=100), _run(tok_s=140), _run(tok_s=120, engine="vllm 0.6")]
-    one = calibrate(mine[:1], **ask)
-    assert one["level"] == "thin" and one["tier"] == "this GPU" and one["conditions_matched"] == 0
+    at = lambda **kw: _run(context=8192, users=4, **kw)  # a run at the asked workload
+    assert calibrate([], **ask)["level"] == "none" and calibrate([], **ask)["utilization"] is None
+    other = calibrate([at(gpu="H100 80GB SXM", tok_s=200)], **ask)
+    assert other["level"] == "extrapolated" and other["tier"] == "other GPUs" and other["workload_match"] == "context_and_concurrency" and other["low"] is None and other["caveats"]
+    one = calibrate([at()], **ask)
+    assert one["level"] == "thin" and one["tier"] == "this GPU" and one["runs"] == 1 and one["conditions_matched"] == 1
+    mine = [at(tok_s=100), at(tok_s=140), at(tok_s=120, engine="vllm 0.6")]
     many = calibrate(mine * 2, **ask, engine="llama.cpp b9")  # engine given: only llama.cpp runs count, 4 of them
     assert many["tier"] == "this GPU and engine" and many["runs"] == 4 and many["level"] == "gpu_specific" and many["low"] < many["utilization"] < many["high"]
     assert calibrate(mine[2:], **ask, engine="llama.cpp")["tier"] == "this GPU, other engines"  # falls back, and says so
-    assert calibrate([_run(context=8192, users=4)], **ask)["conditions_matched"] == 1
+    assert calibrate(mine[2:], **ask, engine="llama.cpp")["level"] == "thin"
+
+
+def test_the_calibration_sample_is_chosen_by_workload_not_just_described():
+    from app.performance import calibrate, decode_ceiling
+    from app.catalog import MODELS, QUANTS, GPUS
+    ceil = decode_ceiling(MODELS["Llama-2-7B"]["params_b"], QUANTS["Q4_0"]["bytes_per_param"], GPUS["RTX 4090 24GB"]["bandwidth_gbs"])
+    ask = dict(gpu="RTX 4090 24GB", context=8192, users=4)
+    solo = [_run(tok_s=ceil * 0.8, users=1, context=8192)] * 3  # fast single-user runs must not lift a 4-user estimate
+    busy = [_run(tok_s=ceil * 0.3, users=4, context=8192), _run(tok_s=ceil * 0.4, users=4, context=4096)]
+    c = calibrate(solo + busy, **ask)
+    assert c["workload_match"] == "context_and_concurrency" and c["runs"] == 2 and c["runs_in_tier"] == 5  # 2 of the 5 runs on this GPU match
+    assert abs(c["utilization"] - 0.35) < 1e-9 and abs(c["low"] - 0.3) < 1e-9 and abs(c["high"] - 0.4) < 1e-9 and c["level"] == "thin"
+    # same concurrency but a very different context: stratified, and labelled as an extrapolation
+    far = calibrate([_run(tok_s=ceil * 0.5, users=4, context=128)] * 3 + solo, **ask)
+    assert far["workload_match"] == "concurrency_only" and far["runs"] == 3 and far["level"] == "extrapolated" and any("context" in x for x in far["caveats"])
+    # a run on this GPU at your concurrency (context off) beats other hardware at your exact workload: hardware first
+    mix = calibrate([_run(tok_s=ceil * 0.5, users=4, context=128), _run(gpu="H100 80GB SXM", tok_s=300, users=4, context=8192)], **ask)
+    assert mix["tier"] == "this GPU" and mix["workload_match"] == "concurrency_only"
+    # nothing at your concurrency anywhere: the nearest hardware is used, loudly
+    none = calibrate(solo, **ask)
+    assert none["workload_match"] == "none" and none["level"] == "extrapolated" and none["tier"] == "this GPU" and any("No measured run at 4 concurrent" in x for x in none["caveats"])
 
 
 def test_performance_endpoint_reports_calibration_support_and_range():
     p = c.post("/api/v1/estimate/performance", json=BASE).json()["performance"]
     cal = p["calibration"]
-    assert cal["runs"] >= 1 and cal["level"] in ("thin", "gpu_specific") and cal["tier"].startswith("this GPU")  # the 4090 run is in the seed data
+    # an earlier test verified a 4090 run at exactly BASE's workload (4 users, 8k), so it is the whole matched sample
+    assert cal["runs"] == 1 and cal["runs_in_tier"] > cal["runs"] and cal["tier"] == "this GPU" and cal["workload_match"] == "context_and_concurrency" and cal["level"] == "thin"
+    two = c.post("/api/v1/estimate/performance", json={**BASE, "concurrency": 2}).json()["performance"]["calibration"]  # no run at 2 users anywhere
+    assert two["workload_match"] == "none" and two["level"] == "extrapolated" and two["tier"] == "this GPU"
+    solo = c.post("/api/v1/estimate/performance", json={**BASE, "concurrency": 1, "context_length": 128}).json()["performance"]["calibration"]
+    assert solo["workload_match"] == "context_and_concurrency" and solo["level"] == "thin"  # the same 4090 run matches this workload
     far = c.post("/api/v1/estimate/performance", json={**BASE, "gpu": "A100 40GB"}).json()
-    assert far["performance"]["calibration"]["level"] == "extrapolated" and far["performance"]["decode_tok_s_range"] and any("borrows" in w for w in far["warnings"])
+    fc = far["performance"]["calibration"]  # no A100 40GB run: only the one matching 4-user run elsewhere qualifies, so no range
+    assert fc["level"] == "extrapolated" and fc["tier"] == "other GPUs" and fc["runs"] == 1 and far["performance"]["decode_tok_s_range"] is None and any("borrows" in w for w in far["warnings"])
+    wide = c.post("/api/v1/estimate/performance", json={**BASE, "gpu": "A100 40GB", "concurrency": 1, "context_length": 128}).json()  # five single-user 128-token runs elsewhere
+    assert wide["performance"]["calibration"]["runs"] == 5 and wide["performance"]["decode_tok_s_range"] and wide["performance"]["calibration"]["level"] == "extrapolated"
     manual = c.post("/api/v1/estimate/performance", json={**BASE, "utilization": 0.5}).json()["performance"]
     assert manual["utilization_source"] == "user" and manual["decode_tok_s_range"] is None
 
