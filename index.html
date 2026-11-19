@@ -67,6 +67,7 @@ textarea{display:block;width:100%;margin-top:8px;padding:12px 14px;border:2px so
 .term small{display:block;padding:10px 12px;border-radius:12px;background:#ffffff14;font-size:.85rem;line-height:1.4}.sand.term small{background:#0000000d}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.steps div{padding:14px;border-radius:16px;background:#ffffff14;font-size:.95rem;line-height:1.4}
 .steps em{display:grid;place-items:center;width:1.7rem;height:1.7rem;margin-bottom:8px;border-radius:50%;background:var(--orange);color:var(--ink);font:900 .85rem Inter,system-ui;font-style:normal}
+.go2.alt{background:var(--white);color:var(--ink);margin-left:6px}
 .go2{display:inline-block;margin-top:16px;padding:12px 20px;border:0;border-radius:99px;background:var(--orange);color:var(--ink);font:900 .95rem Inter,system-ui;cursor:pointer}
 label em{display:inline-grid;place-items:center;width:1.3rem;height:1.3rem;margin-right:6px;border-radius:50%;background:var(--ink);color:#fff;font:700 .7rem Inter,system-ui;font-style:normal}.card:not(.sand) label em{background:var(--orange);color:var(--ink)}
 #go,#rgo{display:block;width:100%;margin-top:18px;padding:15px;border:0;border-radius:16px;background:var(--orange);color:var(--ink);font:900 1.05rem Inter,system-ui;letter-spacing:-.01em;cursor:pointer;transition:filter .15s,transform .1s}
@@ -92,7 +93,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 <div class=grid id=learn hidden>
   <div class="card s4"><h1>Plain English</h1><p class=tag>Never run an AI model yourself? Here is every term OMEN uses, with no jargon.</p>
     <div class=steps><div><em>1</em>Pick the AI model you want to run.</div><div><em>2</em>Pick the graphics card (GPU) you have or want to rent.</div><div><em>3</em>Say how much text and how many people, then press Calculate.</div></div>
-    <button class=go2 data-tab=calc>Open the calculator &rarr;</button></div>
+    <button class=go2 data-tab=calc>Open the calculator &rarr;</button> <button class="go2 alt" data-tab=api>Open Recommend &rarr;</button></div>
 </div>
 <div class=grid id=bench hidden>
   <div class="card s4"><h1>Benchmarks</h1><p class=tag>Real measurements next to what the calculator predicts. Measured numbers are published by others; we link every source.</p></div>
@@ -225,6 +226,7 @@ const TERMS = [
 ];
 const g = id => document.getElementById(id);
 g("learn").insertAdjacentHTML("beforeend", TERMS.map(([t, d, e, tag], i) => `<div class="card term s2 ${i % 2 ? "" : "sand"}"><span class=lab>Term ${i + 1}${tag ? " &middot; " + tag + " tab" : ""}</span><b>${t}</b><p>${d}</p><small>${e}</small></div>`).join(""));
+g("learn").insertAdjacentHTML("beforeend", `<div class="card s4"><span class=lab>Put the terms to work</span><b style="display:block;font-size:1.6rem;line-height:1.1;margin-bottom:6px">Know your limits? Let OMEN pick the setup.</b><p class=tag style="margin:0">Set your budget, minimum speed and quality limit, and Recommend returns the cheapest, fastest, best-quality and best-value setups that pass, each with a confidence level.</p><button class=go2 data-tab=api>Open Recommend &rarr;</button> <button class="go2 alt" data-tab=calc>Open the calculator &rarr;</button></div>`);
 // Knowledge check from the product spec: each entry is [question, options, index of the right answer].
 const QUIZ = [
   ["A user enters a Hugging Face repository. Which module reads its architecture and parameter count?", ["Hardware Intelligence", "Model Intelligence", "Cost Intelligence", "Recommendation Engine"], 1],
