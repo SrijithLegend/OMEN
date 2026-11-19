@@ -133,3 +133,62 @@ def test_the_background_sampler_polls_during_the_run(monkeypatch):
     with omen_bench.VramSampler([0], interval=0.02) as s:
         time.sleep(0.15)
     assert len(calls) >= 5 and s.result()["vram_gib"] == 4.88  # it kept sampling while the work ran
+
+
+def test_stats_describe_repeated_measurements():
+    s = omen_bench.stats([10, 12, 11, 30, 11, 10, 12, 11, 10, 13])
+    assert (s["n"], s["min"], s["max"], s["median"]) == (10, 10, 30, 11.0) and s["p95"] == 30 and s["cv"] > 0.4  # one slow outlier shows up in p95 and cv
+    one = omen_bench.stats([5.0])
+    assert one["stdev"] == 0 and one["p95"] == 5.0 and one["n"] == 1
+
+
+def test_result_carries_spreads_rounds_per_request_detail_and_warnings(tmp_path):
+    res = _bench(_stub(["t"] * 20), tmp_path, "--users", "2", "--requests", "3", "--rounds", "2")
+    assert res["rounds"] == 2 and res["stats"]["tpot_ms"]["n"] == 12 and len(res["requests_detail"]) == 12  # 2 users x 3 requests x 2 rounds
+    assert res["aggregate_tok_s_stats"]["n"] == 2 and res["aggregate_tok_s"] == res["aggregate_tok_s_stats"]["median"]
+    assert res["tpot_ms"] == res["stats"]["tpot_ms"]["median"] and abs(res["tok_s_per_user"] - 1000 / res["tpot_ms"]) < 1e-9
+    assert {"ttft_ms", "tpot_ms", "tokens", "round"} <= set(res["requests_detail"][0])
+    assert res["run"]["schema_version"] == 2 and res["run"]["rounds"] == 2 and res["run"]["requests_per_user"] == 3 and res["run"]["started_at"].endswith("+00:00")
+    assert json.loads((tmp_path / "r.json").read_text())["stats"]["ttft_ms"]["p95"] >= res["stats"]["ttft_ms"]["median"]
+    few = _bench(_stub(["t"] * 20), tmp_path, "--requests", "2")  # 2 requests: say the spreads are rough
+    assert any("only 2 measured request" in w for w in few["warnings"])
+
+
+def test_a_noisy_run_is_flagged(tmp_path):
+    class Noisy(Stub):
+        n = 0
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            type(self).n += 1
+            delay = 0.002 if type(self).n % 2 else 0.04  # alternate fast and slow requests
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            for _ in range(12):
+                self.wfile.write(b"data: " + json.dumps({"choices": [{"delta": {"content": "t"}}]}).encode() + b"\n\n")
+                self.wfile.flush()
+                time.sleep(delay)
+            self.wfile.write(b"data: [DONE]\n\n")
+    res = _bench(Noisy, tmp_path, "--requests", "6")
+    assert res["stats"]["tpot_ms"]["cv"] > 0.25 and any("varies a lot" in w for w in res["warnings"])
+
+
+def test_the_result_file_is_importable_as_a_reference_run(tmp_path):
+    from app import benchmarks
+    res = _bench(_stub(["ab"] * 10, {"prompt_tokens": 100, "completion_tokens": 20}), tmp_path, "--source-url", "https://example.com/my-run")
+    assert benchmarks.validate(res) == []  # the runner's own file passes the importer's checks as it is
+    assert benchmarks.validate({**res, "source_url": None}) == ["source_url is required: a reference run must say where it came from"]
+
+
+def test_memory_is_not_reported_for_a_remote_server_or_an_idle_gpu(monkeypatch, tmp_path):
+    seen = []
+    monkeypatch.setattr(omen_bench, "read_gpu_mem", lambda: seen.append(1) or {0: 5000.0})
+    monkeypatch.setattr(omen_bench, "one_request", lambda *a, **k: {"ttft_ms": 50.0, "tpot_ms": 10.0, "tokens": 20, "chunks": 20, "prompt_tokens": 100, "method": "usage", "seconds": 0.3})
+    res = omen_bench.main(["--url", "http://gpu-box.internal:8000", *ARGS, "--output", str(tmp_path / "r.json")])  # a server on another machine
+    assert res["vram_gib"] is None and seen == [] and "not on this machine" in res["notes"]  # nvidia-smi here says nothing about that server
+    local = omen_bench.main(["--url", "http://localhost:8000", *ARGS, "--output", str(tmp_path / "r2.json")])
+    assert local["vram_gib"] == 4.88 and seen  # the same data is used when the server is local
+    monkeypatch.setattr(omen_bench, "read_gpu_mem", lambda: {0: 0.0})  # a GPU with nothing loaded is not a memory measurement
+    idle = omen_bench.VramSampler([0]); idle.sample()
+    assert idle.result()["vram_gib"] is None

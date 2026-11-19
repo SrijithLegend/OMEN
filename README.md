@@ -149,7 +149,9 @@ python backend/omen_bench.py --url http://localhost:8000 --served-model my-model
 ```
 
 - **Tokens are counted, best method first, and the result says which**: the server's own `usage` report (exact), your `--tokenizer` applied to the generated text (exact if it matches the model), or streamed chunks (an estimate, because a chunk can hold several tokens).
-- **GPU memory is sampled every 0.5 s through the whole run** with `nvidia-smi`. The result carries the peak of the summed memory of the GPUs you name (`--gpu-ids 0,1`) and each GPU's own peak. It includes other processes and anything the engine pre-allocated, so it is the footprint, not the minimum.
+- **Repeated measurements**: `--warmup` requests are discarded, each of `--users` concurrent users sends `--requests` requests back to back, and `--rounds` repeats that whole window. The result has the median, mean, p95, min, max, standard deviation and coefficient of variation for TTFT, TPOT and per-user tokens/s, the aggregate throughput of each round (output tokens of all users divided by the window's wall time), and every request's own numbers. It warns when the sample is small, when TPOT is noisy, or when rounds disagree.
+- **GPU memory is sampled every 0.5 s through the whole run** with `nvidia-smi`. The result carries the peak of the summed memory of the GPUs you name (`--gpu-ids 0,1`) and each GPU's own peak. It includes other processes and anything the engine pre-allocated, so it is the footprint, not the minimum. It is skipped when the server is not on this machine, and when nothing is in use on the named GPUs, because neither is a measurement.
+- **The JSON file is importable as it is** (add `--source-url` with the link that backs it): its top-level fields match `POST /api/v1/benchmarks/import`, and the extra detail (`stats`, `requests_detail`, `warnings`, `run`) sits alongside.
 
 ## Contributing
 
@@ -177,7 +179,7 @@ python backend/omen_bench.py --url http://localhost:8000 --served-model my-model
 
 ```bash
 node test.js                    # page maths
-cd backend && python -m pytest  # API, 32 tests
+cd backend && python -m pytest  # API, 37 tests
 ```
 
 GitHub Actions runs both on every push, and runs the API tests against PostgreSQL as well as SQLite.
@@ -199,7 +201,7 @@ The web page does not use this server: everything in it, including the **Recomme
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m pytest                                # 32 tests
+python -m pytest                                # 37 tests
 python -m uvicorn app.main:app --port 8787      # docs at http://localhost:8787/docs
 ```
 
@@ -222,4 +224,4 @@ The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects Po
 
 **Production.** Set `OMEN_ENV=production`: the server then refuses to start unless `OMEN_CORS` lists your site's origin (`*` is only the local default). Compose requires `OMEN_ADMIN_KEY` (the maintainer key), `POSTGRES_PASSWORD` and `OMEN_CORS`, restarts services, and keeps data in the `pgdata` volume; back it up with `docker compose exec db pg_dump -U omen omen > omen-backup.sql`. Behind a proxy, run uvicorn with `--proxy-headers` so the submission rate limit sees real client addresses (it is per process; use Redis if you run several workers).
 
-**Tested so far.** SQLite: 32 backend tests and all page tests. PostgreSQL: the same suite runs in GitHub Actions. Docker Compose and a real deployment have not been tested yet: do that before launch.
+**Tested so far.** SQLite: 37 backend tests and all page tests. PostgreSQL: the same suite runs in GitHub Actions. Docker Compose and a real deployment have not been tested yet: do that before launch.

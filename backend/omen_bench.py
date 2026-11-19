@@ -10,19 +10,29 @@ Tokens are counted, best method first, and the result records which one was used
   tokenizer  the generated text re-tokenized with --tokenizer (a Hugging Face tokenizer name or path). Exact only if it is the served model's tokenizer.
   chunks     one streamed chunk = one token. An ESTIMATE: a chunk can hold several tokens or part of one, so tokens/s and TPOT can be off.
 
+Repeated measurements: --requests per user are sent back to back, and --rounds repeats the whole measured window, so the result carries a median, mean,
+p95, min, max and standard deviation for TTFT, TPOT and per-user tokens/s, each round's aggregate throughput, and warnings when the numbers are noisy.
+
 GPU memory is sampled every 0.5 s through the whole run (warm-up included) with nvidia-smi: the result carries the peak of the summed memory of the
 GPUs you name and each GPU's own peak. It is what was in use on those GPUs, including other processes and anything the engine pre-allocated.
 """
 import argparse
 import json
+import math
+import platform
 import shutil
 import statistics
 import subprocess
 import sys
 import threading
 import time
+from contextlib import nullcontext
+from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 import httpx
+
+SCHEMA_VERSION = 2
 
 PROMPT_WORD = "benchmark "
 EXACTNESS = ["usage", "tokenizer", "chunks"]  # best to worst; a run is only as exact as its weakest request
@@ -116,10 +126,19 @@ class VramSampler:
         self.sample()
 
     def result(self) -> dict:
-        if self.missing or not self.samples:
+        if self.missing or not self.samples or self.peak_total <= 0:  # nothing in use on those GPUs means the model is not there: not a measurement
             return {"vram_gib": None, "vram_gib_per_gpu": None, "vram_sampling": None}
         return {"vram_gib": round(self.peak_total / 1024, 2), "vram_gib_per_gpu": [round(self.peak_each[i] / 1024, 2) for i in self.gpu_ids],
                 "vram_sampling": {"interval_s": self.interval, "samples": self.samples, "gpu_ids": self.gpu_ids}}
+
+
+def stats(xs: list[float]) -> dict:
+    """Spread of repeated measurements. p95 is the nearest-rank value; cv (stdev / mean) says how noisy the sample is."""
+    s = sorted(xs)
+    mean = statistics.fmean(s)
+    sd = statistics.stdev(s) if len(s) > 1 else 0.0
+    return {"n": len(s), "median": statistics.median(s), "mean": mean, "p95": s[max(0, math.ceil(0.95 * len(s)) - 1)], "min": s[0], "max": s[-1],
+            "stdev": sd, "cv": sd / mean if mean else 0.0}
 
 
 def run(args) -> dict:
@@ -127,41 +146,58 @@ def run(args) -> dict:
     if len(gpu_ids) != args.gpu_count:
         sys.exit(f"--gpu-ids lists {len(gpu_ids)} GPUs but --gpu-count is {args.gpu_count}")
     tok = load_tokenizer(args.tokenizer) if args.tokenizer else None
-    with VramSampler(gpu_ids) as vram, httpx.Client() as client:
+    local = urlparse(args.url).hostname in ("localhost", "127.0.0.1", "::1")  # nvidia-smi can only see this machine's GPUs
+    with (VramSampler(gpu_ids) if local else nullcontext()) as vram, httpx.Client() as client:
         for _ in range(args.warmup):  # warm-up requests are discarded
             one_request(client, args.url, args.served_model, args.input_tokens, args.output_tokens, tok)
-        results, errors, lock = [], [], threading.Lock()
+        results, errors, walls, lock = [], [], [], threading.Lock()
+        started = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-        def worker():
+        def worker(rnd):
             try:
                 for _ in range(args.requests):
                     r = one_request(client, args.url, args.served_model, args.input_tokens, args.output_tokens, tok)
                     with lock:
-                        results.append(r)
+                        results.append({**r, "round": rnd})
             except Exception as e:  # keep going: one failed request must not lose the others
                 errors.append(str(e))
 
-        threads = [threading.Thread(target=worker) for _ in range(args.users)]
-        t0 = time.perf_counter()
-        [t.start() for t in threads]
-        [t.join() for t in threads]
-        wall = time.perf_counter() - t0
+        for rnd in range(args.rounds):
+            threads = [threading.Thread(target=worker, args=(rnd,)) for _ in range(args.users)]
+            t0 = time.perf_counter()
+            [t.start() for t in threads]
+            [t.join() for t in threads]
+            walls.append(time.perf_counter() - t0)
     if not results:
         raise SystemExit("no successful requests: " + "; ".join(errors[:3]))
     method = max({r["method"] for r in results}, key=EXACTNESS.index)  # the weakest method used by any request
     tpot = statistics.median(r["tpot_ms"] for r in results)
     ratio = statistics.median(r["chunks"] / r["tokens"] for r in results)
+    st = {"ttft_ms": stats([r["ttft_ms"] for r in results]), "tpot_ms": stats([r["tpot_ms"] for r in results]), "tok_s_per_user": stats([1000 / r["tpot_ms"] for r in results])}
+    round_tok_s = [sum(r["tokens"] for r in results if r["round"] == i) / w for i, w in enumerate(walls) if any(r["round"] == i for r in results)]  # output tokens of all users / wall time, per round
+    agg = stats(round_tok_s)
     known = all(r["prompt_tokens"] is not None for r in results)
     context = max((r["prompt_tokens"] if known else args.input_tokens) + r["tokens"] for r in results)
-    notes = [f"{len(results)} requests ({len(errors)} failed), {args.warmup} warm-up, medians",
+    warnings = []
+    if errors:
+        warnings.append(f"{len(errors)} worker(s) stopped after an error ({errors[0][:80]}): the other requests are kept, but the sample is smaller than asked")
+    if len(results) < 10:
+        warnings.append(f"only {len(results)} measured request(s): the spreads are rough, use more --requests or --rounds")
+    if st["tpot_ms"]["cv"] > 0.25:
+        warnings.append(f"TPOT varies a lot between requests (CV {st['tpot_ms']['cv']:.0%}): the median is less trustworthy. Check for other load on the GPU or send more requests.")
+    if len(round_tok_s) > 1 and agg["cv"] > 0.1:
+        warnings.append(f"aggregate throughput differs between rounds (CV {agg['cv']:.0%}): the server did not settle or something else was running")
+    notes = [f"{len(results)} requests in {len(walls)} round(s) ({len(errors)} failed), {args.warmup} warm-up, medians",
              {"usage": "tokens counted from the server's usage report (exact)", "tokenizer": f"tokens counted by re-tokenizing the output with {args.tokenizer}",
               "chunks": "tokens ESTIMATED as one per streamed chunk: tokens/s and TPOT may be off"}[method],
              "context_tokens is the largest prompt + completion seen" + ("" if known else " (prompt length assumed from --input-tokens)")]
     if ratio < 0.9 and method != "chunks":
         notes.append(f"the server packs about {1 / ratio:.1f} tokens per chunk, so TPOT assumes the first chunk held one token")
-    vr = vram.result()
-    if vr["vram_gib"] is None:
-        notes.append("GPU memory not measured (nvidia-smi missing or did not list the GPUs asked for)")
+    vr = vram.result() if vram else {"vram_gib": None, "vram_gib_per_gpu": None, "vram_sampling": None}
+    if not local:
+        notes.append("GPU memory not measured: the server is not on this machine, and nvidia-smi only sees local GPUs")
+    elif vr["vram_gib"] is None:
+        notes.append("GPU memory not measured (nvidia-smi missing, did not list the GPUs asked for, or showed none in use)")
     else:
         notes.append("vram_gib is the sampled peak of the named GPUs' used memory, including other processes and engine pre-allocation")
     return {
@@ -171,7 +207,12 @@ def run(args) -> dict:
         **vr, "gpu_count": args.gpu_count, "kv_dtype": args.kv_dtype,
         "token_count_method": method, "tokens_exact": method == "usage", "chunk_token_ratio": round(ratio, 3),
         "source_url": args.source_url,
-        "aggregate_tok_s": sum(r["tokens"] for r in results) / wall,  # output tokens of all users / wall time of the measured window
+        "aggregate_tok_s": agg["median"],  # output tokens of all users / wall time of one measured window, median over rounds
+        "stats": st, "aggregate_tok_s_stats": agg, "rounds": len(walls), "failed_requests": len(errors), "warnings": warnings,
+        "requests_detail": [{k: (round(v, 3) if isinstance(v, float) else v) for k, v in r.items() if k != "method"} for r in results],
+        "run": {"schema_version": SCHEMA_VERSION, "runner": "omen_bench", "started_at": started, "python": platform.python_version(), "warmup": args.warmup,
+                "requests_per_user": args.requests, "rounds": args.rounds, "input_tokens_requested": args.input_tokens, "output_tokens_requested": args.output_tokens,
+                "served_model": args.served_model},
         "notes": "; ".join(notes),
     }
 
@@ -189,7 +230,8 @@ def main(argv=None):
     p.add_argument("--kv-dtype", default="fp16", choices=["fp16", "bf16", "fp8", "int8"], help="KV cache type the server runs with")
     p.add_argument("--tokenizer", default=None, help="Hugging Face tokenizer for the served model, used only when the server does not report usage")
     p.add_argument("--users", type=int, default=1, help="concurrent requests")
-    p.add_argument("--requests", type=int, default=5, help="requests per user")
+    p.add_argument("--requests", type=int, default=5, help="requests per user in each round")
+    p.add_argument("--rounds", type=int, default=1, help="repeat the whole measured window this many times (concurrent users x requests each time)")
     p.add_argument("--warmup", type=int, default=2)
     p.add_argument("--input-tokens", type=int, default=128)
     p.add_argument("--output-tokens", type=int, default=128)
@@ -199,7 +241,11 @@ def main(argv=None):
     res = run(a)
     with open(a.output, "w", encoding="utf-8") as f:
         json.dump(res, f, indent=2)
-    print(f"wrote {a.output}: {res['tok_s_per_user']:.1f} tok/s per user, TTFT {res['ttft_ms']:.0f} ms, TPOT {res['tpot_ms']:.1f} ms, tokens counted by {res['token_count_method']}")
+    st = res["stats"]
+    print(f"wrote {a.output}: {res['tok_s_per_user']:.1f} tok/s per user, TTFT {res['ttft_ms']:.0f} ms (p95 {st['ttft_ms']['p95']:.0f}), TPOT {res['tpot_ms']:.1f} ms (p95 {st['tpot_ms']['p95']:.1f}), "
+          f"aggregate {res['aggregate_tok_s']:.0f} tok/s, tokens counted by {res['token_count_method']}")
+    for w in res["warnings"]:
+        print("warning:", w)
     return res
 
 
