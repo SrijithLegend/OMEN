@@ -6,6 +6,11 @@
 :root{color-scheme:light;--bg:#ececee;--ink:#111;--white:#fff;--orange:#ff6a2b;--pink:#fde4e1;--field:#ffffff22;--mute:#ffffff99}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:#fff;font:15px/1.4 Inter,system-ui,sans-serif;padding:16px}
+/* Background: faint circuit traces (tiled SVG) over a slowly drifting orange glow. Both sit behind the opaque cards, so only the margins and gaps show it. */
+.bgglow{position:fixed;inset:-25vmax;z-index:-2;pointer-events:none;background:radial-gradient(38vmax 38vmax at 22% 28%,#ff6a2b2e,#ff6a2b00 70%),radial-gradient(34vmax 34vmax at 78% 72%,#fd8f8638,#fd8f8600 70%);animation:drift 70s ease-in-out infinite alternate;will-change:transform}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' fill='none' stroke='%23111' stroke-opacity='.075' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'><path d='M0 40H60L80 60H140L160 40H200'/><path d='M0 150H40L60 130H120L140 150H200'/><path d='M100 0V25L120 45V60'/><path d='M100 200V165L90 155V130'/><path d='M0 95H18L28 105V118'/><path d='M200 95H182L172 105V118'/><circle cx='60' cy='40' r='3'/><circle cx='160' cy='40' r='3'/><circle cx='40' cy='150' r='3'/><circle cx='140' cy='150' r='3'/><circle cx='120' cy='60' r='3'/><circle cx='90' cy='130' r='3'/><circle cx='28' cy='118' r='3'/><circle cx='172' cy='118' r='3'/><rect x='84' y='84' width='32' height='32' rx='5'/><path d='M92 84V78M100 84V78M108 84V78M92 116V122M100 116V122M108 116V122'/></svg>") 0 0/200px 200px}
+@keyframes drift{from{transform:translate3d(-5%,-4%,0) scale(1)}to{transform:translate3d(6%,5%,0) scale(1.1)}}
+@media(prefers-reduced-motion:reduce){.bgglow{animation:none}}
 .grid{max-width:72rem;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;grid-auto-flow:dense}
 .card{background:var(--ink);border-radius:22px;padding:18px;min-width:0}
 .s2{grid-column:span 2}.s3{grid-column:span 3}.s4{grid-column:span 4}.r2{grid-row:span 2}
@@ -95,6 +100,7 @@ tr.sel td{background:#ff6a2b14}.cmpv{margin:0 0 12px;padding:12px 14px;border-ra
 .sand table th{color:#777}.sand td,.sand th{border-top:1px solid #0000001a}
 @media(max-width:760px){.filt{grid-template-columns:1fr}.steps{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.s4,.s3,.s2{grid-column:span 2}.two{grid-template-columns:1fr}.r2{grid-row:auto}}
 </style>
+<div class=bgglow aria-hidden=true></div>
 <nav class=tabs><button class=on data-tab=calc>GPU calculator</button><button data-tab=api>Recommend</button><span class=side><button data-tab=learn>Guide</button><button data-tab=bench>Benchmarks</button><button data-tab=method>Methodology</button></span></nav>
 <div class=grid id=learn hidden>
   <div class="card s4"><h1>Plain English</h1><p class=tag>Never run an AI model yourself? Here is every term OMEN uses, with no jargon.</p>
