@@ -66,7 +66,7 @@ High confidence means 75% or more, so only a measured setup qualifies. Speeds ar
 
 The published reference measurements, set next to what the calculator predicts for each.
 
-![The Benchmarks tab: five measured llama.cpp runs next to their predicted ceilings](docs/benchmarks.png)
+![The Benchmarks tab: the reference runs, the comparison, the report downloads and the local result box](docs/benchmarks.png)
 
 Each row shows model, GPU, quantization, engine, context length, users, tokens/s, time to first token, time per token, VRAM and the source link. A dash means the source did not report that figure (the five bundled llama.cpp runs report only tokens/s, so their TPOT is derived and marked `*`, and none recorded memory). You can filter by model, GPU, quantization and engine, and **Download as CSV** exports the table. The five runs are Llama-2-7B in Q4_0 on llama.cpp, so the "mean gap" shown is not accuracy for other setups.
 
