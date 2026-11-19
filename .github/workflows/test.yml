@@ -1,0 +1,33 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: node test.js
+      - name: backend catalog.json must match the page data
+        run: node scripts/export-catalog.js && git diff --exit-code --ignore-space-at-eol backend/app/catalog.json
+      - run: pip install -r backend/requirements.txt
+      - run: python -m pytest
+        working-directory: backend
+  postgres:  # the same tests against PostgreSQL: the README said this path was untested
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:16
+        env: { POSTGRES_USER: omen, POSTGRES_PASSWORD: omen, POSTGRES_DB: omen }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U omen" --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r backend/requirements.txt "psycopg[binary]>=3.1"
+      - run: python -m pytest
+        working-directory: backend
+        env: { OMEN_DB: "postgresql+psycopg://omen:omen@localhost:5432/omen" }

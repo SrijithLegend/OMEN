@@ -6,6 +6,7 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from sqlalchemy import delete, insert, select, update
@@ -13,7 +14,8 @@ from pydantic import BaseModel, Field
 
 from . import benchmarks, db, prices
 from .catalog import CATALOG_BYTES, GPUS, MODELS, QUANTS, RUNS, get
-from .memory import estimate_memory
+from .evidence import evidence
+from .memory import KV_BYTES, estimate_memory
 from .performance import estimate_performance
 from .recommend import HIGH_CONFIDENCE, candidates, recommend
 from .workload import HOURS_PER_MONTH, break_even_months, self_hosted_usd_hr, simulate
@@ -25,7 +27,18 @@ async def lifespan(_):
 
 
 app = FastAPI(title="OMEN Inference Intelligence", version="0.1.0", lifespan=lifespan)
+if os.environ.get("OMEN_ENV") == "production" and not os.environ.get("OMEN_CORS"):
+    raise RuntimeError("OMEN_ENV=production needs OMEN_CORS set to your site's origin (comma-separated). '*' is only the default for local development.")
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("OMEN_CORS", "*").split(","), allow_methods=["*"], allow_headers=["*"])  # restrict with OMEN_CORS=https://your.site
+
+MAX_BODY_BYTES = 64_000  # ponytail: trusts Content-Length, so a chunked body without one is only bounded by field limits; put a proxy limit in front for hostile traffic
+
+
+@app.middleware("http")
+async def limit_body(request: Request, call_next):
+    if int(request.headers.get("content-length") or 0) > MAX_BODY_BYTES:
+        return JSONResponse({"detail": f"payload larger than {MAX_BODY_BYTES} bytes"}, status_code=413)
+    return await call_next(request)
 
 
 REQUESTS = Counter("omen_http_requests_total", "HTTP requests", ["method", "route", "status"])
@@ -47,10 +60,6 @@ def prometheus_metrics():
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-def _measured(model: str, quant: str, gpu: str) -> int:
-    return sum(1 for r in RUNS if (r["model"], r["quant"], r["gpu"]) == (model, quant, gpu))
-
-
 def _lookup(table, name, kind):
     try:
         return get(table, name, kind)
@@ -66,6 +75,9 @@ class Config(BaseModel):
     context_length: int = Field(8192, ge=1)
     concurrency: int = Field(1, ge=1)
     overhead_gib: float = Field(1.5, ge=0)
+    kv_dtype: str = Field("fp16", pattern="^(" + "|".join(KV_BYTES) + ")$")  # KV cache element type
+    sliding_cache: bool = False  # engine frees KV for sliding-window layers (only matters for models that have them)
+    engine: str | None = None  # narrows evidence and calibration to this engine, e.g. "vllm" or "llama.cpp"
 
 
 class PerfRequest(Config):
@@ -75,8 +87,8 @@ class PerfRequest(Config):
 
 
 def _evidence(c: Config) -> dict:
-    n = _measured(c.model, c.quantization, c.gpu)
-    return {"type": "measured_plus_estimate" if n else "model_estimate", "benchmark_count": n}
+    return evidence(benchmarks.trusted_runs(), model=c.model, quant=c.quantization, gpu=c.gpu, vram_gib=_lookup(GPUS, c.gpu, "GPU")["vram_gib"] * c.gpu_count,
+                    n_gpus=c.gpu_count, context=c.context_length, users=c.concurrency, kv_dtype=c.kv_dtype, engine=c.engine)
 
 
 @app.get("/api/v1/models")
@@ -104,13 +116,27 @@ def list_quants():
     return QUANTS
 
 
+def _spec_warning(gpu: str) -> list[str]:
+    st = _lookup(GPUS, gpu, "GPU")["spec_status"]
+    return [] if st == "verified" else [f"GPU specs for {gpu} are {'only partly' if st == 'partial' else 'not'} verified against a vendor source (see /gpus/{gpu}): VRAM, bandwidth and TFLOPS may be off."]
+
+
 @app.post("/api/v1/estimate/memory")
 def memory(c: Config):
     ev = _evidence(c)
     r = estimate_memory(_lookup(MODELS, c.model, "model"), _lookup(QUANTS, c.quantization, "quantization"), _lookup(GPUS, c.gpu, "GPU"),
                         n_gpus=c.gpu_count, context=c.context_length, users=c.concurrency, overhead_gib=c.overhead_gib,
-                        measured=ev["benchmark_count"] > 0)
-    return {"status": "estimated", "memory": r, "evidence": ev, "warnings": ["KV cache assumed fp16.", "Overhead is an assumption, not a measurement."]}
+                        memory_measured=ev["memory_measured"] > 0, kv_dtype=c.kv_dtype, sliding_cache=c.sliding_cache)
+    warnings = ["Overhead is an assumption, not a measurement."] + _spec_warning(c.gpu)
+    if not ev["memory_measured"]:
+        warnings.append("No recorded peak-VRAM measurement for this setup at your context and concurrency: fit is an estimate" + (" (a speed benchmark exists, but it does not show memory)." if ev["performance_measured"] else "."))
+    if c.kv_dtype in ("fp8", "int8"):
+        warnings.append(f"{c.kv_dtype} KV cache assumes per-tensor scales and OMEN has not measured its quality impact.")
+    if r["kv_gib_per_user_if_sliding_freed"] is not None:
+        warnings.append(f"This model has sliding-window layers: the figure counts a full cache. An engine that frees them needs {r['kv_gib_per_user_if_sliding_freed']:.2f} GiB per user (set sliding_cache).")
+    if c.sliding_cache and not r["sliding_window_applied"]:
+        warnings.append("sliding_cache ignored: this model's config does not declare sliding-window layers.")
+    return {"status": "estimated", "memory": r, "evidence": ev, "warnings": warnings}
 
 
 class WorkloadRequest(PerfRequest):
@@ -123,13 +149,14 @@ def _simulate(c: WorkloadRequest, usd_hr_per_gpu: float | None = None) -> dict:
         return {"status": "does_not_fit", "memory": mem}
     perf = performance(c)["performance"]
     w = simulate(perf["decode_ceiling_tok_s"], c.concurrency, (usd_hr_per_gpu if usd_hr_per_gpu is not None else _lookup(GPUS, c.gpu, "GPU")["usd_hr"]) * c.gpu_count,
-                 c.output_tokens, c.requests_per_month, perf["utilization_used"])
+                 c.output_tokens, c.requests_per_month, perf["utilization_used"] if perf["utilization_used"] is not None else 1.0)  # no calibration: ceiling, a best case
     return {"status": "estimated", "memory": mem, "performance": perf, "workload": w}
 
 
 @app.post("/api/v1/workloads/simulate")
 def simulate_workload(c: WorkloadRequest):
-    return {**_simulate(c), "evidence": _evidence(c), "warnings": ["Ceiling-based: ignores queueing, so treat latency as a best case."]}
+    s = _simulate(c)
+    return {**s, "evidence": _evidence(c), "warnings": ["Ceiling-based: ignores queueing, so treat latency as a best case."] + s.get("performance", {}).get("calibration", {}).get("caveats", [])}
 
 
 class CostRequest(WorkloadRequest):
@@ -184,6 +211,7 @@ class RecommendRequest(BaseModel):
     context_length: int = Field(8192, ge=1)
     concurrency: int = Field(1, ge=1)
     overhead_gib: float = Field(1.5, ge=0)
+    kv_dtype: str = Field("fp16", pattern="^(" + "|".join(KV_BYTES) + ")$")
     max_usd_hr: float | None = Field(None, gt=0)
     min_tok_s: float = Field(10, ge=0)
     max_quality_loss_pct: float = Field(5, ge=0)
@@ -193,7 +221,7 @@ class RecommendRequest(BaseModel):
 @app.post("/api/v1/recommendations")
 def recommendations(r: RecommendRequest):
     _lookup(MODELS, r.model, "model")
-    cands = candidates(r.model, n_gpus=r.gpu_count, context=r.context_length, users=r.concurrency, overhead_gib=r.overhead_gib)
+    cands = candidates(benchmarks.trusted_runs(), r.model, n_gpus=r.gpu_count, context=r.context_length, users=r.concurrency, overhead_gib=r.overhead_gib, kv_dtype=r.kv_dtype)
     return {"combinations_tried": len(cands), **recommend(cands, max_usd_hr=r.max_usd_hr, min_tok_s=r.min_tok_s, max_quality_loss_pct=r.max_quality_loss_pct, min_confidence=r.min_confidence),
             "warnings": ["Estimates only: speeds are ceilings. Benchmark before buying.", f"Confidence is high at {HIGH_CONFIDENCE:.0%} or above; below that treat the pick as a lead to benchmark."]}
 
@@ -201,34 +229,58 @@ def recommendations(r: RecommendRequest):
 @app.post("/api/v1/estimate/performance")
 def performance(c: PerfRequest):
     gpu = _lookup(GPUS, c.gpu, "GPU")
+    mem = memory(c)["memory"]
     r = estimate_performance(_lookup(MODELS, c.model, "model"), _lookup(QUANTS, c.quantization, "quantization"), gpu,
-                             n_gpus=c.gpu_count, input_tokens=c.input_tokens, output_tokens=c.output_tokens, utilization=c.utilization)
-    warnings = ["Calibration comes from one model on one engine: low confidence elsewhere."]
+                             n_gpus=c.gpu_count, input_tokens=c.input_tokens, output_tokens=c.output_tokens, utilization=c.utilization,
+                             runs=benchmarks.trusted_runs(), gpu_name=c.gpu, engine=c.engine, context=c.context_length, users=c.concurrency,
+                             kv_total_gib=mem["kv_gib_total"], weights_gib=mem["weights_gib"])
+    warnings = list(r["calibration"]["caveats"]) + _spec_warning(c.gpu)
+    if r["decode_tok_s"] is None:
+        warnings.append("No calibration available: only the bandwidth ceiling is reported, not an expected speed.")
+    if r["kv_read_fraction"] > 0.1:
+        warnings.append(f"The KV cache is {r['kv_read_fraction']:.0%} of the bytes read per step; the weights-only ceiling ignores it, so real speed will be lower.")
     if r["ttft_ms"] is None:
         warnings.append("No compute figure for this GPU: prefill/TTFT is not estimated.")
     return {"status": "estimated", "performance": r, "evidence": _evidence(c), "warnings": warnings}
 
 
 class BenchmarkSubmission(BaseModel):
-    model: str
-    quant: str
-    gpu: str
-    engine: str = Field(min_length=1)
-    context_tokens: int = Field(ge=1)
-    users: int = Field(1, ge=1)
-    tok_s_per_user: float = Field(gt=0)
-    ttft_ms: float | None = Field(None, gt=0)
-    tpot_ms: float | None = Field(None, gt=0)
-    vram_gib: float | None = Field(None, gt=0)
-    source_url: str | None = None
-    submitter: str | None = None
+    """Every field is bounded: this endpoint is public, so nothing unbounded or absurd is stored."""
+    model: str = Field(max_length=100)
+    quant: str = Field(max_length=100)
+    gpu: str = Field(max_length=100)
+    engine: str = Field(min_length=1, max_length=100)
+    context_tokens: int = Field(ge=1, le=10_000_000)
+    users: int = Field(1, ge=1, le=10_000)
+    tok_s_per_user: float = Field(gt=0, le=100_000)
+    ttft_ms: float | None = Field(None, gt=0, le=3_600_000)
+    tpot_ms: float | None = Field(None, gt=0, le=3_600_000)
+    vram_gib: float | None = Field(None, gt=0, le=100_000)  # peak VRAM across all GPUs; without it the run says nothing about memory
+    gpu_count: int = Field(1, ge=1, le=64)
+    kv_dtype: str = Field("fp16", pattern="^(" + "|".join(KV_BYTES) + ")$")
+    source_url: str | None = Field(None, pattern=r"^https?://\S{1,500}$")
+    submitter: str | None = Field(None, max_length=64)
     consent_to_publish: bool
     attribute_me: bool = False  # opt-in: without it the submitter name is stored but never shown
 
 
+SUBMIT_LIMIT = int(os.environ.get("OMEN_SUBMIT_LIMIT", 10))  # submissions per client per hour
+_submits: dict[str, list[float]] = {}  # ponytail: per-process memory keyed by client IP; behind a proxy run uvicorn --proxy-headers, with several workers use Redis
+
+
+def _submit_allowed(host: str) -> bool:
+    now = time.time()
+    recent = [t for t in _submits.get(host, []) if now - t < 3600]
+    ok = len(recent) < SUBMIT_LIMIT
+    _submits[host] = recent + [now] if ok else recent
+    return ok
+
+
 @app.post("/api/v1/benchmarks/submit", status_code=202)
-def submit_benchmark(b: BenchmarkSubmission, background: BackgroundTasks):
+def submit_benchmark(b: BenchmarkSubmission, background: BackgroundTasks, request: Request):
     """Needs explicit consent. Validation runs in the background; poll GET /benchmarks?status=... or the returned id."""
+    if not _submit_allowed(request.client.host if request.client else "unknown"):
+        raise HTTPException(429, f"at most {SUBMIT_LIMIT} submissions per hour", headers={"Retry-After": "3600"})
     if not b.consent_to_publish:
         raise HTTPException(400, "consent_to_publish must be true: OMEN never publishes a result without it")
     run_id = benchmarks.submit(b.model_dump())

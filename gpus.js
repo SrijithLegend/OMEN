@@ -1,5 +1,5 @@
-// [VRAM GiB, memory bandwidth GB/s, assumed $/hr]. Specs from vendor datasheets (memory); $/hr is an
-// ASSUMED cloud/amortized rate and changes constantly. ESTIMATED: verify before trusting.
+// [VRAM GiB, memory bandwidth GB/s, assumed $/hr]. $/hr is an ASSUMED cloud/amortized rate and changes constantly.
+// VRAM and bandwidth: only the GPUs listed in gpu-sources.js were checked against a vendor page or datasheet (with date). All others were written from memory: UNVERIFIED.
 // Apple: unified memory, only part is usable by the GPU, so raise overhead if you care.
 const GPUS_BY_VENDOR = {
   "NVIDIA GeForce": {
@@ -7,7 +7,7 @@ const GPUS_BY_VENDOR = {
     "RTX 4060 Ti 16GB": [16, 288, 0.12], "RTX 4070 Ti Super 16GB": [16, 672, 0.20], "RTX 4080 16GB": [16, 717, 0.28],
     "RTX 4090 24GB": [24, 1008, 0.40], "RTX 5080 16GB": [16, 960, 0.35], "RTX 5090 32GB": [32, 1792, 0.70] },
   "NVIDIA Datacenter/Pro": {
-    "T4 16GB": [16, 320, 0.35], "L4 24GB": [24, 300, 0.70], "A10G 24GB": [24, 600, 1.00],
+    "T4 16GB": [16, 300, 0.35], "L4 24GB": [24, 300, 0.70], "A10G 24GB": [24, 600, 1.00],
     "RTX A6000 48GB": [48, 768, 0.50], "RTX 6000 Ada 48GB": [48, 960, 0.90], "L40S 48GB": [48, 864, 1.80],
     "A100 40GB": [40, 1555, 1.30], "A100 80GB": [80, 2039, 1.80], "H100 80GB SXM": [80, 3350, 3.00],
     "H200 141GB": [141, 4800, 3.80], "B200 192GB": [192, 8000, 6.00] },

@@ -9,5 +9,7 @@
   "vram_gib": 0,
   "date": "YYYY-MM-DD",
   "notes": "",
-  "source": ""
+  "source": "",
+  "gpu_count": 1,
+  "kv_dtype": "fp16"
 }

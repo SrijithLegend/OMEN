@@ -1,3 +1,4 @@
+import os
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -25,7 +26,9 @@ def test_does_not_fit_and_measured_evidence():
     big = c.post("/api/v1/estimate/memory", json={**BASE, "model": "Llama-3.1-70B", "quantization": "fp16 / bf16"}).json()
     assert not big["memory"]["fits"] and big["memory"]["status"] == "does_not_fit_under_stated_assumptions"
     m = c.post("/api/v1/estimate/memory", json={"model": "Llama-2-7B", "quantization": "Q4_0", "gpu": "RTX 4090 24GB"}).json()
-    assert m["evidence"]["benchmark_count"] == 1 and m["memory"]["status"] == "measured_to_fit"
+    # a published speed run exists for this setup, but none recorded memory: it must not read as "measured to fit"
+    assert m["evidence"]["type"] == "performance_measured" and m["evidence"]["memory_measured"] == 0 and m["memory"]["status"] == "likely_fits"
+    assert any("speed benchmark" in w for w in m["warnings"])
 
 
 def test_lookup_and_errors():
@@ -178,13 +181,133 @@ def test_price_catalog_records_sources_and_feeds_cost():
 def test_confidence_threshold_is_75_percent():
     from app.recommend import HIGH_CONFIDENCE, confidence, label
     assert HIGH_CONFIDENCE == 0.75
-    assert confidence("Llama-2-7B", "Q4_0", "H100 80GB SXM", 1)[0] == 0.9 and label(0.9) == "high"  # measured at that concurrency
-    assert confidence("Llama-2-7B", "Q4_0", "H100 80GB SXM", 4)[0] == 0.7 and label(0.7) == "moderate"  # measured, other concurrency: below threshold
-    assert confidence("Llama-3.1-70B", "Q4_K_M", "H100 80GB SXM", 1)[0] == 0.5  # other models measured on this GPU
-    assert confidence("Llama-3.1-70B", "Q4_K_M", "A10 24GB", 1)[0] == 0.3 and label(0.3) == "low"
+    from app.catalog import RUNS
+    assert confidence(RUNS, "Llama-2-7B", "Q4_0", "H100 80GB SXM", 1)[0] == 0.9 and label(0.9) == "high"  # measured at that concurrency
+    assert confidence(RUNS, "Llama-2-7B", "Q4_0", "H100 80GB SXM", 4)[0] == 0.7 and label(0.7) == "moderate"  # measured, other concurrency: below threshold
+    assert confidence(RUNS, "Llama-3.1-70B", "Q4_K_M", "H100 80GB SXM", 1)[0] == 0.5  # other models measured on this GPU
+    assert confidence(RUNS, "Llama-3.1-70B", "Q4_K_M", "A10 24GB", 1)[0] == 0.3 and label(0.3) == "low"
     body = {"model": "Llama-2-7B", "concurrency": 1, "min_tok_s": 1}
     every = c.post("/api/v1/recommendations", json=body).json()
     sure = c.post("/api/v1/recommendations", json={**body, "min_confidence": 0.75}).json()
     assert sure["feasible"] < every["feasible"] and sure["removed"]["low_confidence"] > 0
     assert all(p["confidence"] >= 0.75 and p["confidence_label"] == "high" for p in sure["picks"].values())
     assert any(p["confidence_label"] != "high" for p in every["picks"].values()) or every["picks"]["best_evidence"]["confidence"] == 0.9
+
+
+def _run(**kw):
+    return {"model": "Llama-2-7B", "quant": "Q4_0", "gpu": "RTX 4090 24GB", "gpu_count": 1, "engine": "llama.cpp b1", "context": 128, "users": 1, "tok_s": 150, "vram_gib": None, "kv_dtype": "fp16", **kw}
+
+
+def test_only_a_peak_vram_measurement_establishes_measured_fit():
+    from app.evidence import evidence
+    ask = dict(model="Llama-2-7B", quant="Q4_0", gpu="RTX 4090 24GB", vram_gib=24, context=4096, users=2)
+    assert evidence([_run()], **ask)["type"] == "performance_measured"  # speed only
+    mem = _run(context=4096, users=4, vram_gib=9.0)
+    assert evidence([mem], **ask)["type"] == "memory_measured"
+    assert evidence([_run(context=2048, users=4, vram_gib=9.0)], **ask)["memory_measured"] == 0  # measured at a shorter context
+    assert evidence([_run(context=4096, users=1, vram_gib=9.0)], **ask)["memory_measured"] == 0  # measured with fewer users
+    assert evidence([{**mem, "gpu_count": 2}], **ask)["memory_measured"] == 0  # different GPU count
+    assert evidence([{**mem, "kv_dtype": "fp8"}], **ask)["memory_measured"] == 0  # fp8 cache measured, fp16 requested: no proof
+    assert evidence([{**mem, "kv_dtype": "fp16"}], **{**ask, "kv_dtype": "fp8"})["memory_measured"] == 1  # fp16 fits, so fp8 certainly does
+    assert evidence([{**mem, "engine": "vllm 0.6"}], **ask, engine="llama.cpp")["memory_measured"] == 0
+    assert evidence([_run(gpu="H100 80GB SXM")], **ask)["type"] == "model_estimate"
+    assert evidence([_run(gpu="RTX 4090 24GB", model="Llama-3.1-8B")], **ask)["type"] == "calibrated_estimate"
+
+
+def test_verified_vram_run_promotes_to_measured_to_fit_and_bad_vram_is_rejected():
+    run = {"model": "Llama-3.1-8B", "quant": "Q4_K_M", "gpu": "RTX 4090 24GB", "engine": "vllm 0.6.3", "context_tokens": 8192, "users": 4, "tok_s_per_user": 90,
+           "vram_gib": 9.1, "source_url": "https://example.com/vram", "consent_to_publish": True}
+    rid = c.post("/api/v1/benchmarks/submit", json=run).json()["id"]
+    assert c.post("/api/v1/estimate/memory", json=BASE).json()["memory"]["status"] == "likely_fits"  # community runs are not evidence yet
+    assert c.post(f"/api/v1/benchmarks/{rid}/verify", headers={"x-admin-key": "test-admin"}).status_code == 200
+    m = c.post("/api/v1/estimate/memory", json=BASE).json()
+    assert m["memory"]["status"] == "measured_to_fit" and m["evidence"]["type"] == "memory_measured" and m["evidence"]["peak_vram_gib"] == 9.1
+    assert c.post("/api/v1/estimate/memory", json={**BASE, "context_length": 16384}).json()["memory"]["status"] != "measured_to_fit"
+    huge = c.post("/api/v1/benchmarks/submit", json={**run, "context_tokens": 4096, "vram_gib": 40}).json()["id"]
+    tiny = c.post("/api/v1/benchmarks/submit", json={**run, "context_tokens": 2048, "vram_gib": 1.0}).json()["id"]
+    rej = {x["id"]: x["problems"][0] for x in c.get("/api/v1/benchmarks", params={"status": "rejected"}).json()["results"]}
+    assert "more than" in rej[huge] and "below" in rej[tiny]
+
+
+def test_kv_cache_dtype_and_sliding_window():
+    fp16 = c.post("/api/v1/estimate/memory", json=BASE).json()["memory"]
+    for dt, half in (("bf16", False), ("fp8", True), ("int8", True)):
+        m = c.post("/api/v1/estimate/memory", json={**BASE, "kv_dtype": dt}).json()["memory"]
+        assert (m["kv_gib_per_user"] == fp16["kv_gib_per_user"] / 2) == half and m["kv_dtype"] == dt
+    assert c.post("/api/v1/estimate/memory", json={**BASE, "kv_dtype": "fp4"}).status_code == 422
+    g = {**BASE, "model": "Gemma-3-27B", "gpu": "H100 80GB SXM", "context_length": 32768}
+    full = c.post("/api/v1/estimate/memory", json=g).json()
+    win = c.post("/api/v1/estimate/memory", json={**g, "sliding_cache": True}).json()["memory"]
+    assert full["memory"]["kv_gib_per_user_if_sliding_freed"] < full["memory"]["kv_gib_per_user"] and not full["memory"]["sliding_window_applied"]
+    assert win["sliding_window_applied"] and abs(win["kv_gib_per_user"] - full["memory"]["kv_gib_per_user_if_sliding_freed"]) < 1e-9
+    assert any("sliding-window" in w for w in full["warnings"])
+    plain = c.post("/api/v1/estimate/memory", json={**BASE, "sliding_cache": True}).json()  # Llama-3.1-8B has no sliding layers
+    assert not plain["memory"]["sliding_window_applied"] and any("ignored" in w for w in plain["warnings"])
+
+
+def test_calibration_prefers_this_gpu_and_never_hides_how_thin_it_is():
+    from app.performance import calibrate
+    ask = dict(gpu="RTX 4090 24GB", context=8192, users=4)
+    none = calibrate([], **ask)
+    assert none["utilization"] is None and none["level"] == "none"
+    other = calibrate([_run(gpu="H100 80GB SXM", tok_s=200)], **ask)
+    assert other["level"] == "extrapolated" and other["tier"] == "other GPUs" and other["low"] is None and other["caveats"]
+    mine = [_run(tok_s=100), _run(tok_s=140), _run(tok_s=120, engine="vllm 0.6")]
+    one = calibrate(mine[:1], **ask)
+    assert one["level"] == "thin" and one["tier"] == "this GPU" and one["conditions_matched"] == 0
+    many = calibrate(mine * 2, **ask, engine="llama.cpp b9")  # engine given: only llama.cpp runs count, 4 of them
+    assert many["tier"] == "this GPU and engine" and many["runs"] == 4 and many["level"] == "gpu_specific" and many["low"] < many["utilization"] < many["high"]
+    assert calibrate(mine[2:], **ask, engine="llama.cpp")["tier"] == "this GPU, other engines"  # falls back, and says so
+    assert calibrate([_run(context=8192, users=4)], **ask)["conditions_matched"] == 1
+
+
+def test_performance_endpoint_reports_calibration_support_and_range():
+    p = c.post("/api/v1/estimate/performance", json=BASE).json()["performance"]
+    cal = p["calibration"]
+    assert cal["runs"] >= 1 and cal["level"] in ("thin", "gpu_specific") and cal["tier"].startswith("this GPU")  # the 4090 run is in the seed data
+    far = c.post("/api/v1/estimate/performance", json={**BASE, "gpu": "A100 40GB"}).json()
+    assert far["performance"]["calibration"]["level"] == "extrapolated" and far["performance"]["decode_tok_s_range"] and any("borrows" in w for w in far["warnings"])
+    manual = c.post("/api/v1/estimate/performance", json={**BASE, "utilization": 0.5}).json()["performance"]
+    assert manual["utilization_source"] == "user" and manual["decode_tok_s_range"] is None
+
+
+def test_quality_loss_is_labelled_and_unknown_cannot_pass_a_limit():
+    q = c.get("/api/v1/quantizations").json()
+    assert q["Q4_0"]["quality_loss_kind"] == "measured" and round(q["Q4_0"]["quality_loss_pct"], 1) == 4.2
+    assert q["GPTQ / AWQ int4"]["quality_loss_kind"] == "estimated" and q["int2"]["quality_loss_kind"] == "unknown" and q["int2"]["quality_loss_pct"] is None
+    assert round(q["Q2_K"]["bytes_per_param"] * 8, 2) == 3.35  # whole-file bits per weight in the llama.cpp README, not the 2.56 of the type alone
+    r = c.post("/api/v1/recommendations", json={"model": "Llama-3.1-8B", "max_quality_loss_pct": 50}).json()
+    assert r["removed"]["unknown_quality_loss"] > 0
+    assert all(p["quality_loss_pct"] is not None for p in r["picks"].values())
+
+
+def test_gpu_specs_carry_provenance_and_unverified_ones_warn():
+    h100, t4, rtx = (c.get(f"/api/v1/gpus/{n}").json() for n in ("H100 80GB SXM", "T4 16GB", "RTX 4090 24GB"))
+    assert h100["spec_status"] == "verified" and h100["spec_source"]["date"] and h100["spec_source"]["source"].startswith("https://")
+    assert t4["bandwidth_gbs"] == 300  # corrected to the datasheet (was 320 from memory)
+    assert rtx["spec_status"] == "unverified" and rtx["spec_source"] is None
+    assert any("not verified" in w for w in c.post("/api/v1/estimate/memory", json=BASE).json()["warnings"])
+    assert not any("verified" in w for w in c.post("/api/v1/estimate/memory", json={**BASE, "gpu": "H100 80GB SXM"}).json()["warnings"])
+
+
+def test_public_submission_is_rate_limited_bounded_and_size_capped():
+    from app import main
+    bad = {**GOOD, "context_tokens": 4097, "consent_to_publish": True}
+    for patch in ({"model": "x" * 101}, {"tok_s_per_user": 1e9}, {"source_url": "javascript:alert(1)"}, {"users": 10**9}, {"submitter": "y" * 65}):
+        assert c.post("/api/v1/benchmarks/submit", json={**bad, **patch}).status_code == 422, patch
+    assert c.post("/api/v1/benchmarks/submit", content="x" * 70_000, headers={"content-type": "application/json"}).status_code == 413
+    main.SUBMIT_LIMIT, main._submits = 2, {}
+    try:
+        codes = [c.post("/api/v1/benchmarks/submit", json={**bad, "context_tokens": 5000 + i}).status_code for i in range(4)]
+    finally:
+        main.SUBMIT_LIMIT, main._submits = 1000, {}
+    assert codes == [202, 202, 429, 429]
+
+
+def test_production_refuses_to_start_with_open_cors():
+    import subprocess, sys
+    base = {**os.environ, "OMEN_ENV": "production", "OMEN_DB": "sqlite://"}
+    base.pop("OMEN_CORS", None)
+    run = lambda env: subprocess.run([sys.executable, "-c", "import app.main"], env=env, capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(__file__)))
+    assert "OMEN_CORS" in run(base).stderr
+    assert run({**base, "OMEN_CORS": "https://omen.example"}).returncode == 0

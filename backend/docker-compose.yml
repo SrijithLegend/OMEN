@@ -1,19 +1,30 @@
 # Run from this folder: docker compose up --build   (API on :8000, Prometheus on :9090)
-# Set OMEN_ADMIN_KEY in your shell first; the compose file refuses to start without it.
+# Required in your shell first: OMEN_ADMIN_KEY (reviewer key), POSTGRES_PASSWORD, OMEN_CORS (your site's origin, e.g. https://omen.example).
+# The compose file refuses to start without them. Data lives in the pgdata volume; back it up with:
+#   docker compose exec db pg_dump -U omen omen > omen-backup.sql
 services:
   db:
     image: postgres:16
-    environment: { POSTGRES_USER: omen, POSTGRES_PASSWORD: omen, POSTGRES_DB: omen }
+    restart: unless-stopped
+    environment: { POSTGRES_USER: omen, POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}", POSTGRES_DB: omen }
     volumes: [pgdata:/var/lib/postgresql/data]
   api:
     build: .
+    restart: unless-stopped
     ports: ["8000:8000"]
     environment:
-      OMEN_DB: postgresql+psycopg://omen:omen@db/omen
+      OMEN_DB: "postgresql+psycopg://omen:${POSTGRES_PASSWORD}@db/omen"
       OMEN_ADMIN_KEY: ${OMEN_ADMIN_KEY:?set OMEN_ADMIN_KEY}
+      OMEN_ENV: production
+      OMEN_CORS: ${OMEN_CORS:?set OMEN_CORS to your site origin}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/api/v1/quantizations')"]
+      interval: 30s
+      retries: 3
     depends_on: [db]
   prometheus:
     image: prom/prometheus
+    restart: unless-stopped
     ports: ["9090:9090"]
     volumes: ["./prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
     depends_on: [api]

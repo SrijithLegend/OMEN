@@ -42,7 +42,7 @@
     },
     "vram_gib": {
       "type": "number",
-      "description": "peak VRAM used"
+      "description": "peak VRAM used across all GPUs, in GiB. Only a run with this field can establish \"measured to fit\"; a speed-only run says nothing about memory"
     },
     "date": {
       "type": "string",
@@ -54,6 +54,21 @@
     "source": {
       "type": "string",
       "description": "URL where the number was published"
+    },
+    "gpu_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "number of GPUs used (default 1)"
+    },
+    "kv_dtype": {
+      "type": "string",
+      "enum": [
+        "fp16",
+        "bf16",
+        "fp8",
+        "int8"
+      ],
+      "description": "KV cache type used (default fp16)"
     }
   },
   "additionalProperties": false

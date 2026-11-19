@@ -10,7 +10,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/NousResearch/Llama-2-7b-hf/blob/main/config.json"
+   "source": "https://huggingface.co/NousResearch/Llama-2-7b-hf/blob/main/config.json",
+   "sliding": null
   },
   "Llama-3.2-1B": {
    "creator": "Meta",
@@ -22,7 +23,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/unsloth/Llama-3.2-1B/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/Llama-3.2-1B/blob/main/config.json",
+   "sliding": null
   },
   "Llama-3.2-3B": {
    "creator": "Meta",
@@ -34,7 +36,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/unsloth/Llama-3.2-3B/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/Llama-3.2-3B/blob/main/config.json",
+   "sliding": null
   },
   "Llama-3.1-8B": {
    "creator": "Meta",
@@ -46,7 +49,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/unsloth/Llama-3.1-8B/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/Llama-3.1-8B/blob/main/config.json",
+   "sliding": null
   },
   "Llama-3.1-70B": {
    "creator": "Meta",
@@ -58,7 +62,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/unsloth/Llama-3.1-70B/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/Llama-3.1-70B/blob/main/config.json",
+   "sliding": null
   },
   "Llama-3.3-70B": {
    "creator": "Meta",
@@ -70,7 +75,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/unsloth/Llama-3.3-70B-Instruct/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/Llama-3.3-70B-Instruct/blob/main/config.json",
+   "sliding": null
   },
   "Llama-3.1-405B": {
    "creator": "Meta",
@@ -82,7 +88,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/RedHatAI/Meta-Llama-3.1-405B-Instruct-FP8/blob/main/config.json"
+   "source": "https://huggingface.co/RedHatAI/Meta-Llama-3.1-405B-Instruct-FP8/blob/main/config.json",
+   "sliding": null
   },
   "CodeLlama-7B": {
    "creator": "Meta",
@@ -94,7 +101,8 @@
    "use_cases": [
     "Code"
    ],
-   "source": "https://huggingface.co/codellama/CodeLlama-7b-hf/blob/main/config.json"
+   "source": "https://huggingface.co/codellama/CodeLlama-7b-hf/blob/main/config.json",
+   "sliding": null
   },
   "CodeLlama-13B": {
    "creator": "Meta",
@@ -106,7 +114,8 @@
    "use_cases": [
     "Code"
    ],
-   "source": "https://huggingface.co/codellama/CodeLlama-13b-hf/blob/main/config.json"
+   "source": "https://huggingface.co/codellama/CodeLlama-13b-hf/blob/main/config.json",
+   "sliding": null
   },
   "CodeLlama-34B": {
    "creator": "Meta",
@@ -118,7 +127,8 @@
    "use_cases": [
     "Code"
    ],
-   "source": "https://huggingface.co/codellama/CodeLlama-34b-hf/blob/main/config.json"
+   "source": "https://huggingface.co/codellama/CodeLlama-34b-hf/blob/main/config.json",
+   "sliding": null
   },
   "Llama-3.2-11B-Vision": {
    "creator": "Meta",
@@ -130,7 +140,8 @@
    "use_cases": [
     "Vision"
    ],
-   "source": "https://huggingface.co/unsloth/Llama-3.2-11B-Vision/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/Llama-3.2-11B-Vision/blob/main/config.json",
+   "sliding": null
   },
   "Llama-4-Scout (MoE)": {
    "creator": "Meta",
@@ -142,7 +153,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/unsloth/Llama-4-Scout-17B-16E/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/Llama-4-Scout-17B-16E/blob/main/config.json",
+   "sliding": null
   },
   "Mistral-7B": {
    "creator": "Mistral AI",
@@ -154,7 +166,11 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/mistralai/Mistral-7B-v0.1/blob/main/config.json"
+   "source": "https://huggingface.co/mistralai/Mistral-7B-v0.1/blob/main/config.json",
+   "sliding": [
+    32,
+    4096
+   ]
   },
   "Mixtral-8x7B (MoE)": {
    "creator": "Mistral AI",
@@ -166,7 +182,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/mistralai/Mixtral-8x7B-v0.1/blob/main/config.json"
+   "source": "https://huggingface.co/mistralai/Mixtral-8x7B-v0.1/blob/main/config.json",
+   "sliding": null
   },
   "Mixtral-8x22B (MoE)": {
    "creator": "Mistral AI",
@@ -178,7 +195,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/mistralai/Mixtral-8x22B-v0.1/blob/main/config.json"
+   "source": "https://huggingface.co/mistralai/Mixtral-8x22B-v0.1/blob/main/config.json",
+   "sliding": null
   },
   "Mistral-Nemo-12B": {
    "creator": "Mistral AI",
@@ -190,7 +208,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/mistralai/Mistral-Nemo-Base-2407/blob/main/config.json"
+   "source": "https://huggingface.co/mistralai/Mistral-Nemo-Base-2407/blob/main/config.json",
+   "sliding": null
   },
   "Mistral-Small-24B": {
    "creator": "Mistral AI",
@@ -202,7 +221,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/mistralai/Mistral-Small-24B-Base-2501/blob/main/config.json"
+   "source": "https://huggingface.co/mistralai/Mistral-Small-24B-Base-2501/blob/main/config.json",
+   "sliding": null
   },
   "Ministral-8B": {
    "creator": "Mistral AI",
@@ -214,7 +234,11 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/mistralai/Ministral-8B-Instruct-2410/blob/main/config.json"
+   "source": "https://huggingface.co/mistralai/Ministral-8B-Instruct-2410/blob/main/config.json",
+   "sliding": [
+    27,
+    32768
+   ]
   },
   "Qwen2.5-0.5B": {
    "creator": "Alibaba (Qwen)",
@@ -226,7 +250,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-0.5B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-0.5B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-1.5B": {
    "creator": "Alibaba (Qwen)",
@@ -238,7 +263,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-1.5B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-1.5B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-3B": {
    "creator": "Alibaba (Qwen)",
@@ -250,7 +276,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-3B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-3B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-7B": {
    "creator": "Alibaba (Qwen)",
@@ -262,7 +289,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-7B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-7B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-14B": {
    "creator": "Alibaba (Qwen)",
@@ -274,7 +302,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-14B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-14B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-32B": {
    "creator": "Alibaba (Qwen)",
@@ -286,7 +315,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-32B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-32B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-72B": {
    "creator": "Alibaba (Qwen)",
@@ -298,7 +328,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-72B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-72B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen3-8B": {
    "creator": "Alibaba (Qwen)",
@@ -311,7 +342,8 @@
     "General",
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen3-8B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen3-8B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen3-14B": {
    "creator": "Alibaba (Qwen)",
@@ -324,7 +356,8 @@
     "General",
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen3-14B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen3-14B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen3-32B": {
    "creator": "Alibaba (Qwen)",
@@ -337,7 +370,8 @@
     "General",
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen3-32B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen3-32B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen3-30B-A3B (MoE)": {
    "creator": "Alibaba (Qwen)",
@@ -350,7 +384,8 @@
     "General",
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen3-30B-A3B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen3-30B-A3B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen3-235B-A22B (MoE)": {
    "creator": "Alibaba (Qwen)",
@@ -363,7 +398,8 @@
     "General",
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen3-235B-A22B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen3-235B-A22B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-Coder-7B": {
    "creator": "Alibaba (Qwen)",
@@ -375,7 +411,8 @@
    "use_cases": [
     "Code"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-7B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-7B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-Coder-14B": {
    "creator": "Alibaba (Qwen)",
@@ -387,7 +424,8 @@
    "use_cases": [
     "Code"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-14B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-14B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-Coder-32B": {
    "creator": "Alibaba (Qwen)",
@@ -399,7 +437,8 @@
    "use_cases": [
     "Code"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-32B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-32B/blob/main/config.json",
+   "sliding": null
   },
   "Qwen3-Coder-30B-A3B (MoE)": {
    "creator": "Alibaba (Qwen)",
@@ -411,7 +450,8 @@
    "use_cases": [
     "Code"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-VL-7B": {
    "creator": "Alibaba (Qwen)",
@@ -423,7 +463,8 @@
    "use_cases": [
     "Vision"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-VL-32B": {
    "creator": "Alibaba (Qwen)",
@@ -435,7 +476,8 @@
    "use_cases": [
     "Vision"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-VL-32B-Instruct/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-VL-32B-Instruct/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-VL-72B": {
    "creator": "Alibaba (Qwen)",
@@ -447,7 +489,8 @@
    "use_cases": [
     "Vision"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-VL-72B-Instruct/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-VL-72B-Instruct/blob/main/config.json",
+   "sliding": null
   },
   "Qwen2.5-Math-7B": {
    "creator": "Alibaba (Qwen)",
@@ -459,7 +502,8 @@
    "use_cases": [
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/Qwen/Qwen2.5-Math-7B/blob/main/config.json"
+   "source": "https://huggingface.co/Qwen/Qwen2.5-Math-7B/blob/main/config.json",
+   "sliding": null
   },
   "Gemma-2-2B": {
    "creator": "Google",
@@ -471,7 +515,11 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/unsloth/gemma-2-2b/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/gemma-2-2b/blob/main/config.json",
+   "sliding": [
+    26,
+    4096
+   ]
   },
   "Gemma-2-9B": {
    "creator": "Google",
@@ -483,7 +531,11 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/unsloth/gemma-2-9b/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/gemma-2-9b/blob/main/config.json",
+   "sliding": [
+    21,
+    4096
+   ]
   },
   "Gemma-2-27B": {
    "creator": "Google",
@@ -495,7 +547,11 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/unsloth/gemma-2-27b/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/gemma-2-27b/blob/main/config.json",
+   "sliding": [
+    46,
+    4096
+   ]
   },
   "Gemma-3-1B": {
    "creator": "Google",
@@ -507,7 +563,11 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/unsloth/gemma-3-1b-pt/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/gemma-3-1b-pt/blob/main/config.json",
+   "sliding": [
+    22,
+    512
+   ]
   },
   "Gemma-3-4B": {
    "creator": "Google",
@@ -520,7 +580,11 @@
     "General",
     "Vision"
    ],
-   "source": "https://huggingface.co/unsloth/gemma-3-4b-pt/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/gemma-3-4b-pt/blob/main/config.json",
+   "sliding": [
+    29,
+    1024
+   ]
   },
   "Gemma-3-12B": {
    "creator": "Google",
@@ -533,7 +597,11 @@
     "General",
     "Vision"
    ],
-   "source": "https://huggingface.co/unsloth/gemma-3-12b-pt/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/gemma-3-12b-pt/blob/main/config.json",
+   "sliding": [
+    40,
+    1024
+   ]
   },
   "Gemma-3-27B": {
    "creator": "Google",
@@ -546,7 +614,11 @@
     "General",
     "Vision"
    ],
-   "source": "https://huggingface.co/unsloth/gemma-3-27b-pt/blob/main/config.json"
+   "source": "https://huggingface.co/unsloth/gemma-3-27b-pt/blob/main/config.json",
+   "sliding": [
+    52,
+    1024
+   ]
   },
   "Phi-3-mini": {
    "creator": "Microsoft",
@@ -558,7 +630,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/blob/main/config.json"
+   "source": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/blob/main/config.json",
+   "sliding": null
   },
   "Phi-4 (14B)": {
    "creator": "Microsoft",
@@ -570,7 +643,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/microsoft/phi-4/blob/main/config.json"
+   "source": "https://huggingface.co/microsoft/phi-4/blob/main/config.json",
+   "sliding": null
   },
   "Phi-3.5-MoE (MoE)": {
    "creator": "Microsoft",
@@ -582,7 +656,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/microsoft/Phi-3.5-MoE-instruct/blob/main/config.json"
+   "source": "https://huggingface.co/microsoft/Phi-3.5-MoE-instruct/blob/main/config.json",
+   "sliding": null
   },
   "Phi-3.5-vision": {
    "creator": "Microsoft",
@@ -594,7 +669,8 @@
    "use_cases": [
     "Vision"
    ],
-   "source": "https://huggingface.co/microsoft/Phi-3.5-vision-instruct/blob/main/config.json"
+   "source": "https://huggingface.co/microsoft/Phi-3.5-vision-instruct/blob/main/config.json",
+   "sliding": null
   },
   "Phi-3-medium": {
    "creator": "Microsoft",
@@ -606,7 +682,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/microsoft/Phi-3-medium-4k-instruct/blob/main/config.json"
+   "source": "https://huggingface.co/microsoft/Phi-3-medium-4k-instruct/blob/main/config.json",
+   "sliding": null
   },
   "R1-Distill-Qwen-7B": {
    "creator": "DeepSeek",
@@ -618,7 +695,8 @@
    "use_cases": [
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B/blob/main/config.json"
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B/blob/main/config.json",
+   "sliding": null
   },
   "R1-Distill-Llama-8B": {
    "creator": "DeepSeek",
@@ -630,7 +708,8 @@
    "use_cases": [
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-8B/blob/main/config.json"
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-8B/blob/main/config.json",
+   "sliding": null
   },
   "R1-Distill-Qwen-32B": {
    "creator": "DeepSeek",
@@ -642,7 +721,8 @@
    "use_cases": [
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-32B/blob/main/config.json"
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-32B/blob/main/config.json",
+   "sliding": null
   },
   "R1-Distill-Llama-70B": {
    "creator": "DeepSeek",
@@ -654,7 +734,8 @@
    "use_cases": [
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-70B/blob/main/config.json"
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-70B/blob/main/config.json",
+   "sliding": null
   },
   "DeepSeek-V2-Lite (MoE, MLA)": {
    "creator": "DeepSeek",
@@ -666,7 +747,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite/blob/main/config.json"
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite/blob/main/config.json",
+   "sliding": null
   },
   "DeepSeek-V3 (MoE, MLA)": {
    "creator": "DeepSeek",
@@ -678,7 +760,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/deepseek-ai/DeepSeek-V3/blob/main/config.json"
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-V3/blob/main/config.json",
+   "sliding": null
   },
   "DeepSeek-Coder-6.7B": {
    "creator": "DeepSeek",
@@ -690,7 +773,8 @@
    "use_cases": [
     "Code"
    ],
-   "source": "https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-base/blob/main/config.json"
+   "source": "https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-base/blob/main/config.json",
+   "sliding": null
   },
   "DeepSeek-Coder-V2-Lite (MoE, MLA)": {
    "creator": "DeepSeek",
@@ -702,7 +786,8 @@
    "use_cases": [
     "Code"
    ],
-   "source": "https://huggingface.co/deepseek-ai/DeepSeek-Coder-V2-Lite-Base/blob/main/config.json"
+   "source": "https://huggingface.co/deepseek-ai/DeepSeek-Coder-V2-Lite-Base/blob/main/config.json",
+   "sliding": null
   },
   "gpt-oss-20b (MoE)": {
    "creator": "OpenAI",
@@ -715,7 +800,11 @@
     "General",
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/openai/gpt-oss-20b/blob/main/config.json"
+   "source": "https://huggingface.co/openai/gpt-oss-20b/blob/main/config.json",
+   "sliding": [
+    12,
+    128
+   ]
   },
   "gpt-oss-120b (MoE)": {
    "creator": "OpenAI",
@@ -728,7 +817,11 @@
     "General",
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/openai/gpt-oss-120b/blob/main/config.json"
+   "source": "https://huggingface.co/openai/gpt-oss-120b/blob/main/config.json",
+   "sliding": [
+    18,
+    128
+   ]
   },
   "OLMo-2-7B (AI2)": {
    "creator": "Others",
@@ -740,7 +833,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/allenai/OLMo-2-1124-7B/blob/main/config.json"
+   "source": "https://huggingface.co/allenai/OLMo-2-1124-7B/blob/main/config.json",
+   "sliding": null
   },
   "Falcon3-7B (TII)": {
    "creator": "Others",
@@ -752,7 +846,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/tiiuae/Falcon3-7B-Base/blob/main/config.json"
+   "source": "https://huggingface.co/tiiuae/Falcon3-7B-Base/blob/main/config.json",
+   "sliding": null
   },
   "SmolLM2-1.7B (HF)": {
    "creator": "Others",
@@ -764,7 +859,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B/blob/main/config.json"
+   "source": "https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B/blob/main/config.json",
+   "sliding": null
   },
   "Yi-1.5-34B (01.AI)": {
    "creator": "Others",
@@ -776,7 +872,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/01-ai/Yi-1.5-34B/blob/main/config.json"
+   "source": "https://huggingface.co/01-ai/Yi-1.5-34B/blob/main/config.json",
+   "sliding": null
   },
   "InternLM2.5-7B (Shanghai AI Lab)": {
    "creator": "Others",
@@ -788,7 +885,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/internlm/internlm2_5-7b/blob/main/config.json"
+   "source": "https://huggingface.co/internlm/internlm2_5-7b/blob/main/config.json",
+   "sliding": null
   },
   "Kimi-K2 (Moonshot, MoE, MLA)": {
    "creator": "Others",
@@ -800,7 +898,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/moonshotai/Kimi-K2-Instruct/blob/main/config.json"
+   "source": "https://huggingface.co/moonshotai/Kimi-K2-Instruct/blob/main/config.json",
+   "sliding": null
   },
   "StarCoder2-15B (BigCode)": {
    "creator": "Others",
@@ -812,7 +911,11 @@
    "use_cases": [
     "Code"
    ],
-   "source": "https://huggingface.co/bigcode/starcoder2-15b/blob/main/config.json"
+   "source": "https://huggingface.co/bigcode/starcoder2-15b/blob/main/config.json",
+   "sliding": [
+    40,
+    4096
+   ]
   },
   "SmolVLM-2B (HF)": {
    "creator": "Others",
@@ -824,7 +927,8 @@
    "use_cases": [
     "Vision"
    ],
-   "source": "https://huggingface.co/HuggingFaceTB/SmolVLM-Instruct/blob/main/config.json"
+   "source": "https://huggingface.co/HuggingFaceTB/SmolVLM-Instruct/blob/main/config.json",
+   "sliding": null
   },
   "Fin-R1-7B (SUFE)": {
    "creator": "Others",
@@ -837,7 +941,8 @@
     "Finance",
     "Math & reasoning"
    ],
-   "source": "https://huggingface.co/SUFE-AIFLM-Lab/Fin-R1/blob/main/config.json"
+   "source": "https://huggingface.co/SUFE-AIFLM-Lab/Fin-R1/blob/main/config.json",
+   "sliding": null
   },
   "Granite-3.3-2B": {
    "creator": "IBM",
@@ -849,7 +954,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/ibm-granite/granite-3.3-2b-base/blob/main/config.json"
+   "source": "https://huggingface.co/ibm-granite/granite-3.3-2b-base/blob/main/config.json",
+   "sliding": null
   },
   "Granite-3.3-8B": {
    "creator": "IBM",
@@ -861,7 +967,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/ibm-granite/granite-3.3-8b-base/blob/main/config.json"
+   "source": "https://huggingface.co/ibm-granite/granite-3.3-8b-base/blob/main/config.json",
+   "sliding": null
   },
   "Llama-3.1-Nemotron-70B": {
    "creator": "NVIDIA",
@@ -873,7 +980,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-70B-Instruct-HF/blob/main/config.json"
+   "source": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-70B-Instruct-HF/blob/main/config.json",
+   "sliding": null
   },
   "Mistral-NeMo-Minitron-8B": {
    "creator": "NVIDIA",
@@ -885,7 +993,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/nvidia/Mistral-NeMo-Minitron-8B-Base/blob/main/config.json"
+   "source": "https://huggingface.co/nvidia/Mistral-NeMo-Minitron-8B-Base/blob/main/config.json",
+   "sliding": null
   },
   "GLM-4.5-Air (MoE)": {
    "creator": "Zhipu AI",
@@ -897,7 +1006,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/zai-org/GLM-4.5-Air/blob/main/config.json"
+   "source": "https://huggingface.co/zai-org/GLM-4.5-Air/blob/main/config.json",
+   "sliding": null
   },
   "MiniMax-M2 (MoE)": {
    "creator": "MiniMax",
@@ -909,7 +1019,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/MiniMaxAI/MiniMax-M2/blob/main/config.json"
+   "source": "https://huggingface.co/MiniMaxAI/MiniMax-M2/blob/main/config.json",
+   "sliding": null
   },
   "ERNIE-4.5-21B-A3B (MoE)": {
    "creator": "Baidu",
@@ -921,7 +1032,8 @@
    "use_cases": [
     "General"
    ],
-   "source": "https://huggingface.co/baidu/ERNIE-4.5-21B-A3B-PT/blob/main/config.json"
+   "source": "https://huggingface.co/baidu/ERNIE-4.5-21B-A3B-PT/blob/main/config.json",
+   "sliding": null
   }
  },
  "quants": {
@@ -929,103 +1041,103 @@
    "family": "Full precision",
    "bytes_per_param": 4,
    "quality_loss_pct": 0,
-   "quality_measured": true
+   "quality_loss_kind": "measured"
   },
   "fp16 / bf16": {
    "family": "Full precision",
    "bytes_per_param": 2,
    "quality_loss_pct": 0,
-   "quality_measured": true
+   "quality_loss_kind": "measured"
   },
   "fp8": {
    "family": "Float 8/4 (hardware)",
    "bytes_per_param": 1,
    "quality_loss_pct": 0.1,
-   "quality_measured": false
+   "quality_loss_kind": "estimated"
   },
   "MXFP4 / NVFP4": {
    "family": "Float 8/4 (hardware)",
    "bytes_per_param": 0.53,
-   "quality_loss_pct": 2,
-   "quality_measured": false
+   "quality_loss_pct": null,
+   "quality_loss_kind": "unknown"
   },
   "int8 (W8A8 / LLM.int8)": {
    "family": "Integer (GPU)",
    "bytes_per_param": 1,
    "quality_loss_pct": 0.1,
-   "quality_measured": false
+   "quality_loss_kind": "estimated"
   },
   "GPTQ / AWQ int4": {
    "family": "Integer (GPU)",
    "bytes_per_param": 0.53,
    "quality_loss_pct": 2,
-   "quality_measured": false
+   "quality_loss_kind": "estimated"
   },
   "bitsandbytes NF4": {
    "family": "Integer (GPU)",
    "bytes_per_param": 0.53,
    "quality_loss_pct": 2.5,
-   "quality_measured": false
+   "quality_loss_kind": "estimated"
   },
   "int3": {
    "family": "Integer (GPU)",
    "bytes_per_param": 0.4,
-   "quality_loss_pct": 8,
-   "quality_measured": false
+   "quality_loss_pct": null,
+   "quality_loss_kind": "unknown"
   },
   "int2": {
    "family": "Integer (GPU)",
    "bytes_per_param": 0.28,
-   "quality_loss_pct": 40,
-   "quality_measured": false
+   "quality_loss_pct": null,
+   "quality_loss_kind": "unknown"
   },
   "Q8_0": {
    "family": "GGUF (llama.cpp)",
    "bytes_per_param": 1.0625,
    "quality_loss_pct": 0.007,
-   "quality_measured": true
+   "quality_loss_kind": "measured"
   },
   "Q6_K": {
    "family": "GGUF (llama.cpp)",
    "bytes_per_param": 0.82,
    "quality_loss_pct": 0.07,
-   "quality_measured": true
+   "quality_loss_kind": "estimated"
   },
   "Q5_K_M": {
    "family": "GGUF (llama.cpp)",
    "bytes_per_param": 0.71,
    "quality_loss_pct": 0.24,
-   "quality_measured": true
+   "quality_loss_kind": "estimated"
   },
   "Q5_0": {
    "family": "GGUF (llama.cpp)",
    "bytes_per_param": 0.6875,
-   "quality_loss_pct": 1.2,
-   "quality_measured": true
+   "quality_loss_pct": 1.35,
+   "quality_loss_kind": "measured"
   },
   "Q4_K_M": {
    "family": "GGUF (llama.cpp)",
    "bytes_per_param": 0.611,
    "quality_loss_pct": 0.9,
-   "quality_measured": true
+   "quality_loss_kind": "estimated"
   },
   "Q4_0": {
    "family": "GGUF (llama.cpp)",
    "bytes_per_param": 0.5625,
-   "quality_loss_pct": 3.7,
-   "quality_measured": true
+   "quality_loss_pct": 4.23,
+   "quality_loss_kind": "measured"
   },
   "Q3_K_M": {
    "family": "GGUF (llama.cpp)",
    "bytes_per_param": 0.489,
    "quality_loss_pct": 4.1,
-   "quality_measured": true
+   "quality_loss_kind": "estimated"
   },
   "Q2_K": {
    "family": "GGUF (llama.cpp)",
-   "bytes_per_param": 0.328,
+   "bytes_per_param": 0.419,
    "quality_loss_pct": 14.7,
-   "quality_measured": true
+   "quality_loss_kind": "estimated"
   }
  },
  "gpus": {
@@ -1034,294 +1146,452 @@
    "vram_gib": 12,
    "bandwidth_gbs": 360,
    "usd_hr": 0.1,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "RTX 3080 10GB": {
    "vendor": "NVIDIA GeForce",
    "vram_gib": 10,
    "bandwidth_gbs": 760,
    "usd_hr": 0.15,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "RTX 3090 24GB": {
    "vendor": "NVIDIA GeForce",
    "vram_gib": 24,
    "bandwidth_gbs": 936,
    "usd_hr": 0.25,
-   "tflops_fp16": 71
+   "tflops_fp16": 71,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "RTX 4060 Ti 16GB": {
    "vendor": "NVIDIA GeForce",
    "vram_gib": 16,
    "bandwidth_gbs": 288,
    "usd_hr": 0.12,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "RTX 4070 Ti Super 16GB": {
    "vendor": "NVIDIA GeForce",
    "vram_gib": 16,
    "bandwidth_gbs": 672,
    "usd_hr": 0.2,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "RTX 4080 16GB": {
    "vendor": "NVIDIA GeForce",
    "vram_gib": 16,
    "bandwidth_gbs": 717,
    "usd_hr": 0.28,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "RTX 4090 24GB": {
    "vendor": "NVIDIA GeForce",
    "vram_gib": 24,
    "bandwidth_gbs": 1008,
    "usd_hr": 0.4,
-   "tflops_fp16": 165
+   "tflops_fp16": 165,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "RTX 5080 16GB": {
    "vendor": "NVIDIA GeForce",
    "vram_gib": 16,
    "bandwidth_gbs": 960,
    "usd_hr": 0.35,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "RTX 5090 32GB": {
    "vendor": "NVIDIA GeForce",
    "vram_gib": 32,
    "bandwidth_gbs": 1792,
    "usd_hr": 0.7,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "T4 16GB": {
    "vendor": "NVIDIA Datacenter/Pro",
    "vram_gib": 16,
-   "bandwidth_gbs": 320,
+   "bandwidth_gbs": 300,
    "usd_hr": 0.35,
-   "tflops_fp16": 65
+   "tflops_fp16": 65,
+   "spec_status": "verified",
+   "spec_source": {
+    "source": "https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/tesla-t4/t4-tensor-core-datasheet-951643.pdf",
+    "date": "2026-11-19",
+    "checked": [
+     "vram",
+     "bandwidth",
+     "tflops"
+    ],
+    "arch": "Turing",
+    "memory": "GDDR6",
+    "note": "Datasheet says 300 GB/s (earlier OMEN value 320 was from memory); mixed-precision FP16/FP32 65 TFLOPS"
+   }
   },
   "L4 24GB": {
    "vendor": "NVIDIA Datacenter/Pro",
    "vram_gib": 24,
    "bandwidth_gbs": 300,
    "usd_hr": 0.7,
-   "tflops_fp16": 121
+   "tflops_fp16": 121,
+   "spec_status": "partial",
+   "spec_source": {
+    "source": "https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/l4/PB-11316-001_v01.pdf",
+    "date": "2026-11-19",
+    "checked": [
+     "vram",
+     "bandwidth"
+    ],
+    "arch": "Ada Lovelace",
+    "memory": "GDDR6",
+    "note": "TFLOPS not in the product brief: unverified"
+   }
   },
   "A10G 24GB": {
    "vendor": "NVIDIA Datacenter/Pro",
    "vram_gib": 24,
    "bandwidth_gbs": 600,
    "usd_hr": 1,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "RTX A6000 48GB": {
    "vendor": "NVIDIA Datacenter/Pro",
    "vram_gib": 48,
    "bandwidth_gbs": 768,
    "usd_hr": 0.5,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "RTX 6000 Ada 48GB": {
    "vendor": "NVIDIA Datacenter/Pro",
    "vram_gib": 48,
    "bandwidth_gbs": 960,
    "usd_hr": 0.9,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "L40S 48GB": {
    "vendor": "NVIDIA Datacenter/Pro",
    "vram_gib": 48,
    "bandwidth_gbs": 864,
    "usd_hr": 1.8,
-   "tflops_fp16": 362
+   "tflops_fp16": 362,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "A100 40GB": {
    "vendor": "NVIDIA Datacenter/Pro",
    "vram_gib": 40,
    "bandwidth_gbs": 1555,
    "usd_hr": 1.3,
-   "tflops_fp16": 312
+   "tflops_fp16": 312,
+   "spec_status": "verified",
+   "spec_source": {
+    "source": "https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a100/pdf/nvidia-a100-datasheet-us-nvidia-1758950-r4-web.pdf",
+    "date": "2026-11-19",
+    "checked": [
+     "vram",
+     "bandwidth",
+     "tflops"
+    ],
+    "memory": "HBM2e",
+    "note": "SXM: 1,555 GB/s; BF16/FP16 tensor 312 dense (624 with sparsity)"
+   }
   },
   "A100 80GB": {
    "vendor": "NVIDIA Datacenter/Pro",
    "vram_gib": 80,
    "bandwidth_gbs": 2039,
    "usd_hr": 1.8,
-   "tflops_fp16": 312
+   "tflops_fp16": 312,
+   "spec_status": "verified",
+   "spec_source": {
+    "source": "https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a100/pdf/nvidia-a100-datasheet-us-nvidia-1758950-r4-web.pdf",
+    "date": "2026-11-19",
+    "checked": [
+     "vram",
+     "bandwidth",
+     "tflops"
+    ],
+    "memory": "HBM2e",
+    "note": "SXM: 2,039 GB/s; PCIe is 1,935 GB/s"
+   }
   },
   "H100 80GB SXM": {
    "vendor": "NVIDIA Datacenter/Pro",
    "vram_gib": 80,
    "bandwidth_gbs": 3350,
    "usd_hr": 3,
-   "tflops_fp16": 989
+   "tflops_fp16": 989,
+   "spec_status": "verified",
+   "spec_source": {
+    "source": "https://www.nvidia.com/en-us/data-center/h100/",
+    "date": "2026-11-19",
+    "checked": [
+     "vram",
+     "bandwidth",
+     "tflops"
+    ],
+    "arch": "Hopper",
+    "memory": "HBM3",
+    "note": "SXM: 3.35 TB/s; FP16 tensor 1,979 with sparsity = 989 dense"
+   }
   },
   "H200 141GB": {
    "vendor": "NVIDIA Datacenter/Pro",
    "vram_gib": 141,
    "bandwidth_gbs": 4800,
    "usd_hr": 3.8,
-   "tflops_fp16": 989
+   "tflops_fp16": 989,
+   "spec_status": "verified",
+   "spec_source": {
+    "source": "https://www.nvidia.com/en-us/data-center/h200/",
+    "date": "2026-11-19",
+    "checked": [
+     "vram",
+     "bandwidth",
+     "tflops"
+    ],
+    "arch": "Hopper",
+    "memory": "HBM3e",
+    "note": "4.8 TB/s; FP16 tensor 1,979 with sparsity = 989 dense"
+   }
   },
   "B200 192GB": {
    "vendor": "NVIDIA Datacenter/Pro",
    "vram_gib": 192,
    "bandwidth_gbs": 8000,
    "usd_hr": 6,
-   "tflops_fp16": 2250
+   "tflops_fp16": 2250,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "RX 7900 XTX 24GB": {
    "vendor": "AMD",
    "vram_gib": 24,
    "bandwidth_gbs": 960,
    "usd_hr": 0.3,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "MI250X 128GB": {
    "vendor": "AMD",
    "vram_gib": 128,
    "bandwidth_gbs": 3277,
    "usd_hr": 1.5,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "MI300X 192GB": {
    "vendor": "AMD",
    "vram_gib": 192,
    "bandwidth_gbs": 5300,
    "usd_hr": 2.5,
-   "tflops_fp16": 1307
+   "tflops_fp16": 1307,
+   "spec_status": "verified",
+   "spec_source": {
+    "source": "https://www.amd.com/en/products/accelerators/instinct/mi300/mi300x.html",
+    "date": "2026-11-19",
+    "checked": [
+     "vram",
+     "bandwidth",
+     "tflops"
+    ],
+    "arch": "CDNA 3",
+    "memory": "HBM3",
+    "note": "5.3 TB/s; FP16 1307.4 TFLOPS peak theoretical (dense)"
+   }
   },
   "MI325X 256GB": {
    "vendor": "AMD",
    "vram_gib": 256,
    "bandwidth_gbs": 6000,
    "usd_hr": 3.5,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "Arc A770 16GB": {
    "vendor": "Intel",
    "vram_gib": 16,
    "bandwidth_gbs": 560,
    "usd_hr": 0.12,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "Gaudi 2 96GB": {
    "vendor": "Intel",
    "vram_gib": 96,
    "bandwidth_gbs": 2450,
    "usd_hr": 1.5,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "M3 Max 128GB": {
    "vendor": "Apple Silicon",
    "vram_gib": 128,
    "bandwidth_gbs": 400,
    "usd_hr": 0.2,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "M4 Max 128GB": {
    "vendor": "Apple Silicon",
    "vram_gib": 128,
    "bandwidth_gbs": 546,
    "usd_hr": 0.25,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "M2 Ultra 192GB": {
    "vendor": "Apple Silicon",
    "vram_gib": 192,
    "bandwidth_gbs": 800,
    "usd_hr": 0.35,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "M3 Ultra 512GB": {
    "vendor": "Apple Silicon",
    "vram_gib": 512,
    "bandwidth_gbs": 819,
    "usd_hr": 0.5,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "Google TPU v5e 16GB": {
    "vendor": "Cloud accelerators",
    "vram_gib": 16,
    "bandwidth_gbs": 819,
    "usd_hr": 1.2,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "Google TPU v5p 95GB": {
    "vendor": "Cloud accelerators",
    "vram_gib": 95,
    "bandwidth_gbs": 2765,
    "usd_hr": 4.2,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "AWS Inferentia2 32GB": {
    "vendor": "Cloud accelerators",
    "vram_gib": 32,
    "bandwidth_gbs": 820,
    "usd_hr": 0.76,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "AWS Trainium2 96GB": {
    "vendor": "Cloud accelerators",
    "vram_gib": 96,
    "bandwidth_gbs": 2900,
    "usd_hr": 3,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "Desktop DDR4-3200 2ch 32GB": {
    "vendor": "CPU / System RAM",
    "vram_gib": 32,
    "bandwidth_gbs": 51.2,
    "usd_hr": 0.05,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "Laptop DDR5-5600 2ch 32GB": {
    "vendor": "CPU / System RAM",
    "vram_gib": 32,
    "bandwidth_gbs": 89.6,
    "usd_hr": 0.05,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "Desktop DDR5-6400 2ch 64GB": {
    "vendor": "CPU / System RAM",
    "vram_gib": 64,
    "bandwidth_gbs": 102.4,
    "usd_hr": 0.08,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "Workstation DDR5-5600 4ch 128GB": {
    "vendor": "CPU / System RAM",
    "vram_gib": 128,
    "bandwidth_gbs": 179.2,
    "usd_hr": 0.25,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "AI mini-PC LPDDR5X-8000 4ch 128GB": {
    "vendor": "CPU / System RAM",
    "vram_gib": 128,
    "bandwidth_gbs": 256,
    "usd_hr": 0.15,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "Server Xeon DDR4-3200 8ch 512GB": {
    "vendor": "CPU / System RAM",
    "vram_gib": 512,
    "bandwidth_gbs": 204.8,
    "usd_hr": 0.6,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "Server EPYC DDR5-4800 12ch 768GB": {
    "vendor": "CPU / System RAM",
    "vram_gib": 768,
    "bandwidth_gbs": 460.8,
    "usd_hr": 1,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   },
   "Server EPYC DDR5-6400 12ch 768GB": {
    "vendor": "CPU / System RAM",
    "vram_gib": 768,
    "bandwidth_gbs": 614.4,
    "usd_hr": 1.3,
-   "tflops_fp16": null
+   "tflops_fp16": null,
+   "spec_status": "unverified",
+   "spec_source": null
   }
  },
  "runs": [

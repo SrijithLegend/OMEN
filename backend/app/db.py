@@ -14,7 +14,8 @@ benchmark_runs = Table(
     Column("id", Integer, primary_key=True),
     Column("model", String, nullable=False), Column("quant", String, nullable=False), Column("gpu", String, nullable=False),
     Column("engine", String, nullable=False), Column("context_tokens", Integer, nullable=False), Column("users", Integer, nullable=False),
-    Column("tok_s_per_user", Float, nullable=False), Column("ttft_ms", Float), Column("tpot_ms", Float), Column("vram_gib", Float),
+    Column("tok_s_per_user", Float, nullable=False), Column("ttft_ms", Float), Column("tpot_ms", Float), Column("vram_gib", Float),  # peak VRAM across all GPUs; the only field that can establish "measured to fit"
+    Column("gpu_count", Integer, nullable=False, default=1, server_default="1"), Column("kv_dtype", String, nullable=False, default="fp16", server_default="fp16"),
     Column("source_url", String), Column("submitter", String), Column("consent_to_publish", Boolean, nullable=False, default=False),
     Column("attribute_me", Boolean, nullable=False, default=False),  # opt-in: show the submitter name publicly
     Column("status", String, nullable=False),  # pending -> community | rejected; sourced (imported); verified (reviewer)
@@ -49,4 +50,4 @@ def init(seed_runs: list[dict]) -> None:
             for r in seed_runs:
                 c.execute(insert(benchmark_runs).values(
                     model=r["model"], quant=r["quant"], gpu=r["gpu"], engine=r["engine"], context_tokens=r["context"], users=r["users"],
-                    tok_s_per_user=r["tok_s"], source_url=r["source"], submitter=None, consent_to_publish=True, status="sourced", problems=[]))
+                    tok_s_per_user=r["tok_s"], vram_gib=r.get("vram_gib"), gpu_count=r.get("gpu_count", 1), kv_dtype=r.get("kv_dtype", "fp16"), source_url=r["source"], submitter=None, consent_to_publish=True, status="sourced", problems=[]))

@@ -11,7 +11,7 @@ OMEN is a GPU fit calculator for open AI models. Pick a model, a graphics card a
 
 - **A clear verdict**: fits or does not fit, with the headroom left over (and how many GPUs you would need if it does not fit).
 - **Memory breakdown**: weights, per-user chat memory (KV cache) and overhead, drawn against your GPU's limit.
-- **Quality loss**: how much worse each quantization is than fp16 (perplexity increase). Measured for GGUF formats (llama.cpp, Llama-2-7B), typical estimates for the rest.
+- **Quality loss**: how much worse each quantization is than fp16 (perplexity increase). Labelled measured (Q4_0, Q5_0, Q8_0 on Llama-2-7B, llama.cpp), estimated (shown as ~N%) or unknown (2-3 bit and FP4 formats): an unknown cannot pass a quality limit.
 - **Speed ceiling**: the best-case tokens per second for one user.
 - **Cost per user-hour**: the GPU price divided by the users that fit.
 - **Plenty of choices**: open models from Meta, Mistral, Qwen, Google, Microsoft, DeepSeek, OpenAI and others, filterable by use case (code, vision, finance, math and reasoning), many quantization formats, and a list of GPUs.
@@ -39,13 +39,13 @@ New to the terms? Open the **Guide** tab at the top of the page.
 | Result | Formula |
 |---|---|
 | Weights | parameters x bytes per parameter |
-| KV cache per user | 2 x layers x KV heads x head dim x 2 bytes x context |
+| KV cache per user | 2 x layers x KV heads x head dim x bytes per element (fp16/bf16 2, fp8/int8 1) x context. Sliding-window layers count for min(context, window) only if you say your engine frees them |
 | Headroom | GPU memory - weights - overhead |
 | Max users | headroom / KV cache per user (rounded down) |
 | Speed ceiling | memory bandwidth / weight bytes read per token |
 | Cost per user-hour | GPU price per hour / max users |
 
-These are estimates, not benchmarks. Real speed depends on the software you use, batching and the hardware. Mixture-of-experts models use all parameters for memory but only the active ones for speed. GPU specs come from vendor datasheets and prices are assumptions, not quotes.
+These are estimates, not benchmarks. Real speed depends on the software you use, batching and the hardware. Mixture-of-experts models use all parameters for memory but only the active ones for speed. Only the GPUs listed in `gpu-sources.js` (7 of 42) have specs checked against a vendor page or datasheet, with the date; the rest are flagged unverified. Prices are assumptions, not quotes. The **Methodology** tab explains every label.
 
 ## How far off is the speed ceiling?
 
@@ -59,7 +59,7 @@ The speed ceiling is a best case, and real runs land below it. Against the five 
 | A100 80GB | about 35% |
 | H100 80GB SXM | about 30% |
 
-So the ceiling reads about 1.5x too high on consumer cards and about 3x too high on datacenter cards in this case. This is five rows from one model and one quantization on four different llama.cpp builds, so no correction factor is applied yet. The calculator shows this gap on the Measured vs predicted card whenever a measured run exists.
+So the ceiling reads about 1.5x too high on consumer cards and about 3x too high on datacenter cards in this case. This is five rows from one model and one quantization on four different llama.cpp builds. The calculator uses the most specific evidence it has (this GPU and engine, then this GPU, then other GPUs flagged "extrapolated"), and shows how many runs back the number, their range, and what they covered. With 1 run on a GPU it says "thin". The calculator shows this gap on the Measured vs predicted card whenever a measured run exists.
 
 ## Contribute a measured run
 
@@ -80,18 +80,20 @@ Real measurements beat estimates. If you have run a model, open the calculator f
 | `fit.js` | The fit calculation |
 | `scripts/gen-models.js` | Rebuilds `models.js` from each model's Hugging Face `config.json` (`node scripts/gen-models.js`) |
 | `models.js`, `quants.js`, `gpus.js`, `memtypes.js`, `usecases.js` | Data tables |
+| `gpu-sources.js` | Source URL, date and checked fields for each GPU whose specs were verified |
 | `measured.js` | Community-measured runs |
 | `test.js` | Checks the calculation: `node test.js` |
 
 ## Tests
 
 ```bash
-node test.js
+node test.js                    # page maths
+cd backend && python -m pytest  # API (28 tests); GitHub Actions runs both, plus the same suite on PostgreSQL
 ```
 
 ## Limits
 
-OMEN assumes an fp16 KV cache and ignores multi-GPU interconnect losses. The multi-GPU counts shown are minimums. Treat results as a starting point, then measure.
+OMEN defaults to an fp16 KV cache (fp16, bf16, fp8 and int8 are selectable) and ignores multi-GPU interconnect losses. The multi-GPU counts shown are minimums. Treat results as a starting point, then measure.
 
 ## License
 
@@ -105,6 +107,9 @@ OMEN is a static page, so everything that needs no server is built:
 - **Compare**: all GPUs, all quantizations, all context lengths, with quality loss per quantization and CSV export.
 - **Workload and cost**: cost per 1M output tokens, reply time, monthly cost (per use and always on), copies needed to keep up.
 - **Recommendations**: hard limits (budget, speed, quality) first, then one pick per priority. No single blended score.
+- **Evidence split**: "Measured to fit" needs a recorded peak-VRAM run at your context and concurrency. A speed benchmark alone never earns it.
+- **Fit report**: **Copy report** / **Download report** writes the full configuration, memory, speed, assumptions, evidence and caveats as markdown, with a link that reproduces it.
+- **Methodology tab**, benchmark CSV export, peak-memory column in the Benchmarks tab.
 - **Model import**: any public Hugging Face model, pinned to its commit. Missing fields are rejected, never guessed.
 - **Saved setups**, configuration IDs and shareable links. Saved setups live in your browser only.
 - **Result checker** for benchmark JSON, with submission through a prefilled GitHub issue.
@@ -118,7 +123,7 @@ A FastAPI service built from the product spec, sharing the page's data (`node sc
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m pytest                       # 19 tests
+python -m pytest                       # 28 tests
 python -m uvicorn app.main:app --port 8787      # docs at http://localhost:8787/docs
 ```
 
@@ -127,24 +132,31 @@ Set the reviewer key first if you want to verify runs or add prices. Git Bash / 
 | Endpoint | What it does |
 |---|---|
 | `GET /api/v1/models`, `/models/{id}`, `/gpus`, `/gpus/{id}`, `/quantizations` | Catalog lookup |
-| `POST /api/v1/estimate/memory` | Weights, KV cache, overhead, headroom, four-level fit status |
-| `POST /api/v1/estimate/performance` | Decode ceiling, TTFT, TPOT, end to end, calibration. `null` where data is missing |
+| `POST /api/v1/estimate/memory` | Weights, KV cache, overhead, headroom, four-level fit status. Takes `kv_dtype` (fp16, bf16, fp8, int8), `sliding_cache`, `engine`. `evidence` separates `memory_measured`, `performance_measured` and `calibrated_on_this_gpu` |
+| `POST /api/v1/estimate/performance` | Decode ceiling, TTFT, TPOT, end to end. `calibration` reports tier (this GPU and engine ... other GPUs), run count, range, coverage and caveats; `decode_tok_s_range` appears when 2+ runs support it. `null` where data is missing |
 | `POST /api/v1/workloads/simulate`, `/cost/estimate` | Capacity, $ per 1M tokens, monthly cost, cloud vs self-hosted, break-even |
 | `GET /api/v1/prices`, `POST /api/v1/prices` | Cloud price catalog (AWS, Google Cloud, Azure, Oracle, CoreWeave, Lambda, RunPod, Vast.ai, Paperspace, DigitalOcean, Together AI). Reviewer-entered, each with a source URL and date, append-only. `/cost/estimate` takes `provider` and `pricing_model` to use it |
 | `POST /api/v1/configurations/compare` | Side by side; warns when workloads differ |
 | `POST /api/v1/recommendations` | Hard limits first, then one pick per priority. Each pick carries a `confidence` (0.9 measured at your concurrency, 0.7 measured at another, 0.5 calibrated on other models on that GPU, 0.3 first-principles). **High confidence means 0.75 or above**, so only a measured setup qualifies today. `min_confidence: 0.75` drops everything else. The score is a fixed ladder, not a probability |
-| `POST /api/v1/benchmarks/submit`, `GET /benchmarks`, `POST /benchmarks/{id}/verify` | Consent-gated submission, background validation, duplicate and physics checks, reviewer verification |
+| `POST /api/v1/benchmarks/submit`, `GET /benchmarks`, `POST /benchmarks/{id}/verify` | Consent-gated submission (10 per client per hour, every field bounded, 64 KB body cap), background validation, duplicate and physics checks (including `vram_gib` vs the GPU and the weights), reviewer verification. Only sourced and verified runs count as evidence or calibration; `vram_gib`, `gpu_count` and `kv_dtype` are what make a run count for memory |
 | `POST /api/v1/keys`, `/workspaces/{project}/analyses`, `/workspaces/{project}/changes` | Hashed API keys with a rate limit, private saved analyses, re-run and report material changes |
 | `GET /metrics` | Prometheus metrics |
 
 `backend/omen_bench.py` measures any OpenAI-compatible server (vLLM, llama.cpp server) and writes a result file. It submits only with `--consent`. Publishing and name attribution are both opt-in: the submitter name is hidden unless you also pass `--attribute`. (If you already have a database file from before this change, delete it: the schema gained a column.)
 
-The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects PostgreSQL, and `docker compose up --build` in `backend/` starts the API, PostgreSQL and Prometheus. The PostgreSQL path and the Docker files are untested: the Docker daemon was not running when this was written. Only SQLite is tested.
+The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects PostgreSQL, and `docker compose up --build` in `backend/` starts the API, PostgreSQL and Prometheus.
+
+**Production.** Set `OMEN_ENV=production`: the server then refuses to start unless `OMEN_CORS` lists your site's origin (`*` is only the local default). Compose requires `OMEN_ADMIN_KEY`, `POSTGRES_PASSWORD` and `OMEN_CORS`, restarts services, and keeps data in the `pgdata` volume; back it up with `docker compose exec db pg_dump -U omen omen > omen-backup.sql`. Behind a proxy, run uvicorn with `--proxy-headers` so the submission rate limit sees real client addresses (it is per process; use Redis if you run several workers).
+
+**What has and has not been tested.** SQLite: tested here (28 backend tests, all page tests). PostgreSQL: the same suite runs against PostgreSQL in GitHub Actions (`.github/workflows/test.yml`), but it had not been run when this was written. Docker Compose and a real deployment: not tested (the Docker daemon was not running); do that before launch.
 
 ## Not built, and why
 
 - **React + TypeScript + Tailwind frontend.** By decision the existing look, colours and fonts are kept, so the page stays plain HTML/JS with no build step. The **Recommend** tab uses the same dropdowns and cards as the calculator and does not call the API.
 - **Supabase/OAuth sign-in, Razorpay/Stripe billing, and email or in-app alert delivery.** They need accounts with outside services. API keys and a pull-based `/changes` report cover the same ground without them.
 - **Celery and Redis.** FastAPI background tasks do the benchmark validation. A queue is the upgrade once volume needs it.
+- **Memory measurements.** None of the 5 published runs recorded peak VRAM, so nothing is "measured to fit" yet. Submit runs with `vram_gib`.
+- **GPU spec verification for 35 of 42 GPUs.** Only 7 were checked against a vendor source; the rest are flagged unverified until someone reads each datasheet (`gpu-sources.js` shows how).
+- **Hardware comparison charts, first-time onboarding, a mobile test on a real device.** The layout has a phone breakpoint but has not been checked on one.
 - **Cloud price data and a benchmark dataset beyond the 5 published runs.** The price catalog exists but ships empty: someone has to read each provider's pricing page and enter the price with its source. Until then prices are assumptions, not quotes. Benchmark data has to come from contributors.
 - **Prefill estimates for GPUs without a well-known compute figure**, and calibration beyond one model on one engine.

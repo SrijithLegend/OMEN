@@ -72,18 +72,19 @@ def run(args) -> dict:
         "model": args.model, "quant": args.quant, "gpu": args.gpu, "engine": args.engine,
         "context_tokens": args.input_tokens + args.output_tokens, "users": args.users,
         "tok_s_per_user": 1000 / tpot, "ttft_ms": statistics.median(r["ttft_ms"] for r in results), "tpot_ms": tpot,
-        "vram_gib": vram_gib(), "source_url": args.source_url, "submitter": args.submitter, "consent_to_publish": False, "attribute_me": args.attribute,
+        "vram_gib": vram_gib(args.gpu_count), "gpu_count": args.gpu_count, "kv_dtype": args.kv_dtype, "source_url": args.source_url, "submitter": args.submitter, "consent_to_publish": False, "attribute_me": args.attribute,
         "aggregate_tok_s": sum(r["tokens"] for r in results) / wall,
         "notes": f"{len(results)} requests ({len(errors)} failed), {args.warmup} warm-up, medians; tokens counted as streamed chunks",
     }
 
 
-def vram_gib() -> float | None:
+def vram_gib(gpu_count: int = 1) -> float | None:
+    """memory.used summed over the first `gpu_count` GPUs, sampled after the run. It is the footprint at that moment (engines such as vLLM pre-allocate), not a minimum."""
     if not shutil.which("nvidia-smi"):
         return None
     try:
         out = subprocess.run(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=10).stdout
-        return round(max(float(x) for x in out.split()) / 1024, 2)
+        return round(sum(float(x) for x in out.split()[:gpu_count]) / 1024, 2)
     except (ValueError, OSError, subprocess.SubprocessError):
         return None
 
@@ -96,6 +97,8 @@ def main(argv=None):
     p.add_argument("--quant", required=True, help="OMEN catalog quantization name")
     p.add_argument("--gpu", required=True, help="OMEN catalog GPU name")
     p.add_argument("--engine", required=True, help='engine and version, e.g. "vllm 0.6.3"')
+    p.add_argument("--gpu-count", type=int, default=1, help="GPUs the server uses (VRAM is summed over this many)")
+    p.add_argument("--kv-dtype", default="fp16", choices=["fp16", "bf16", "fp8", "int8"], help="KV cache type the server runs with")
     p.add_argument("--users", type=int, default=1, help="concurrent requests")
     p.add_argument("--requests", type=int, default=5, help="requests per user")
     p.add_argument("--warmup", type=int, default=2)
