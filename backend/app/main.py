@@ -293,6 +293,15 @@ def search_benchmarks(model: str | None = None, quant: str | None = None, gpu: s
     return {"results": benchmarks.search(model=model, quant=quant, gpu=gpu, engine=engine, status=status)}
 
 
+@app.get("/api/v1/benchmarks/{run_id}")
+def get_benchmark(run_id: int):
+    """One run by id, in any status, so a submitter can follow it from pending to community or rejected (with the reasons)."""
+    r = benchmarks.get(run_id)
+    if r is None:
+        raise HTTPException(404, "no such run")
+    return r
+
+
 @app.post("/api/v1/benchmarks/{run_id}/verify")
 def verify_benchmark(run_id: int, x_admin_key: str | None = Header(None)):
     """Reviewer action. Needs OMEN_ADMIN_KEY set on the server; promotes a Community run to Verified."""

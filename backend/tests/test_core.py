@@ -311,3 +311,12 @@ def test_production_refuses_to_start_with_open_cors():
     run = lambda env: subprocess.run([sys.executable, "-c", "import app.main"], env=env, capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(__file__)))
     assert "OMEN_CORS" in run(base).stderr
     assert run({**base, "OMEN_CORS": "https://omen.example"}).returncode == 0
+
+
+def test_a_submitter_can_follow_their_run_by_id():
+    rid = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 7777, "submitter": "Ada"}).json()["id"]
+    got = c.get(f"/api/v1/benchmarks/{rid}").json()
+    assert got["id"] == rid and got["status"] == "community" and "submitter" not in got  # name hidden without opt-in
+    bad = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 7778, "gpu": "Imaginary 9000"}).json()["id"]
+    assert c.get(f"/api/v1/benchmarks/{bad}").json()["status"] == "rejected" and "not in the catalog" in c.get(f"/api/v1/benchmarks/{bad}").json()["problems"][0]
+    assert c.get("/api/v1/benchmarks/999999").status_code == 404

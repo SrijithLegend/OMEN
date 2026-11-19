@@ -86,9 +86,10 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 .cta a{padding:10px 18px;border-radius:99px;background:var(--orange);color:var(--ink);text-decoration:none;white-space:nowrap}
 .cta a:hover{filter:brightness(1.08)}
 .conf{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.78rem;font-weight:700;background:#ececee;color:var(--ink)}.conf.high{background:var(--orange)}
+.filt{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.filt label{margin:0}#f_out b,#benchSrc b{color:var(--orange)}.sand #benchSrc b{color:#c2410c}
 #benchTable th,#benchTable td{padding:7px 6px;font-size:.8rem}
 .sand table th{color:#777}.sand td,.sand th{border-top:1px solid #0000001a}
-@media(max-width:760px){.steps{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.s4,.s3,.s2{grid-column:span 2}.two{grid-template-columns:1fr}.r2{grid-row:auto}}
+@media(max-width:760px){.filt{grid-template-columns:1fr}.steps{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.s4,.s3,.s2{grid-column:span 2}.two{grid-template-columns:1fr}.r2{grid-row:auto}}
 </style>
 <nav class=tabs><button class=on data-tab=calc>GPU calculator</button><button data-tab=api>Recommend</button><span class=side><button data-tab=learn>Guide</button><button data-tab=bench>Benchmarks</button><button data-tab=method>Methodology</button></span></nav>
 <div class=grid id=learn hidden>
@@ -97,8 +98,40 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
     <button class=go2 data-tab=calc>Open the calculator &rarr;</button> <button class="go2 alt" data-tab=api>Open Recommend &rarr;</button></div>
 </div>
 <div class=grid id=bench hidden>
-  <div class="card s4"><h1>Benchmarks</h1><p class=tag>Real measurements next to what the calculator predicts. Measured numbers are published by others; we link every source.</p></div>
-  <div class="card sand s4"><span class=lab>Measured vs predicted</span><div id=benchTable style="overflow:auto"></div><small id=benchSum></small><button type=button class=sm id=benchcsv>Download as CSV</button></div>
+  <div class="card s4"><h1>Benchmarks</h1><p class=tag>Real measurements next to what the calculator predicts. Published, verified and community runs are labelled separately, and every source is linked.</p></div>
+  <div class="card sand s4"><span class=lab>Measured vs predicted</span>
+    <div class=filt>
+      <label>Model <select id=bf_model data-opt=1 data-ph="All"></select></label>
+      <label>GPU <select id=bf_gpu data-opt=1 data-ph="All"></select></label>
+      <label>Quantization <select id=bf_quant data-opt=1 data-ph="All"></select></label>
+      <label>Engine <select id=bf_engine data-opt=1 data-ph="All"></select></label>
+    </div>
+    <div class=pills id=bf_status><button type=button class=on data-v=all>All</button><button type=button data-v=sourced>Sourced</button><button type=button data-v=verified>Verified</button><button type=button data-v=community>Community</button></div>
+    <small id=benchSrc style="display:block;margin-top:10px"></small>
+    <div id=benchTable style="overflow:auto"></div><small id=benchSum></small>
+    <button type=button class=sm id=benchcsv>Download as CSV</button>
+    <details><summary>Server address</summary>
+      <div class=two style="align-items:end"><label>OMEN server <input id=apiUrl placeholder="http://localhost:8787"></label><div><button type=button class=sm id=apiSave style="margin:0">Save and reconnect</button></div></div>
+      <small>Without a reachable server this tab shows the bundled published runs. Saved in this browser only.</small></details></div>
+  <div class="card s4"><span class=lab>Submit a measured run</span>
+    <p class=tag style="margin:0 0 12px">Ran a model yourself? Add your result. It appears as <b>Community</b> after automatic checks, and a reviewer can promote it to <b>Verified</b>. Nothing is published without your explicit consent.</p>
+    <div class=two>
+      <label>Model <select id=f_model data-opt=1 data-ph="Choose a model"></select></label>
+      <label>Quantization <select id=f_quant data-opt=1 data-ph="Choose quantization"></select></label>
+      <label>GPU <select id=f_gpu data-opt=1 data-ph="Choose a GPU"></select></label>
+      <label>Engine and version <input id=f_engine maxlength=100 placeholder="e.g. vllm 0.6.3"></label>
+      <label>Context tokens <input id=f_ctx type=number min=1 placeholder="e.g. 8192"></label>
+      <label>Concurrent users <input id=f_users type=number min=1 placeholder="1"></label>
+      <label>Decode tokens/s per user <input id=f_tok type=number min=0 step=any placeholder="e.g. 120"></label>
+      <label>Peak VRAM, GiB (optional, all GPUs) <input id=f_vram type=number min=0 step=any placeholder="needed to count for memory"></label>
+      <label>Number of GPUs <input id=f_ngpu type=number min=1 placeholder="1"></label>
+      <label>KV cache type <select id=f_kv data-opt=1 data-ph="fp16 (default)"></select></label>
+      <label>Source link (optional) <input id=f_src maxlength=500 placeholder="https://..."></label>
+      <label>Your name (optional) <input id=f_name maxlength=64 placeholder="only shown if you opt in below"></label>
+      <div><label>Publish this result?</label><div class=pills id=f_consent><button type=button class=on data-v=0>No, not yet</button><button type=button data-v=1>Yes, publish it</button></div></div>
+      <div><label>Show my name?</label><div class=pills id=f_attr><button type=button class=on data-v=0>No, anonymous</button><button type=button data-v=1>Yes, show it</button></div></div>
+    </div>
+    <button type=button class=go2 id=f_go>Submit to OMEN &rarr;</button><div id=f_out style="margin-top:12px;font-size:.9rem;line-height:1.5"></div></div>
   <div class="card s4"><span class=lab>Check your own result</span><p class=tag>Paste a result as JSON (see run-template.json). Nothing is sent anywhere until you choose to submit.</p>
     <textarea id=runjson rows=9 placeholder='{"model": "Llama-3.1-8B", "quant": "Q4_K_M", "gpu": "RTX 4090 24GB", "context": 8192, "users": 1, "engine": "llama.cpp b1234", "tok_s": 120, "source": "https://..."}'></textarea>
     <button type=button class=go2 id=runcheck>Check result</button><div id=runout></div></div>
@@ -262,6 +295,8 @@ function fillModels() { // list only models for the chosen use case, keep the cu
 $("uc").innerHTML = BLANK + ["All", ...Object.keys(USE_CASE_CONTEXT)].map(n => `<option>${n}</option>`).join("");
 fillModels(); $("q").innerHTML = groups(QUANTS_BY_FAMILY); $("g").innerHTML = groups(GPUS_BY_VENDOR);
 $("rm").innerHTML = groups(MODELS_BY_CREATOR);
+$("f_model").innerHTML = groups(MODELS_BY_CREATOR); $("f_quant").innerHTML = groups(QUANTS_BY_FAMILY); $("f_gpu").innerHTML = groups(GPUS_BY_VENDOR);
+$("f_kv").innerHTML = BLANK + Object.keys(KV_TYPES).map(n => `<option>${n}</option>`).join("");
 $("kv").innerHTML = BLANK + Object.keys(KV_TYPES).map(n => `<option>${n}</option>`).join("");
 $("sl").innerHTML = BLANK + `<option>engine keeps a full cache</option><option>${SLIDE_FREED}</option>`;
 
@@ -469,12 +504,83 @@ $("wslist").onclick = e => { const l = wsGet(), d = e.target.dataset;
   else if (d.load !== undefined) { const P = new URLSearchParams(l[+d.load].qs); if (P.has("uc")) { $("uc").value = P.get("uc"); fillModels(); } for (const [k, v] of P) if (IDS.includes(k) && k != "uc") $(k).value = v; go(); } };
 wsRender();
 // Benchmarks tab: every measured run joined to what the calculator predicts for it.
+// ---- Benchmarks: live from the OMEN server when one is reachable, the bundled published runs otherwise.
+// Everything from the server is escaped: submitters control the free-text fields.
+const esc = t => String(t ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const safeUrl = u => /^https?:\/\/\S+$/.test(u || "") ? esc(u) : "";
+const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } }, lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const apiBase = () => { const q = new URLSearchParams(location.search).get("api"); if (q) lsSet("omenApi", q);
+  return (q || lsGet("omenApi") || (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? "http://localhost:8787" : "")).replace(/\/+$/, ""); };
+async function api(path, opt = {}) { // JSON in and out, 5 s timeout, server's error text on failure
+  const c = new AbortController(), t = setTimeout(() => c.abort(), 5000);
+  try { const r = await fetch(apiBase() + path, { ...opt, signal: c.signal, ...(opt.body ? { headers: { "content-type": "application/json" } } : {}) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(typeof j.detail == "string" ? j.detail : j.detail ? j.detail.map(d => (d.loc || []).slice(1).join(".") + " " + d.msg).join("; ") : "HTTP " + r.status); return j; }
+  catch (e) { throw e.name == "AbortError" ? new Error("no answer from " + apiBase()) : e; } finally { clearTimeout(t); } }
+const STATUS = { sourced: ["Sourced", "Imported from a traceable external publication"], verified: ["Verified", "Checked by a reviewer"], community: ["Community", "Submitted by a user, not independently reproduced"] };
+const toRun = r => ({ id: r.id, model: r.model, quant: r.quant, gpu: r.gpu, gpu_count: r.gpu_count || 1, engine: r.engine, context: r.context_tokens, users: r.users, tok_s: r.tok_s_per_user, vram_gib: r.vram_gib, kv_dtype: r.kv_dtype, source: r.source_url, status: r.status });
+let BENCH = [], BF = { model: "All", gpu: "All", quant: "All", engine: "All", status: "all" };
+async function loadBench() {
+  const base = apiBase(); let note;
+  $("apiUrl").value = base;
+  if (base) try { BENCH = (await api("/api/v1/benchmarks")).results.map(toRun);
+    const n = k => BENCH.filter(x => x.status == k).length; note = `<b>Live</b> from ${esc(base)}: ${BENCH.length} runs (${n("sourced")} sourced, ${n("verified")} verified, ${n("community")} community).`; }
+  catch (e) { BENCH = null; note = `<b>Server not reachable</b> (${esc(e.message)}).`; }
+  if (!BENCH) { BENCH = RUNS.map(x => ({ ...x, status: "sourced", gpu_count: 1 })); note = (note || "<b>No server connected.</b>") + ` Showing the ${BENCH.length} bundled published runs.`; }
+  $("benchSrc").innerHTML = note;
+  const fill = (id, vals) => { const el = $(id), keep = vals.includes(el.value) ? el.value : "All"; el.innerHTML = BLANK + ["All", ...vals].map(v => `<option${v == keep ? " selected" : ""}>${esc(v)}</option>`).join(""); el.value = keep; };
+  const uniq = k => [...new Set(BENCH.map(x => x[k]))].sort();
+  fill("bf_model", uniq("model")); fill("bf_gpu", uniq("gpu")); fill("bf_quant", uniq("quant")); fill("bf_engine", uniq("engine"));
+  for (const k of ["model", "gpu", "quant", "engine"]) BF[k] = $("bf_" + k).value;
+  dds.forEach(d => d.sync()); renderBench();
+}
+function renderBench() {
+  const rows = BENCH.filter(x => ["model", "gpu", "quant", "engine"].every(k => BF[k] == "All" || x[k] == BF[k]) && (BF.status == "all" || x.status == BF.status));
+  let sum = 0, cnt = 0;
+  const body = rows.map(x => {
+    let ceil = null; try { ceil = runCeil(x); } catch {}
+    const e = ceil ? 100 * x.tok_s / ceil : null; if (e != null) { sum += Math.abs(100 - e); cnt++; }
+    const [label, why] = STATUS[x.status] || [x.status, ""], link = safeUrl(x.source);
+    return `<tr><td>${esc(x.model)}</td><td>${esc(x.quant)}</td><td>${esc(x.gpu)}${x.gpu_count > 1 ? " x" + x.gpu_count : ""}</td><td>${esc(x.context)}</td><td>${esc(x.users)}</td><td>${esc(x.engine)}</td><td>${+x.tok_s.toFixed(2)} tok/s</td><td>${ceil ? Math.round(ceil) + " tok/s" : "n/a"}</td><td>${e == null ? "n/a" : Math.round(e) + "%"}</td>`
+      + `<td title="Speed only: this run says nothing about memory">${x.vram_gib > 0 ? esc(x.vram_gib) + " GiB" : "not recorded"}</td><td><span class="conf${x.status == "verified" ? " high" : ""}" title="${esc(why)}">${esc(label)}</span>${link ? ` <a href="${link}" target=_blank rel=noopener>source</a>` : ""}</td></tr>`; }).join("");
+  $("benchTable").innerHTML = rows.length ? "<table><tr><th>Model</th><th>Quant</th><th>GPU</th><th>Context</th><th>Users</th><th>Engine</th><th>Measured</th><th>Predicted ceiling</th><th>Measured / predicted</th><th>Peak memory</th><th>Status</th></tr>" + body + "</table>" : "<p>No runs match these filters.</p>";
+  const spread = k => new Set(rows.map(x => x[k])).size;
+  $("benchSum").textContent = !cnt ? "No measured runs to compare." : `Mean gap between prediction and measurement: ${Math.round(sum / cnt)}% over ${cnt} run(s) (${spread("model")} model(s), ${spread("engine")} engine(s)). Do not read this as accuracy for other models, engines or workloads.`;
+}
+for (const k of ["model", "gpu", "quant", "engine"]) $("bf_" + k).addEventListener("input", () => { BF[k] = $("bf_" + k).value; renderBench(); });
+document.querySelectorAll("#bf_status button").forEach(b => b.onclick = () => { BF.status = b.dataset.v; document.querySelectorAll("#bf_status button").forEach(x => x.classList.toggle("on", x == b)); renderBench(); });
 $("benchcsv").onclick = () => dl("omen-benchmarks.csv", [...$("benchTable").querySelectorAll("tr")].map(r => [...r.cells].map(c => `"${c.textContent.replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv");
-(() => { let sum = 0, cnt = 0;
-  $("benchTable").innerHTML = "<table><tr><th>Model</th><th>Quant</th><th>GPU</th><th>Context</th><th>Users</th><th>Engine</th><th>Measured</th><th>Predicted ceiling</th><th>Measured / predicted</th><th>Peak memory</th><th>Status</th></tr>" + RUNS.map(x => {
-    const [p, L, h, d, act] = MODELS[x.model], [gib, bw, usd] = GPUS[x.gpu], t = fit(p, QUANTS[x.quant], L, h, d, KV_TYPES[x.kv_dtype || "fp16"], x.context, gib, bw, usd, 1.5, act).tok, e = 100 * x.tok_s / t; sum += Math.abs(100 - e); cnt++;
-    return `<tr><td>${x.model}</td><td>${x.quant}</td><td>${x.gpu}</td><td>${x.context}</td><td>${x.users}</td><td>${x.engine}</td><td>${x.tok_s} tok/s</td><td>${Math.round(t)} tok/s</td><td>${Math.round(e)}%</td><td title="Speed only: this run says nothing about memory">${x.vram_gib > 0 ? x.vram_gib + " GiB" : "not recorded"}</td><td><a href="${x.source}">Sourced</a></td></tr>`; }).join("") + "</table>";
-  $("benchSum").textContent = !cnt ? "No measured runs yet. Submit yours below." : `Mean gap between prediction and measurement: ${Math.round(sum / cnt)}% over ${cnt} runs, all one model on one engine. Do not read this as accuracy for other models, engines or workloads.`; })();
+$("apiSave").onclick = () => { lsSet("omenApi", $("apiUrl").value.trim()); $("benchSrc").textContent = "Connecting..."; loadBench(); };
+// Submission form: explicit consent, server-side validation, status followed from pending to community or rejected.
+let FC = 0, FA = 0;
+for (const [id, set] of [["f_consent", v => FC = v], ["f_attr", v => FA = v]]) document.querySelectorAll(`#${id} button`).forEach(b => b.onclick = () => { set(+b.dataset.v); document.querySelectorAll(`#${id} button`).forEach(x => x.classList.toggle("on", x == b)); });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function showRun(r) {
+  const [label] = STATUS[r.status] || [r.status];
+  $("f_out").innerHTML = r.status == "pending" ? `Run #${esc(r.id)}: <b>validating...</b>`
+    : r.status == "rejected" ? `Run #${esc(r.id)}: <b>rejected.</b><ul>${(r.problems || []).map(p => `<li>${esc(p)}</li>`).join("")}</ul>Fix these and submit again.`
+    : `Run #${esc(r.id)}: <b>${esc(label)}.</b> It is now visible in the table above${(r.problems || []).length ? ` (note: ${esc(r.problems.join("; "))})` : ""}. A reviewer can promote it to Verified.`;
+}
+$("f_go").onclick = async () => {
+  const v = id => $(id).value.trim(), n = id => $(id).value === "" ? NaN : +$(id).value, bad = [];
+  for (const [id, name] of [["f_model", "model"], ["f_quant", "quantization"], ["f_gpu", "GPU"], ["f_engine", "engine"]]) if (!v(id)) bad.push(name + " is required");
+  for (const [id, name, int] of [["f_ctx", "context tokens", 1], ["f_tok", "tokens/s per user"]]) { const x = n(id); if (!(x > 0) || (int && !Number.isInteger(x))) bad.push(name + " must be a positive " + (int ? "whole " : "") + "number"); }
+  for (const [id, name] of [["f_users", "users"], ["f_ngpu", "number of GPUs"]]) if ($(id).value !== "" && !(Number.isInteger(n(id)) && n(id) > 0)) bad.push(name + " must be a whole number of 1 or more");
+  if ($("f_vram").value !== "" && !(n("f_vram") > 0)) bad.push("peak VRAM must be a positive number");
+  if (v("f_src") && !safeUrl(v("f_src"))) bad.push("source link must start with http:// or https://");
+  if (!FC) bad.push('choose "Yes, publish it": OMEN never publishes a result without your explicit consent');
+  if (bad.length) { $("f_out").innerHTML = "<b>Fix these first:</b><ul>" + bad.map(b => `<li>${esc(b)}</li>`).join("") + "</ul>"; return; }
+  if (!apiBase()) { $("f_out").innerHTML = "<b>No server connected.</b> Set the server address under the table, or use <b>Check your own result</b> below to submit through a GitHub issue."; return; }
+  const body = { model: v("f_model"), quant: v("f_quant"), gpu: v("f_gpu"), engine: v("f_engine"), context_tokens: n("f_ctx"), users: $("f_users").value === "" ? 1 : n("f_users"), tok_s_per_user: n("f_tok"),
+    gpu_count: $("f_ngpu").value === "" ? 1 : n("f_ngpu"), kv_dtype: $("f_kv").value || "fp16", consent_to_publish: true, attribute_me: !!FA };
+  if (v("f_vram")) body.vram_gib = n("f_vram"); if (v("f_src")) body.source_url = v("f_src"); if (v("f_name")) body.submitter = v("f_name");
+  $("f_go").disabled = true; $("f_out").textContent = "Submitting...";
+  try {
+    const { id } = await api("/api/v1/benchmarks/submit", { method: "POST", body: JSON.stringify(body) });
+    for (let i = 0, r; i < 8; i++) { r = await api("/api/v1/benchmarks/" + id); showRun(r); if (r.status != "pending") break; await sleep(700); }
+    loadBench();
+  } catch (e) { $("f_out").innerHTML = `<b>Not submitted:</b> ${esc(e.message)}`; } finally { $("f_go").disabled = false; }
+};
+loadBench();
 $("runcheck").onclick = () => { let r; try { r = JSON.parse($("runjson").value); } catch (e) { $("runout").innerHTML = "<b>Not valid JSON:</b> " + e.message; return; }
   const bad = validateRun(r, {model: Object.keys(MODELS), quant: Object.keys(QUANTS), gpu: Object.keys(GPUS)});
   $("runout").innerHTML = bad.length ? "<b>Fix these first:</b><ul>" + bad.map(b => `<li>${b.replace(/[<&]/g, "")}</li>`).join("") + "</ul>"
@@ -487,7 +593,7 @@ document.querySelectorAll("select,input").forEach(e => e.oninput = render);
 document.querySelectorAll(".res").forEach((e, i) => e.style.setProperty("--i", i)); // staggered reveal order, hero first
 const go = () => { calculated = true; render(); const c = $("calc"); c.classList.remove("done"); void c.offsetWidth; c.classList.add("done"); setTimeout(() => $("hero").scrollIntoView({behavior: "smooth", block: "start"}), 60); };
 $("go").onclick = go;
-document.querySelectorAll("input").forEach(e => e.onkeydown = ev => { if (ev.key == "Enter") e.id == "hf" ? importHF() : e.closest("#api") ? rgo() : go(); });
+document.querySelectorAll("input").forEach(e => e.onkeydown = ev => { if (ev.key == "Enter") e.closest("#bench") ? 0 : e.id == "hf" ? importHF() : e.closest("#api") ? rgo() : go(); });
 $("g").addEventListener("input", () => { setPrice(); render(); });
 $("uc").oninput = () => { fillModels(); if ($("uc").value != "All") $("c").value = USE_CASE_CONTEXT[$("uc").value]; render(); };
 setPrice();

@@ -50,13 +50,24 @@ def submit(run: dict) -> int:
         return c.execute(insert(T).values(**run, status="pending", problems=[])).inserted_primary_key[0]
 
 
+def _public(r) -> dict:
+    """A run as the public sees it: the submitter name only if they opted in to attribution."""
+    return {k: v for k, v in r.items() if k != "attribute_me" and (k != "submitter" or r["attribute_me"])}
+
+
+def get(run_id: int) -> dict | None:
+    with db.engine.connect() as c:
+        r = c.execute(select(T).where(T.c.id == run_id)).mappings().first()
+    return None if r is None else _public(r)
+
+
 def search(**f) -> list[dict]:
     q = select(T).where(T.c.status.in_(["sourced", "verified", "community"]) if not f.get("status") else T.c.status == f["status"])
     for k in ("model", "quant", "gpu", "engine"):
         if f.get(k):
             q = q.where(T.c[k] == f[k])
     with db.engine.connect() as c:
-        return [{k: v for k, v in r.items() if k != "attribute_me" and (k != "submitter" or r["attribute_me"])} for r in c.execute(q.order_by(T.c.id)).mappings()]
+        return [_public(r) for r in c.execute(q.order_by(T.c.id)).mappings()]
 
 
 def verify(run_id: int) -> bool:
