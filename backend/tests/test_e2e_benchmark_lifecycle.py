@@ -1,97 +1,93 @@
-"""End to end: a benchmark travels submit -> pending -> community -> verified -> public explorer -> trusted calibration, and only a verified run
-(never a pending, community, rejected or later-rejected one) moves the speed estimate. Everything goes through the HTTP API except the one step
-that cannot be seen from outside: a run caught while still pending (the test client finishes background work before it responds)."""
+"""End to end, through the HTTP API: a maintainer imports a sourced reference run, it shows up in the public explorer, and it moves the speed estimate.
+A run that fails validation or repeats a stored one is refused, is never stored, and never influences anything. The public has no way to submit,
+verify or reject a run."""
 import os
 
 from fastapi.testclient import TestClient
 
 from app import benchmarks
 from app.catalog import GPUS, MODELS, QUANTS
-from app.main import BenchmarkSubmission, app
+from app.main import app
 from app.performance import decode_ceiling
 
 c = TestClient(app)
 c.__enter__()  # app startup: creates and seeds the database if no other test module has yet
 
 ADMIN = {"x-admin-key": os.environ["OMEN_ADMIN_KEY"]}
-REVIEW = {"reviewer": "E2E Reviewer", "notes": "Reproduced the figure from the linked log.", "evidence_reviewed": "linked log, reproduction on the same GPU"}
 GPU, MODEL, QUANT = "RTX 3090 24GB", "Llama-3.1-8B", "Q4_K_M"  # one GPU no other test touches, with one seeded run (Llama-2-7B, 1 user, 128 tokens)
 ASK = {"model": MODEL, "quantization": QUANT, "gpu": GPU, "concurrency": 7, "context_length": 5000}  # a workload no seeded run matches
-RUN = {"model": MODEL, "quant": QUANT, "gpu": GPU, "engine": "vllm 0.6.3", "context_tokens": 5000, "users": 7, "tok_s_per_user": 50,
-       "source_url": "https://example.com/e2e", "consent_to_publish": True}
-CEIL = decode_ceiling(MODELS[MODEL]["params_b"], QUANTS[QUANT]["bytes_per_param"], GPUS[GPU]["bandwidth_gbs"])  # what a tok_s of N means as a ratio
+RUN = {"model": MODEL, "quant": QUANT, "gpu": GPU, "engine": "vllm 0.6.3", "context_tokens": 5000, "users": 7, "tok_s_per_user": 50, "source_url": "https://example.com/e2e"}
+CEIL = decode_ceiling(MODELS[MODEL]["params_b"], QUANTS[QUANT]["bytes_per_param"], GPUS[GPU]["bandwidth_gbs"])
 
 
 def calibration() -> dict:
     return c.post("/api/v1/estimate/performance", json=ASK).json()["performance"]["calibration"]
 
 
-def explorer(**params) -> list[int]:
-    return [r["id"] for r in c.get("/api/v1/benchmarks", params=params).json()["results"]]
+def explorer(**params) -> list[dict]:
+    return c.get("/api/v1/benchmarks", params=params).json()["results"]
 
 
-def submit(**patch) -> int:
-    return c.post("/api/v1/benchmarks/submit", json={**RUN, **patch}).json()["id"]
-
-
-def status(rid: int) -> str:
-    return c.get(f"/api/v1/benchmarks/{rid}").json()["status"]
-
-
-def trusted_ids_for_gpu() -> list[float]:
+def stored_at_7_users() -> list[float]:
     return [r["tok_s"] for r in benchmarks.trusted_runs() if r["gpu"] == GPU and r["users"] == 7]
 
 
-def test_the_whole_lifecycle_and_what_each_stage_may_influence():
-    # baseline: nothing measured at 7 users, so the estimate leans on the seeded single-user run and says so
-    base = calibration()
-    assert base["workload_match"] == "none" and base["level"] == "extrapolated" and trusted_ids_for_gpu() == []
+def test_import_to_explorer_to_calibration_and_what_is_refused():
+    base = calibration()  # nothing measured at 7 users: the seeded single-user run is borrowed, and the answer says so
+    assert base["workload_match"] == "none" and base["level"] == "extrapolated" and stored_at_7_users() == []
 
-    # 1. a run caught while pending: stored, but invisible to the public and to calibration
-    pending = benchmarks.submit(BenchmarkSubmission(**RUN).model_dump())
-    assert status(pending) == "pending" and pending not in explorer() and trusted_ids_for_gpu() == [] and calibration() == base
+    # only a maintainer can import
+    assert c.post("/api/v1/benchmarks/import", json=RUN).status_code == 403
+    assert c.post("/api/v1/benchmarks/import", json=RUN, headers={"x-admin-key": "wrong"}).status_code == 403
+    assert explorer(gpu=GPU, model=MODEL) == [] and calibration() == base  # a refused attempt changes nothing
 
-    # 2. validation promotes it to community; the submitter can see it, the explorer lists it, calibration still ignores it
-    benchmarks.process(pending)
-    assert status(pending) == "community" and pending in explorer() and pending in explorer(status="community")
-    assert trusted_ids_for_gpu() == [] and calibration() == base  # unverified data never calibrates
-    assert c.get(f"/api/v1/benchmarks/{pending}").json()["reviews"] == []
-
-    # 3. a reviewer verifies it: now it is evidence
-    assert c.post(f"/api/v1/benchmarks/{pending}/verify", json=REVIEW).status_code == 403  # no key, no verification
-    assert c.post(f"/api/v1/benchmarks/{pending}/verify", json=REVIEW, headers=ADMIN).json()["status"] == "verified"
-    assert status(pending) == "verified" and pending in explorer(status="verified") and pending not in explorer(status="community")
-    row = next(r for r in c.get("/api/v1/benchmarks", params={"status": "verified"}).json()["results"] if r["id"] == pending)
-    assert row["verified_by"].startswith("E2E Reviewer") and row["source_url"] == RUN["source_url"]
-    assert trusted_ids_for_gpu() == [50]
+    # a valid, sourced run: stored, public, and now the estimate's matched sample
+    imp = c.post("/api/v1/benchmarks/import", json=RUN, headers=ADMIN)
+    assert imp.status_code == 201
+    rid = imp.json()["id"]
+    (row,) = explorer(gpu=GPU, model=MODEL)
+    assert row["id"] == rid and row["source_url"] == RUN["source_url"] and "status" not in row and "submitter" not in row
+    assert c.get(f"/api/v1/benchmarks/{rid}").json()["tok_s_per_user"] == 50
+    assert stored_at_7_users() == [50]
     cal = calibration()
     assert cal["workload_match"] == "context_and_concurrency" and cal["tier"] == "this GPU" and cal["runs"] == 1 and cal["level"] == "thin"
-    assert abs(cal["utilization"] - 50 / CEIL) < 1e-9  # the estimate is now exactly this run's measured ratio, not the seeded run's
+    assert abs(cal["utilization"] - 50 / CEIL) < 1e-9  # exactly this run's measured ratio, not the seeded run's
 
-    # 4. everything that is NOT verified is shut out, however extreme: community, rejected by validation, rejected by a reviewer, still pending
-    wild = submit(context_tokens=5001, tok_s_per_user=140)  # community, never verified
-    impossible = submit(gpu="Imaginary 9000", context_tokens=5002)  # rejected by validation
-    pending2 = benchmarks.submit(BenchmarkSubmission(**{**RUN, "context_tokens": 5003, "tok_s_per_user": 150}).model_dump())  # never processed
-    reviewed_out = submit(context_tokens=5004, tok_s_per_user=160)
-    c.post(f"/api/v1/benchmarks/{reviewed_out}/verify", json=REVIEW, headers=ADMIN)
-    assert 160 in trusted_ids_for_gpu()  # while verified it counts, as it should
-    rej = {**REVIEW, "reason": "Source shows a different batch size.", "notes": "The linked log was run at 1 user, not 7."}
-    assert c.post(f"/api/v1/benchmarks/{reviewed_out}/reject", json=rej, headers=ADMIN).json()["status"] == "rejected"
-    assert (status(wild), status(impossible), status(pending2), status(reviewed_out)) == ("community", "rejected", "pending", "rejected")
-    assert trusted_ids_for_gpu() == [50]  # only the one verified run survives
+    # everything refused leaves no trace: not stored, not public, not in calibration
+    refused = [
+        ({**RUN, "gpu": "Imaginary 9000", "context_tokens": 5001}, 422, "not in the catalog"),
+        ({**RUN, "users": 1, "context_tokens": 5002, "tok_s_per_user": 5000}, 422, "bandwidth ceiling"),
+        ({**RUN, "context_tokens": 5003, "vram_gib": 90}, 422, "more than"),
+        ({**RUN, "context_tokens": 5004, "vram_gib": 1}, 422, "weights alone"),
+        ({**RUN, "tok_s_per_user": 50.4}, 409, "duplicate of run"),  # same setup, within 2%
+    ]
+    for body, code, why in refused:
+        r = c.post("/api/v1/benchmarks/import", json=body, headers=ADMIN)
+        assert r.status_code == code and why in " ".join(r.json()["detail"]), (body, r.json())
+    assert c.post("/api/v1/benchmarks/import", json={k: v for k, v in RUN.items() if k != "source_url"}, headers=ADMIN).status_code == 422  # a source is mandatory
+    assert c.post("/api/v1/benchmarks/import", json={**RUN, "source_url": "javascript:alert(1)"}, headers=ADMIN).status_code == 422
+    assert len(explorer(gpu=GPU, model=MODEL)) == 1 and stored_at_7_users() == [50]
     after = calibration()
-    assert after["runs"] == 1 and abs(after["utilization"] - 50 / CEIL) < 1e-9 and after["low"] is None  # not one of the four moved it
-    assert {wild, impossible, pending2, reviewed_out}.isdisjoint(explorer(status="verified"))
-    assert impossible not in explorer() and pending2 not in explorer() and reviewed_out not in explorer()  # rejected and pending runs are not public
-    assert any("not in the catalog" in p for p in c.get(f"/api/v1/benchmarks/{impossible}").json()["problems"])  # but their submitter can see why
+    assert after["runs"] == 1 and abs(after["utilization"] - 50 / CEIL) < 1e-9
 
-    # 5. a reviewer can withdraw the verified run: calibration reverts at once
-    assert c.post(f"/api/v1/benchmarks/{pending}/reject", json=rej, headers=ADMIN).json()["status"] == "rejected"
-    assert trusted_ids_for_gpu() == [] and calibration() == base
-    assert [r["action"] for r in c.get(f"/api/v1/benchmarks/{pending}").json()["reviews"]] == ["verify", "reject"]  # the history stays
+    # a different setup (two GPUs, or an fp8 KV cache) is not a duplicate of the same numbers
+    assert c.post("/api/v1/benchmarks/import", json={**RUN, "gpu_count": 2, "vram_gib": 20, "vram_gib_per_gpu": [10, 10]}, headers=ADMIN).status_code == 201
+    assert c.post("/api/v1/benchmarks/import", json={**RUN, "kv_dtype": "fp8"}, headers=ADMIN).status_code == 201
+
+    # rows are never edited or deleted, and there is no public path to change the data
+    for method, path in [("post", "/api/v1/benchmarks/submit"), ("post", f"/api/v1/benchmarks/{rid}/verify"), ("post", f"/api/v1/benchmarks/{rid}/reject"),
+                         ("delete", f"/api/v1/benchmarks/{rid}"), ("put", f"/api/v1/benchmarks/{rid}")]:
+        assert c.request(method.upper(), path, headers=ADMIN, content=b"{}").status_code in (404, 405), (method, path)
 
 
-def test_seeded_published_runs_stay_trusted_throughout():
-    ids = explorer(status="sourced")
-    assert len(ids) >= 5 and all(i in [r["id"] for r in c.get("/api/v1/benchmarks").json()["results"]] for i in ids)
+def test_explorer_filters_and_the_seeded_reference_runs():
+    seeded = explorer(model="Llama-2-7B")
+    assert len(seeded) >= 5 and all(r["source_url"].startswith("https://") for r in seeded)
+    assert {r["gpu"] for r in explorer(model="Llama-2-7B", gpu="H100 80GB SXM")} == {"H100 80GB SXM"} and explorer(model="Nope") == []
     assert any(r["gpu"] == GPU and r["model"] == "Llama-2-7B" for r in benchmarks.trusted_runs())  # the published 3090 run feeds calibration
+
+
+def test_payloads_are_bounded():
+    assert c.post("/api/v1/benchmarks/import", content="x" * 70_000, headers={**ADMIN, "content-type": "application/json"}).status_code == 413
+    for patch in ({"model": "x" * 101}, {"tok_s_per_user": 1e9}, {"users": 10**9}, {"token_count_method": "guess"}, {"kv_dtype": "fp4"}):
+        assert c.post("/api/v1/benchmarks/import", json={**RUN, "context_tokens": 6001, **patch}, headers=ADMIN).status_code == 422, patch

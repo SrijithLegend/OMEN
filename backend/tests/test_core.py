@@ -75,38 +75,6 @@ def test_recommendations():
     assert none["feasible"] == 0 and none["picks"] == {}
 
 
-GOOD = {"model": "Llama-3.1-8B", "quant": "Q4_K_M", "gpu": "RTX 4090 24GB", "engine": "llama.cpp b9999", "context_tokens": 4096, "users": 1,
-        "tok_s_per_user": 120, "source_url": "https://example.com/run", "consent_to_publish": True}
-
-
-def test_benchmark_flow():
-    seeded = c.get("/api/v1/benchmarks").json()["results"]
-    assert len(seeded) == 5 and all(r["status"] == "sourced" for r in seeded)
-    assert c.post("/api/v1/benchmarks/submit", json={**GOOD, "consent_to_publish": False}).status_code == 400
-    r = c.post("/api/v1/benchmarks/submit", json=GOOD)  # background validation has run by the time the response returns
-    assert r.status_code == 202
-    got = c.get("/api/v1/benchmarks", params={"status": "community"}).json()["results"]
-    assert [x["id"] for x in got] == [r.json()["id"]] and "submitter" not in got[0]
-    dup = c.post("/api/v1/benchmarks/submit", json={**GOOD, "tok_s_per_user": 121}).json()["id"]
-    row = c.get("/api/v1/benchmarks", params={"status": "rejected"}).json()["results"]
-    assert [x["id"] for x in row] == [dup] and row[0]["duplicate_of"] == r.json()["id"]
-
-
-ADMIN = {"x-admin-key": "test-admin"}
-REVIEW = {"reviewer": "Test Reviewer", "notes": "Checked the linked page: the numbers match.", "evidence_reviewed": "source page and raw log"}
-
-
-def test_implausible_and_unknown_runs_are_rejected_and_verify_needs_key():
-    fast = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 1, "tok_s_per_user": 5000}).json()["id"]  # 8B Q4 on a 4090 cannot do 5000 tok/s
-    bogus = c.post("/api/v1/benchmarks/submit", json={**GOOD, "gpu": "Imaginary 9000"}).json()["id"]
-    rej = {x["id"]: x for x in c.get("/api/v1/benchmarks", params={"status": "rejected"}).json()["results"]}
-    assert "ceiling" in rej[fast]["problems"][0] and "not in the catalog" in rej[bogus]["problems"][0]
-    ok = c.get("/api/v1/benchmarks", params={"status": "community"}).json()["results"][0]["id"]
-    assert c.post(f"/api/v1/benchmarks/{ok}/verify", json=REVIEW).status_code == 403
-    assert c.post(f"/api/v1/benchmarks/{ok}/verify", json=REVIEW, headers=ADMIN).json()["status"] == "verified"
-    assert c.post(f"/api/v1/benchmarks/{ok}/verify", json=REVIEW, headers=ADMIN).status_code == 409
-
-
 def _key(owner):
     return {"x-api-key": c.post("/api/v1/keys", json={"owner": owner}).json()["api_key"]}
 
@@ -159,13 +127,6 @@ def test_metrics_endpoint():
     assert 'omen_http_requests_total{method="GET",route="/api/v1/models/{model_id}",status="200"}' in text
 
 
-def test_submitter_is_shown_only_when_opted_in():
-    a = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 777, "submitter": "anon-person"}).json()["id"]
-    b = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 778, "submitter": "proud-person", "attribute_me": True}).json()["id"]
-    got = {x["id"]: x for x in c.get("/api/v1/benchmarks", params={"status": "community"}).json()["results"]}
-    assert "submitter" not in got[a] and got[b]["submitter"] == "proud-person" and "attribute_me" not in got[b]
-
-
 def test_price_catalog_records_sources_and_feeds_cost():
     P = {"provider": "AWS", "instance_type": "test.4x", "region": "us-east-1", "gpu": "RTX 4090 24GB", "gpu_count": 4, "usd_hr": 8.0,
          "source_url": "https://example.com/pricing", "observed_at": "2026-11-01"}
@@ -198,6 +159,11 @@ def test_confidence_threshold_is_75_percent():
     assert any(p["confidence_label"] != "high" for p in every["picks"].values()) or every["picks"]["best_evidence"]["confidence"] == 0.9
 
 
+ADMIN = {"x-admin-key": "test-admin"}
+REF = {"model": "Llama-3.1-8B", "quant": "Q4_K_M", "gpu": "RTX 4090 24GB", "engine": "llama.cpp b9999", "context_tokens": 4096, "users": 1,
+       "tok_s_per_user": 120, "source_url": "https://example.com/run"}
+
+
 def _run(**kw):
     return {"model": "Llama-2-7B", "quant": "Q4_0", "gpu": "RTX 4090 24GB", "gpu_count": 1, "engine": "llama.cpp b1", "context": 128, "users": 1, "tok_s": 150, "vram_gib": None, "kv_dtype": "fp16", **kw}
 
@@ -216,21 +182,6 @@ def test_only_a_peak_vram_measurement_establishes_measured_fit():
     assert evidence([{**mem, "engine": "vllm 0.6"}], **ask, engine="llama.cpp")["memory_measured"] == 0
     assert evidence([_run(gpu="H100 80GB SXM")], **ask)["type"] == "model_estimate"
     assert evidence([_run(gpu="RTX 4090 24GB", model="Llama-3.1-8B")], **ask)["type"] == "calibrated_estimate"
-
-
-def test_verified_vram_run_promotes_to_measured_to_fit_and_bad_vram_is_rejected():
-    run = {"model": "Llama-3.1-8B", "quant": "Q4_K_M", "gpu": "RTX 4090 24GB", "engine": "vllm 0.6.3", "context_tokens": 8192, "users": 4, "tok_s_per_user": 90,
-           "vram_gib": 9.1, "source_url": "https://example.com/vram", "consent_to_publish": True}
-    rid = c.post("/api/v1/benchmarks/submit", json=run).json()["id"]
-    assert c.post("/api/v1/estimate/memory", json=BASE).json()["memory"]["status"] == "likely_fits"  # community runs are not evidence yet
-    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json=REVIEW, headers=ADMIN).status_code == 200
-    m = c.post("/api/v1/estimate/memory", json=BASE).json()
-    assert m["memory"]["status"] == "measured_to_fit" and m["evidence"]["type"] == "memory_measured" and m["evidence"]["peak_vram_gib"] == 9.1
-    assert c.post("/api/v1/estimate/memory", json={**BASE, "context_length": 16384}).json()["memory"]["status"] != "measured_to_fit"
-    huge = c.post("/api/v1/benchmarks/submit", json={**run, "context_tokens": 4096, "vram_gib": 40}).json()["id"]
-    tiny = c.post("/api/v1/benchmarks/submit", json={**run, "context_tokens": 2048, "vram_gib": 1.0}).json()["id"]
-    rej = {x["id"]: x["problems"][0] for x in c.get("/api/v1/benchmarks", params={"status": "rejected"}).json()["results"]}
-    assert "more than" in rej[huge] and "below" in rej[tiny]
 
 
 def test_kv_cache_dtype_and_sliding_window():
@@ -287,9 +238,11 @@ def test_the_calibration_sample_is_chosen_by_workload_not_just_described():
 
 
 def test_performance_endpoint_reports_calibration_support_and_range():
+    imp = c.post("/api/v1/benchmarks/import", headers=ADMIN, json={**REF, "context_tokens": 8192, "users": 4, "tok_s_per_user": 90, "source_url": "https://example.com/4090-x4"})
+    assert imp.status_code == 201  # a reference run at exactly BASE's workload
     p = c.post("/api/v1/estimate/performance", json=BASE).json()["performance"]
     cal = p["calibration"]
-    # an earlier test verified a 4090 run at exactly BASE's workload (4 users, 8k), so it is the whole matched sample
+    # the run imported above is exactly BASE's workload (4 users, 8k), so it is the whole matched sample
     assert cal["runs"] == 1 and cal["runs_in_tier"] > cal["runs"] and cal["tier"] == "this GPU" and cal["workload_match"] == "context_and_concurrency" and cal["level"] == "thin"
     two = c.post("/api/v1/estimate/performance", json={**BASE, "concurrency": 2}).json()["performance"]["calibration"]  # no run at 2 users anywhere
     assert two["workload_match"] == "none" and two["level"] == "extrapolated" and two["tier"] == "this GPU"
@@ -323,20 +276,6 @@ def test_gpu_specs_carry_provenance_and_unverified_ones_warn():
     assert not any("verified" in w for w in c.post("/api/v1/estimate/memory", json={**BASE, "gpu": "H100 80GB SXM"}).json()["warnings"])
 
 
-def test_public_submission_is_rate_limited_bounded_and_size_capped():
-    from app import main
-    bad = {**GOOD, "context_tokens": 4097, "consent_to_publish": True}
-    for patch in ({"model": "x" * 101}, {"tok_s_per_user": 1e9}, {"source_url": "javascript:alert(1)"}, {"users": 10**9}, {"submitter": "y" * 65}):
-        assert c.post("/api/v1/benchmarks/submit", json={**bad, **patch}).status_code == 422, patch
-    assert c.post("/api/v1/benchmarks/submit", content="x" * 70_000, headers={"content-type": "application/json"}).status_code == 413
-    main.SUBMIT_LIMIT, main._submits = 2, {}
-    try:
-        codes = [c.post("/api/v1/benchmarks/submit", json={**bad, "context_tokens": 5000 + i}).status_code for i in range(4)]
-    finally:
-        main.SUBMIT_LIMIT, main._submits = 1000, {}
-    assert codes == [202, 202, 429, 429]
-
-
 def test_production_refuses_to_start_with_open_cors():
     import subprocess, sys
     base = {**os.environ, "OMEN_ENV": "production", "OMEN_DB": "sqlite://"}
@@ -346,90 +285,3 @@ def test_production_refuses_to_start_with_open_cors():
     assert run({**base, "OMEN_CORS": "https://omen.example"}).returncode == 0
 
 
-def test_a_submitter_can_follow_their_run_by_id():
-    rid = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 7777, "submitter": "Ada"}).json()["id"]
-    got = c.get(f"/api/v1/benchmarks/{rid}").json()
-    assert got["id"] == rid and got["status"] == "community" and "submitter" not in got  # name hidden without opt-in
-    bad = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 7778, "gpu": "Imaginary 9000"}).json()["id"]
-    assert c.get(f"/api/v1/benchmarks/{bad}").json()["status"] == "rejected" and "not in the catalog" in c.get(f"/api/v1/benchmarks/{bad}").json()["problems"][0]
-    assert c.get("/api/v1/benchmarks/999999").status_code == 404
-
-
-def test_per_gpu_vram_and_token_method_are_validated():
-    base = {**GOOD, "gpu_count": 2, "vram_gib": 18.0, "vram_gib_per_gpu": [9.0, 9.0], "context_tokens": 9101, "token_count_method": "usage"}
-    ok = c.post("/api/v1/benchmarks/submit", json=base).json()["id"]
-    assert c.get(f"/api/v1/benchmarks/{ok}").json()["status"] == "community"
-    assert c.get(f"/api/v1/benchmarks/{ok}").json()["vram_gib_per_gpu"] == [9.0, 9.0]
-    for i, patch in enumerate(({"vram_gib_per_gpu": [9.0]}, {"vram_gib_per_gpu": [9.0, 30.0], "vram_gib": 39.0}, {"vram_gib": 40.0}), start=1):
-        rid = c.post("/api/v1/benchmarks/submit", json={**base, **patch, "context_tokens": 9101 + i}).json()["id"]
-        assert c.get(f"/api/v1/benchmarks/{rid}").json()["status"] == "rejected", patch
-    est = c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 9200, "token_count_method": "chunks"}).json()["id"]
-    got = c.get(f"/api/v1/benchmarks/{est}").json()
-    assert got["status"] == "community" and any("estimated from streamed chunks" in p for p in got["problems"])  # accepted, but flagged
-    assert c.post("/api/v1/benchmarks/submit", json={**GOOD, "context_tokens": 9201, "token_count_method": "guess"}).status_code == 422
-
-
-def _community(**kw):
-    rid = c.post("/api/v1/benchmarks/submit", json={**GOOD, "source_url": "https://example.com/original", **kw}).json()["id"]
-    assert c.get(f"/api/v1/benchmarks/{rid}").json()["status"] == "community"
-    return rid
-
-
-def test_verification_leaves_an_audit_trail_and_never_touches_the_submitted_data():
-    rid = _community(context_tokens=11001)
-    before = c.get(f"/api/v1/benchmarks/{rid}").json()
-    assert before["reviews"] == []
-    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json={k: v for k, v in REVIEW.items() if k != "reviewer"}, headers=ADMIN).status_code == 422  # the shared key names nobody
-    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json={**REVIEW, "notes": "ok"}, headers=ADMIN).status_code == 422  # reasoning is required, not a shrug
-    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json=REVIEW, headers=ADMIN).json()["reviewer"] == "Test Reviewer (declared, shared admin key)"
-    after = c.get(f"/api/v1/benchmarks/{rid}").json()
-    (rev,) = after["reviews"]
-    assert (rev["action"], rev["status_before"], rev["status_after"]) == ("verify", "community", "verified") and rev["reviewed_at"].endswith("+00:00")
-    assert rev["notes"] == REVIEW["notes"] and rev["evidence_reviewed"] == REVIEW["evidence_reviewed"] and rev["reviewer"].startswith("Test Reviewer")
-    assert {k: after[k] for k in before if k not in ("status", "reviews")} == {k: before[k] for k in before if k not in ("status", "reviews")}  # only the status moved
-    assert after["source_url"] == "https://example.com/original"  # the original source is preserved
-    listed = next(x for x in c.get("/api/v1/benchmarks", params={"status": "verified"}).json()["results"] if x["id"] == rid)
-    assert listed["verified_by"].startswith("Test Reviewer") and listed["verified_at"] == rev["reviewed_at"]
-
-
-def test_each_reviewer_can_have_their_own_key_and_the_name_comes_from_the_key(monkeypatch):
-    monkeypatch.setenv("OMEN_REVIEWER_KEYS", "alice:alice-key,bob:bob-key")
-    rid = _community(context_tokens=11002)
-    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json=REVIEW, headers={"x-admin-key": "wrong"}).status_code == 403
-    r = c.post(f"/api/v1/benchmarks/{rid}/verify", json={**REVIEW, "reviewer": "Mallory"}, headers={"x-admin-key": "bob-key"}).json()
-    assert r["reviewer"] == "bob"  # an identity claim in the body cannot override the key's owner
-    assert c.get(f"/api/v1/benchmarks/{rid}").json()["reviews"][0]["reviewer"] == "bob"
-    price = {"provider": "AWS", "instance_type": "alice.1x", "region": "us-east-1", "gpu": "RTX 4090 24GB", "gpu_count": 1, "usd_hr": 1.0, "source_url": "https://example.com/p", "observed_at": "2026-11-02"}
-    assert c.post("/api/v1/prices", json=price, headers={"x-admin-key": "wrong"}).status_code == 403
-    assert c.post("/api/v1/prices", json=price, headers={"x-admin-key": "alice-key"}).status_code == 201  # reviewer keys work for prices too
-
-
-def test_rejection_needs_a_reason_is_audited_and_drops_the_run_from_calibration():
-    from app import benchmarks
-    rid = _community(context_tokens=11003)
-    c.post(f"/api/v1/benchmarks/{rid}/verify", json=REVIEW, headers=ADMIN)
-    assert any(r["context"] == 11003 for r in benchmarks.trusted_runs())  # verified: it is evidence
-    assert c.post(f"/api/v1/benchmarks/{rid}/reject", json=REVIEW, headers=ADMIN).status_code == 422  # no reason
-    rej = {**REVIEW, "reason": "The linked page shows a different GPU.", "notes": "Source says RTX 3090, the run claims RTX 4090."}
-    assert c.post(f"/api/v1/benchmarks/{rid}/reject", json=rej).status_code == 403
-    assert c.post(f"/api/v1/benchmarks/{rid}/reject", json=rej, headers=ADMIN).json()["status"] == "rejected"
-    assert not any(r["context"] == 11003 for r in benchmarks.trusted_runs())  # a rejected run never influences calibration
-    got = c.get(f"/api/v1/benchmarks/{rid}").json()
-    assert [(r["action"], r["status_after"]) for r in got["reviews"]] == [("verify", "verified"), ("reject", "rejected")]  # history kept, in order
-    assert got["reviews"][1]["rejection_reason"] == "The linked page shows a different GPU."
-    assert c.post(f"/api/v1/benchmarks/{rid}/verify", json=REVIEW, headers=ADMIN).status_code == 409  # no quiet un-rejecting
-    assert c.post(f"/api/v1/benchmarks/{rid}/reject", json=rej, headers=ADMIN).status_code == 409
-    sourced = c.get("/api/v1/benchmarks", params={"status": "sourced"}).json()["results"][0]["id"]
-    assert c.post(f"/api/v1/benchmarks/{sourced}/reject", json=rej, headers=ADMIN).status_code == 409  # imported runs carry their own provenance
-    assert c.post("/api/v1/benchmarks/999999/verify", json=REVIEW, headers=ADMIN).status_code == 404
-
-
-def test_duplicate_detection_compares_gpu_count_and_kv_dtype_too():
-    base = {**GOOD, "context_tokens": 12001, "tok_s_per_user": 100, "vram_gib": None}
-    first = c.post("/api/v1/benchmarks/submit", json=base).json()["id"]
-    twin = c.post("/api/v1/benchmarks/submit", json={**base, "tok_s_per_user": 101}).json()["id"]
-    two_gpus = c.post("/api/v1/benchmarks/submit", json={**base, "tok_s_per_user": 101, "gpu_count": 2}).json()["id"]
-    fp8 = c.post("/api/v1/benchmarks/submit", json={**base, "tok_s_per_user": 101, "kv_dtype": "fp8"}).json()["id"]
-    status = lambda i: c.get(f"/api/v1/benchmarks/{i}").json()
-    assert status(first)["status"] == "community" and status(twin)["status"] == "rejected" and status(twin)["duplicate_of"] == first
-    assert status(two_gpus)["status"] == "community" and status(fp8)["status"] == "community"  # different setups, not duplicates

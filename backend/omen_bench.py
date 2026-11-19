@@ -3,7 +3,7 @@
   python omen_bench.py --url http://localhost:8000 --served-model my-model --model Llama-3.1-8B --quant "Q4_K_M" \
       --gpu "RTX 4090 24GB" --engine "llama.cpp b4567" --users 1 --output-tokens 256
 
-Nothing is sent anywhere unless you pass --submit API_URL --consent.
+Nothing is sent anywhere: the result is written to a local JSON file.
 
 Tokens are counted, best method first, and the result records which one was used:
   usage      the server's own completion token count (stream_options.include_usage). Exact.
@@ -170,14 +170,10 @@ def run(args) -> dict:
         "tok_s_per_user": 1000 / tpot, "ttft_ms": statistics.median(r["ttft_ms"] for r in results), "tpot_ms": tpot,
         **vr, "gpu_count": args.gpu_count, "kv_dtype": args.kv_dtype,
         "token_count_method": method, "tokens_exact": method == "usage", "chunk_token_ratio": round(ratio, 3),
-        "source_url": args.source_url, "submitter": args.submitter, "consent_to_publish": False, "attribute_me": args.attribute,
+        "source_url": args.source_url,
         "aggregate_tok_s": sum(r["tokens"] for r in results) / wall,  # output tokens of all users / wall time of the measured window
         "notes": "; ".join(notes),
     }
-
-
-SUBMIT_FIELDS = ("model", "quant", "gpu", "engine", "context_tokens", "users", "tok_s_per_user", "ttft_ms", "tpot_ms", "vram_gib", "vram_gib_per_gpu", "gpu_count", "kv_dtype",
-                 "token_count_method", "source_url", "submitter", "consent_to_publish", "attribute_me")
 
 
 def main(argv=None):
@@ -198,20 +194,9 @@ def main(argv=None):
     p.add_argument("--input-tokens", type=int, default=128)
     p.add_argument("--output-tokens", type=int, default=128)
     p.add_argument("--source-url", default=None)
-    p.add_argument("--submitter", default=None)
-    p.add_argument("--attribute", action="store_true", help="opt in to showing --submitter publicly (default: anonymous)")
     p.add_argument("--output", default="omen-result.json")
-    p.add_argument("--submit", metavar="API_URL", help="OMEN API base URL to submit to")
-    p.add_argument("--consent", action="store_true", help="required with --submit: you agree to publish this result")
     a = p.parse_args(argv)
-    if a.submit and not a.consent:  # fail before spending minutes measuring
-        sys.exit("--submit needs --consent: OMEN never publishes a result without it")
     res = run(a)
-    if a.submit:
-        res["consent_to_publish"] = True
-        body = {k: res[k] for k in SUBMIT_FIELDS if res.get(k) is not None}
-        r = httpx.post(a.submit.rstrip("/") + "/api/v1/benchmarks/submit", json=body, timeout=30)
-        print("submit:", r.status_code, r.text)
     with open(a.output, "w", encoding="utf-8") as f:
         json.dump(res, f, indent=2)
     print(f"wrote {a.output}: {res['tok_s_per_user']:.1f} tok/s per user, TTFT {res['ttft_ms']:.0f} ms, TPOT {res['tpot_ms']:.1f} ms, tokens counted by {res['token_count_method']}")

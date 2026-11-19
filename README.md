@@ -86,7 +86,7 @@ How every number is produced, what each label means, and where it stops being re
 
 It covers the four evidence categories (memory measured, performance measured, calibrated estimate, estimated), the memory formulas and KV cache types, how an expected speed is calibrated from the most specific runs available, how quality loss and GPU specs are labelled, and the known limits.
 
-Behind the page there is also an optional [API](#the-api-backend) and a benchmark runner for measuring your own server.
+Behind the page there is also an optional [API](#the-api-backend) and a local [benchmark runner](#reference-measurements-and-the-benchmark-runner) for measuring your own server.
 
 ## Try it
 
@@ -137,21 +137,25 @@ So the ceiling reads about 1.5x too high on consumer cards and about 3x too high
 
 To turn the ceiling into an expected speed, the calculator averages only runs that match your workload: the same number of users and a context within 4x of yours, on this GPU and engine first. Runs at a different concurrency or context are never mixed in. When nothing matches it steps down (this GPU at your concurrency with a different context, then other GPUs, then the nearest hardware unmatched) and labels every step down "extrapolated". It shows how many of the runs on that hardware were used, their range, and what they covered. Only a matched same-GPU sample escapes "extrapolated", and with fewer than 3 runs it says "thin".
 
-## Contribute a measured run
+## Reference measurements and the benchmark runner
 
-Real measurements beat estimates. If you have run a model, open the calculator for that combination and press **Submit your measured run**. It opens a pre-filled GitHub issue. Fill in the engine, tokens per second and a source link. The format is described in `runs.schema.json`, with an example in `run-template.json`.
+OMEN's benchmark data is a small set of **sourced reference measurements**: published results (`measured.js`, five llama.cpp runs for now), each with a link to where it came from. There is no public submission or moderation. To add a reference run, a maintainer adds a row to `measured.js` (format in `runs.schema.json`, example in `run-template.json`) and, for the API, imports it with `POST /api/v1/benchmarks/import`, which checks it and refuses it with the reasons if it is implausible or repeats a stored run.
 
-To measure a running server, use `backend/omen_bench.py`: it works with any OpenAI-compatible server (vLLM, the llama.cpp server), records time to first token, time per token and throughput, and submits only when you pass `--consent`.
+To measure your own hardware, use the local runner, `backend/omen_bench.py`. It works with any OpenAI-compatible server (vLLM, the llama.cpp server) and writes a JSON file; nothing is sent anywhere.
 
-- **Tokens are counted, best method first, and the result says which**: the server's own `usage` report (exact), your `--tokenizer` applied to the generated text (exact if it matches the model), or streamed chunks (an estimate, because a chunk can hold several tokens). Estimated runs are accepted but flagged.
+```bash
+python backend/omen_bench.py --url http://localhost:8000 --served-model my-model --model Llama-3.1-8B --quant Q4_K_M \
+    --gpu "RTX 4090 24GB" --engine "llama.cpp b4567" --users 4 --requests 5 --output-tokens 256
+```
+
+- **Tokens are counted, best method first, and the result says which**: the server's own `usage` report (exact), your `--tokenizer` applied to the generated text (exact if it matches the model), or streamed chunks (an estimate, because a chunk can hold several tokens).
 - **GPU memory is sampled every 0.5 s through the whole run** with `nvidia-smi`. The result carries the peak of the summed memory of the GPUs you name (`--gpu-ids 0,1`) and each GPU's own peak. It includes other processes and anything the engine pre-allocated, so it is the footprint, not the minimum.
 
 ## Contributing
 
-- **Report a measured speed**: use **Submit your measured run** in the calculator (see above).
-- **Report a measured memory use**: run the model, read the peak with `nvidia-smi --query-gpu=memory.used --format=csv`, and include it as `vram_gib` (with `gpu_count` and `kv_dtype` if they are not the defaults). Runs with peak memory are what allow a setup to be labelled "measured to fit", so these are especially welcome.
-- **Verify a GPU**: read its vendor datasheet, check VRAM, bandwidth and FP16 TFLOPS, update `gpus.js` / `gpu-compute.js`, and add an entry to `gpu-sources.js` with the source URL, date and the fields you checked.
 - **Fix or add a model**: add its Hugging Face repo to `scripts/gen-models.js` and run `node scripts/gen-models.js`. Do not edit `models.js` by hand. Models are only included when their `config.json` and parameter count can be read.
+- **Verify a GPU**: read its vendor datasheet, check VRAM, bandwidth and FP16 TFLOPS, update `gpus.js` / `gpu-compute.js`, and add an entry to `gpu-sources.js` with the source URL, date and the fields you checked.
+- **Add a reference measurement**: only from a published or reproducible source, with its link. Include `vram_gib` when the source reports peak memory: that is what allows a setup to be labelled "measured to fit".
 - Run `node test.js` and `cd backend && python -m pytest` before opening a pull request. After changing any data file, run `node scripts/export-catalog.js` so the API stays in sync.
 
 ## Project layout
@@ -173,12 +177,12 @@ To measure a running server, use `backend/omen_bench.py`: it works with any Open
 
 ```bash
 node test.js                    # page maths
-cd backend && python -m pytest  # API, 44 tests
+cd backend && python -m pytest  # API, 32 tests
 ```
 
 GitHub Actions runs both on every push, and runs the API tests against PostgreSQL as well as SQLite.
 
-`backend/tests/test_e2e_benchmark_lifecycle.py` follows one benchmark through the whole path: submit, pending, community, verified, the public explorer, and the speed estimate. It checks that only a verified run changes the estimate, and that pending, community, rejected and later-rejected runs never do.
+`backend/tests/test_e2e_benchmark_lifecycle.py` follows one reference run through the API: a maintainer imports it, it appears in the explorer, and it moves the speed estimate. A run that fails validation or repeats a stored one is refused and leaves no trace, and the public has no endpoint to submit, verify or reject anything.
 
 ## Limits
 
@@ -195,11 +199,11 @@ The web page does not use this server: everything in it, including the **Recomme
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m pytest                                # 44 tests
+python -m pytest                                # 32 tests
 python -m uvicorn app.main:app --port 8787      # docs at http://localhost:8787/docs
 ```
 
-Set the reviewer key first if you want to verify runs or add prices. Git Bash / Linux / macOS: `export OMEN_ADMIN_KEY=choose-a-secret`. Windows PowerShell: `$env:OMEN_ADMIN_KEY="choose-a-secret"`. If you see "address already in use", another program has that port: pick another with `--port`.
+Set the maintainer key first if you want to import reference runs or add prices. Git Bash / Linux / macOS: `export OMEN_ADMIN_KEY=choose-a-secret`. Windows PowerShell: `$env:OMEN_ADMIN_KEY="choose-a-secret"`. If you see "address already in use", another program has that port: pick another with `--port`.
 
 | Endpoint | What it does |
 |---|---|
@@ -210,14 +214,12 @@ Set the reviewer key first if you want to verify runs or add prices. Git Bash / 
 | `GET /api/v1/prices`, `POST /api/v1/prices` | Cloud price catalog (AWS, Google Cloud, Azure, Oracle, CoreWeave, Lambda, RunPod, Vast.ai, Paperspace, DigitalOcean, Together AI). Reviewer-entered, each with a source URL and date, append-only. `/cost/estimate` takes `provider` and `pricing_model` to use it. The catalog starts empty, so costs use assumed prices until prices are entered |
 | `POST /api/v1/configurations/compare` | Side by side; warns when workloads differ |
 | `POST /api/v1/recommendations` | Hard limits first, then one pick per priority. Each pick carries a `confidence` (0.9 measured at your concurrency, 0.7 measured at another, 0.5 calibrated on other models on that GPU, 0.3 first-principles). **High confidence means 0.75 or above**, so only a measured setup qualifies. `min_confidence: 0.75` drops everything else. The score is a fixed ladder, not a probability |
-| `POST /api/v1/benchmarks/submit`, `GET /benchmarks`, `GET /benchmarks/{id}`, `POST /benchmarks/{id}/verify`, `POST /benchmarks/{id}/reject` | Consent-gated submission (10 per client per hour, every field bounded, 64 KB body cap), background validation, duplicate checks on the whole setup (model, quantization, GPU and count, KV type, engine, context, users) and physics checks (including `vram_gib` vs the GPU and the weights). Reviewers verify or reject with required notes, the evidence they checked and (for rejection) a reason; each action is an append-only audit row (who, when, before and after status) shown by `GET /benchmarks/{id}`, the submitted data and source URL are never altered, and a rejected run leaves calibration immediately. Only sourced and verified runs count as evidence or calibration; `vram_gib`, `gpu_count` and `kv_dtype` are what make a run count for memory |
+| `POST /api/v1/benchmarks/import`, `GET /benchmarks`, `GET /benchmarks/{id}` | Sourced reference runs. Import needs the maintainer key and a source link; the run is validated (catalog names, bandwidth ceiling, `vram_gib` vs the GPU, the weights and per-GPU peaks) and refused with reasons if implausible or a duplicate of the same setup (model, quantization, GPU and count, KV type, engine, context, users). Rows are never edited or deleted. `vram_gib`, `gpu_count` and `kv_dtype` are what make a run count for memory; every stored run feeds evidence and calibration |
 | `POST /api/v1/keys`, `/workspaces/{project}/analyses`, `/workspaces/{project}/changes` | Hashed API keys with a rate limit, private saved analyses, re-run and report material changes |
 | `GET /metrics` | Prometheus metrics |
 
-The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects PostgreSQL, and `docker compose up --build` in `backend/` starts the API, PostgreSQL and Prometheus. If you have a database file from an older version, delete it: the schema gained columns.
+The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects PostgreSQL, and `docker compose up --build` in `backend/` starts the API, PostgreSQL and Prometheus. If you have a database file from an older version, delete it: the benchmark tables changed.
 
-**Reviewers.** `OMEN_REVIEWER_KEYS="alice:key1,bob:key2"` gives each reviewer their own key and the audit trail records the key owner. The shared `OMEN_ADMIN_KEY` still works, but the reviewer then has to name themselves and is recorded as "declared, shared admin key".
+**Production.** Set `OMEN_ENV=production`: the server then refuses to start unless `OMEN_CORS` lists your site's origin (`*` is only the local default). Compose requires `OMEN_ADMIN_KEY` (the maintainer key), `POSTGRES_PASSWORD` and `OMEN_CORS`, restarts services, and keeps data in the `pgdata` volume; back it up with `docker compose exec db pg_dump -U omen omen > omen-backup.sql`. Behind a proxy, run uvicorn with `--proxy-headers` so the submission rate limit sees real client addresses (it is per process; use Redis if you run several workers).
 
-**Production.** Set `OMEN_ENV=production`: the server then refuses to start unless `OMEN_CORS` lists your site's origin (`*` is only the local default). Compose requires `OMEN_ADMIN_KEY`, `POSTGRES_PASSWORD` and `OMEN_CORS`, restarts services, and keeps data in the `pgdata` volume; back it up with `docker compose exec db pg_dump -U omen omen > omen-backup.sql`. Behind a proxy, run uvicorn with `--proxy-headers` so the submission rate limit sees real client addresses (it is per process; use Redis if you run several workers).
-
-**Tested so far.** SQLite: 44 backend tests and all page tests. PostgreSQL: the same suite runs in GitHub Actions. Docker Compose and a real deployment have not been tested yet: do that before launch.
+**Tested so far.** SQLite: 32 backend tests and all page tests. PostgreSQL: the same suite runs in GitHub Actions. Docker Compose and a real deployment have not been tested yet: do that before launch.

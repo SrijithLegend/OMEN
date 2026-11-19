@@ -8,7 +8,7 @@ from typing import Annotated
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from sqlalchemy import delete, insert, select, update
 from pydantic import BaseModel, Field
@@ -245,8 +245,8 @@ def performance(c: PerfRequest):
     return {"status": "estimated", "performance": r, "evidence": _evidence(c), "warnings": warnings}
 
 
-class BenchmarkSubmission(BaseModel):
-    """Every field is bounded: this endpoint is public, so nothing unbounded or absurd is stored."""
+class ReferenceRun(BaseModel):
+    """A sourced reference measurement. Every field is bounded and the source is required."""
     model: str = Field(max_length=100)
     quant: str = Field(max_length=100)
     gpu: str = Field(max_length=100)
@@ -261,97 +261,38 @@ class BenchmarkSubmission(BaseModel):
     gpu_count: int = Field(1, ge=1, le=64)
     kv_dtype: str = Field("fp16", pattern="^(" + "|".join(KV_BYTES) + ")$")
     token_count_method: str | None = Field(None, pattern="^(usage|tokenizer|chunks)$")  # how tokens/s was counted; chunks is an estimate
-    source_url: str | None = Field(None, pattern=r"^https?://\S{1,500}$")
-    submitter: str | None = Field(None, max_length=64)
-    consent_to_publish: bool
-    attribute_me: bool = False  # opt-in: without it the submitter name is stored but never shown
+    source_url: str = Field(pattern=r"^https?://\S{1,500}$")
 
 
-SUBMIT_LIMIT = int(os.environ.get("OMEN_SUBMIT_LIMIT", 10))  # submissions per client per hour
-_submits: dict[str, list[float]] = {}  # ponytail: per-process memory keyed by client IP; behind a proxy run uvicorn --proxy-headers, with several workers use Redis
+def _admin(key: str | None) -> None:
+    """Maintainer actions (importing a reference run, entering a price) need OMEN_ADMIN_KEY. Unset means nobody can."""
+    admin = os.environ.get("OMEN_ADMIN_KEY")
+    if not (key and admin and secrets.compare_digest(key, admin)):
+        raise HTTPException(403, "maintainer key required")
 
 
-def _submit_allowed(host: str) -> bool:
-    now = time.time()
-    recent = [t for t in _submits.get(host, []) if now - t < 3600]
-    ok = len(recent) < SUBMIT_LIMIT
-    _submits[host] = recent + [now] if ok else recent
-    return ok
-
-
-@app.post("/api/v1/benchmarks/submit", status_code=202)
-def submit_benchmark(b: BenchmarkSubmission, background: BackgroundTasks, request: Request):
-    """Needs explicit consent. Validation runs in the background; poll GET /benchmarks?status=... or the returned id."""
-    if not _submit_allowed(request.client.host if request.client else "unknown"):
-        raise HTTPException(429, f"at most {SUBMIT_LIMIT} submissions per hour", headers={"Retry-After": "3600"})
-    if not b.consent_to_publish:
-        raise HTTPException(400, "consent_to_publish must be true: OMEN never publishes a result without it")
-    run_id = benchmarks.submit(b.model_dump())
-    background.add_task(benchmarks.process, run_id)
-    return {"id": run_id, "status": "pending"}
+@app.post("/api/v1/benchmarks/import", status_code=201)
+def import_benchmark(b: ReferenceRun, x_admin_key: str | None = Header(None)):
+    """Maintainer action: store a sourced reference run (for instance a result file from omen_bench.py plus the link that backs it). The run is validated
+    first and refused with the reasons if it is implausible or repeats a stored run. There is no public submission."""
+    _admin(x_admin_key)
+    try:
+        return {"id": benchmarks.import_run(b.model_dump())}
+    except benchmarks.Rejected as e:
+        raise HTTPException(409 if e.problems[0].startswith("duplicate") else 422, e.problems)
 
 
 @app.get("/api/v1/benchmarks")
-def search_benchmarks(model: str | None = None, quant: str | None = None, gpu: str | None = None, engine: str | None = None, status: str | None = None):
-    return {"results": benchmarks.search(model=model, quant=quant, gpu=gpu, engine=engine, status=status)}
+def search_benchmarks(model: str | None = None, quant: str | None = None, gpu: str | None = None, engine: str | None = None):
+    return {"results": benchmarks.search(model=model, quant=quant, gpu=gpu, engine=engine)}
 
 
 @app.get("/api/v1/benchmarks/{run_id}")
 def get_benchmark(run_id: int):
-    """One run by id, in any status, so a submitter can follow it from pending to community or rejected (with the reasons)."""
     r = benchmarks.get(run_id)
     if r is None:
         raise HTTPException(404, "no such run")
     return r
-
-
-def _reviewer(key: str | None, declared: str | None) -> str:
-    """Who is acting. OMEN_REVIEWER_KEYS="alice:key1,bob:key2" gives each reviewer their own key and the name comes from the key. The shared
-    OMEN_ADMIN_KEY also works, but then the name is only what the caller declares, and is recorded as such."""
-    if key:
-        for pair in os.environ.get("OMEN_REVIEWER_KEYS", "").split(","):
-            name, _, k = pair.partition(":")
-            if name and k and secrets.compare_digest(key, k):
-                return name.strip()
-        admin = os.environ.get("OMEN_ADMIN_KEY")
-        if admin and secrets.compare_digest(key, admin):
-            if not declared:
-                raise HTTPException(422, "reviewer: say who you are (the shared admin key does not identify a person)")
-            return f"{declared.strip()} (declared, shared admin key)"
-    raise HTTPException(403, "reviewer key required")
-
-
-class ReviewBody(BaseModel):
-    reviewer: str | None = Field(None, min_length=1, max_length=64)  # only used with the shared admin key
-    notes: str = Field(min_length=10, max_length=2000)  # the reasoning, in the reviewer's words
-    evidence_reviewed: str = Field(min_length=5, max_length=1000)  # what was checked: the source page, a reproduction run, the raw output ...
-
-
-class RejectBody(ReviewBody):
-    reason: str = Field(min_length=5, max_length=1000)  # shown to the submitter
-
-
-def _review(run_id: int, action: str, key: str | None, b: ReviewBody, reason: str | None = None):
-    who = _reviewer(key, b.reviewer)
-    try:
-        status = benchmarks.review(run_id, action, who, notes=b.notes, evidence=b.evidence_reviewed, reason=reason)
-    except LookupError:
-        raise HTTPException(404, "no such run")
-    except ValueError as e:
-        raise HTTPException(409, str(e))
-    return {"id": run_id, "status": status, "reviewer": who}
-
-
-@app.post("/api/v1/benchmarks/{run_id}/verify")
-def verify_benchmark(run_id: int, b: ReviewBody, x_admin_key: str | None = Header(None)):
-    """Reviewer action: promote a Community run to Verified. Records who, when, the notes and the evidence reviewed; the run's own data is never altered."""
-    return _review(run_id, "verify", x_admin_key, b)
-
-
-@app.post("/api/v1/benchmarks/{run_id}/reject")
-def reject_benchmark(run_id: int, b: RejectBody, x_admin_key: str | None = Header(None)):
-    """Reviewer action: reject a Community or Verified run, with a reason the submitter can read. A rejected run drops out of calibration at once."""
-    return _review(run_id, "reject", x_admin_key, b, b.reason)
 
 
 class PriceRecord(BaseModel):
@@ -369,7 +310,7 @@ class PriceRecord(BaseModel):
 @app.post("/api/v1/prices", status_code=201)
 def add_price(p: PriceRecord, x_admin_key: str | None = Header(None)):
     """Reviewer action (same key as /verify). Every price needs a source URL and the date it was read; rows are never overwritten."""
-    _reviewer(x_admin_key, "price entry")  # same keys as benchmark review
+    _admin(x_admin_key)
     if p.provider not in prices.PROVIDERS or p.pricing_model not in prices.PRICING_MODELS:
         raise HTTPException(422, f"provider must be one of {prices.PROVIDERS}, pricing_model one of {prices.PRICING_MODELS}")
     _lookup(GPUS, p.gpu, "GPU")

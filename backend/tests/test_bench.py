@@ -34,13 +34,7 @@ def test_runner_measures_the_stub(tmp_path):
     finally:
         srv.shutdown()
     assert 40 < res["ttft_ms"] < 200 and 8 < res["tpot_ms"] < 30  # 50 ms to first token, ~10 ms per token
-    assert res["consent_to_publish"] is False and json.loads(out.read_text())["users"] == 2
-
-
-def test_submit_requires_consent():
-    import pytest
-    with pytest.raises(SystemExit):
-        omen_bench.main(["--url", "http://127.0.0.1:1", "--served-model", "x", "--model", "m", "--quant", "q", "--gpu", "g", "--engine", "e", "--submit", "http://x"])
+    assert json.loads(out.read_text())["users"] == 2
 
 
 def _serve(handler):
@@ -139,16 +133,3 @@ def test_the_background_sampler_polls_during_the_run(monkeypatch):
     with omen_bench.VramSampler([0], interval=0.02) as s:
         time.sleep(0.15)
     assert len(calls) >= 5 and s.result()["vram_gib"] == 4.88  # it kept sampling while the work ran
-
-
-def test_submit_body_carries_only_schema_fields(tmp_path, monkeypatch):
-    sent = {}
-    monkeypatch.setattr(omen_bench.httpx, "post", lambda url, json, timeout: type("R", (), {"status_code": 202, "text": "{}"})() if sent.update(json) is None else None)
-    monkeypatch.setattr(omen_bench, "read_gpu_mem", lambda: {0: 9000.0})
-    srv = _serve(_stub(["ab"] * 10, {"prompt_tokens": 50, "completion_tokens": 20}))
-    try:
-        omen_bench.main(["--url", f"http://127.0.0.1:{srv.server_port}", *ARGS, "--output", str(tmp_path / "r.json"), "--submit", "http://api", "--consent"])
-    finally:
-        srv.shutdown()
-    assert sent["token_count_method"] == "usage" and sent["vram_gib_per_gpu"] == [8.79] and sent["consent_to_publish"] is True
-    assert "notes" not in sent and "aggregate_tok_s" not in sent and "tokens_exact" not in sent

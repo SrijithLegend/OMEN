@@ -1,36 +1,25 @@
 """Database: SQLAlchemy Core, SQLite by default. Set OMEN_DB=postgresql+psycopg://user:pass@host/omen for PostgreSQL (needs psycopg installed).
-Units are explicit in column names. Benchmark rows are never overwritten: only their status moves forward."""
+Units are explicit in column names. Benchmark rows are never overwritten or deleted."""
 import os
 
-from sqlalchemy import (JSON, Boolean, Column, Float, Integer, MetaData, String, Table, Text, create_engine, func, insert, select)
+from sqlalchemy import (JSON, Column, Float, Integer, MetaData, String, Table, Text, create_engine, func, insert, select)
 from sqlalchemy.pool import StaticPool
 
 URL = os.environ.get("OMEN_DB", "sqlite:///omen.db")
 engine = create_engine(URL, **({"poolclass": StaticPool, "connect_args": {"check_same_thread": False}} if URL.startswith("sqlite") else {}))
 meta = MetaData()
 
-benchmark_runs = Table(
+benchmark_runs = Table(  # sourced reference measurements: imported by a maintainer with their source, never edited or deleted
     "benchmark_runs", meta,
     Column("id", Integer, primary_key=True),
     Column("model", String, nullable=False), Column("quant", String, nullable=False), Column("gpu", String, nullable=False),
     Column("engine", String, nullable=False), Column("context_tokens", Integer, nullable=False), Column("users", Integer, nullable=False),
-    Column("tok_s_per_user", Float, nullable=False), Column("ttft_ms", Float), Column("tpot_ms", Float), Column("vram_gib", Float),  # peak VRAM across all GPUs; the only field that can establish "measured to fit"
+    Column("tok_s_per_user", Float, nullable=False), Column("ttft_ms", Float), Column("tpot_ms", Float),
+    Column("vram_gib", Float),  # peak VRAM across all GPUs; the only field that can establish "measured to fit"
     Column("vram_gib_per_gpu", JSON),  # each GPU's own peak, when the runner sampled them
-    Column("token_count_method", String),  # usage (exact) | tokenizer | chunks (estimate); null for imported runs
+    Column("token_count_method", String),  # usage (exact) | tokenizer | chunks (estimate); null when the source did not say
     Column("gpu_count", Integer, nullable=False, default=1, server_default="1"), Column("kv_dtype", String, nullable=False, default="fp16", server_default="fp16"),
-    Column("source_url", String), Column("submitter", String), Column("consent_to_publish", Boolean, nullable=False, default=False),
-    Column("attribute_me", Boolean, nullable=False, default=False),  # opt-in: show the submitter name publicly
-    Column("status", String, nullable=False),  # pending -> community | rejected; sourced (imported); verified (reviewer)
-    Column("problems", JSON, nullable=False, default=list),
-    Column("duplicate_of", Integer), Column("created_at", String, server_default=func.now()),
-)
-benchmark_reviews = Table(  # append-only audit trail: every verify or reject is a new row, nothing is ever updated or deleted
-    "benchmark_reviews", meta,
-    Column("id", Integer, primary_key=True), Column("run_id", Integer, nullable=False, index=True),
-    Column("action", String, nullable=False),  # verify | reject
-    Column("reviewer", String, nullable=False), Column("reviewed_at", String, nullable=False),  # UTC ISO timestamp
-    Column("notes", Text), Column("evidence_reviewed", Text),  # what the reviewer actually checked
-    Column("rejection_reason", Text), Column("status_before", String, nullable=False), Column("status_after", String, nullable=False),
+    Column("source_url", String, nullable=False), Column("created_at", String, server_default=func.now()),
 )
 pricing_records = Table(  # append-only: a new price is a new row, so a saved report can cite the price it used
     "pricing_records", meta,
@@ -60,4 +49,4 @@ def init(seed_runs: list[dict]) -> None:
             for r in seed_runs:
                 c.execute(insert(benchmark_runs).values(
                     model=r["model"], quant=r["quant"], gpu=r["gpu"], engine=r["engine"], context_tokens=r["context"], users=r["users"],
-                    tok_s_per_user=r["tok_s"], vram_gib=r.get("vram_gib"), gpu_count=r.get("gpu_count", 1), kv_dtype=r.get("kv_dtype", "fp16"), source_url=r["source"], submitter=None, consent_to_publish=True, status="sourced", problems=[]))
+                    tok_s_per_user=r["tok_s"], ttft_ms=r.get("ttft_ms"), tpot_ms=r.get("tpot_ms"), vram_gib=r.get("vram_gib"), gpu_count=r.get("gpu_count", 1), kv_dtype=r.get("kv_dtype", "fp16"), source_url=r["source"]))
