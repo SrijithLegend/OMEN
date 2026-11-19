@@ -47,7 +47,10 @@ input:hover,.dd>button:hover{border-color:#ff6a2b66}input:focus,.dd>button:focus
 .chip{display:inline-block;margin:0 12px 4px 0;font-size:.82rem;color:var(--mute)}.chip:before{content:"";display:inline-block;width:.7rem;height:.7rem;border-radius:50%;margin-right:6px;background:var(--c)}
 a{color:inherit;font-weight:700}
 table{width:100%;border-collapse:collapse;margin-top:12px;font-size:.85rem;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:7px 10px;white-space:nowrap}th{color:var(--mute);font-weight:500}tr.hit td{color:var(--orange);font-weight:700}tr.no td{color:#777}
-.sm,#share{margin-top:10px;padding:8px 16px;border:0;border-radius:99px;background:var(--field);color:#fff;font:700 .85rem Inter,system-ui;cursor:pointer}
+.sm{margin-top:10px;padding:8px 16px;border:0;border-radius:99px;background:var(--field);color:#fff;font:700 .85rem Inter,system-ui;cursor:pointer}
+.acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px}
+.acts button{padding:9px 18px;border:0;border-radius:99px;background:var(--ink);color:#fff;font:700 .85rem Inter,system-ui;cursor:pointer;transition:filter .15s,transform .1s}
+.acts button:hover{filter:brightness(1.25)}.acts button:active{transform:scale(.97)}.acts small{margin-left:4px}
 .tabs{max-width:72rem;margin:0 auto 12px;display:flex;flex-wrap:wrap;gap:8px}.tabs .side{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
 .tabs button{border:0;border-radius:99px;padding:11px 20px;background:var(--white);color:var(--ink);font:700 .95rem Inter,system-ui;cursor:pointer;transition:filter .15s}
 .tabs button:hover{filter:brightness(.95)}.tabs button.on{background:var(--ink);color:#fff}
@@ -149,7 +152,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
       <div><label><em>7</em> Number of GPUs <input id=n type=number min=1 placeholder="1"></label><div class=pills data-for=n></div></div>
     </div>
     <div class=two style="margin-top:12px;align-items:end"><label>Not listed? Import from Hugging Face <input id=hf placeholder="org/model, e.g. Qwen/Qwen2.5-7B"></label><div><button type=button class=go2 id=hfgo style="margin:0">Import model</button></div></div><small id=hfmsg></small>
-    <button type=button id=go>Calculate &rarr;</button><button type=button id=share>Copy share link</button><button type=button id=rep>Copy report</button><button type=button id=repdl>Download report</button> <small id=cid></small></div>
+    <button type=button id=go>Calculate &rarr;</button><div class=acts><button type=button id=share>Copy share link</button><button type=button id=rep>Copy report</button><button type=button id=repdl>Download report</button><small id=cid></small></div></div>
   <div class="card hero s2 r2 res" id=hero></div>
   <div class="card r2 s2 res" id=vc><span class=lab>Verdict</span><div class=big id=vt></div><div id=vs></div><span class=badge id=conf></span></div>
   <div class="card stat sand res"><span class=lab>Weights</span><b id=sw></b><small>fixed cost of loading</small></div>
