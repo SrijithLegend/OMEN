@@ -8,30 +8,85 @@ What makes OMEN different is that it never passes off a guess as a fact. Every a
 
 **Live demo: https://srijithlegend.github.io/OMEN/** (served by GitHub Pages from the `main` branch)
 
-![OMEN calculator](docs/screenshot.png)
+## A tour of OMEN
 
-## What you get
+OMEN has five tabs. **GPU calculator** and **Recommend** are the tools; **Guide**, **Benchmarks** and **Methodology** explain and back them up.
 
-**GPU calculator**
-- **A clear verdict**: fits or does not fit, in four levels (measured to fit, likely fits, fits theoretically, does not fit), with the headroom left over and how many GPUs you would need if it does not fit.
+### GPU calculator
+
+Pick a use case (optional), model, quantization and GPU, set the context length, the number of users and the number of GPUs, then press **Calculate**.
+
+![The GPU calculator showing Llama-3.1-8B in Q4_K_M on an RTX 4090 for 4 users](docs/calculator.png)
+
+- **Verdict**: fits or does not fit, in four levels (measured to fit, likely fits, fits theoretically, does not fit), with the headroom left over and how many GPUs you would need if it does not fit.
 - **Memory breakdown**: weights, per-user chat memory (KV cache) and overhead, drawn against your GPU's limit, with the biggest component named.
-- **KV cache types**: fp16, bf16, fp8 or int8, and sliding-window models (Gemma, gpt-oss, Mistral-7B and others) handled when you say your engine frees the unused cache.
+- **KV cache types**: fp16, bf16, fp8 or int8. Sliding-window models (Gemma, gpt-oss, Mistral-7B and others) are handled when you say your engine frees the unused cache.
 - **Speed**: the best-case ceiling in tokens per second, an expected speed calibrated from measured runs (with how many runs back it), time to first token, and time per token.
-- **Cost**: cost per user-hour, per 1M output tokens, and per month (billed per use or kept on 24/7).
-- **Quality loss** for every quantization, labelled measured, estimated (shown as ~N%) or unknown.
+- **Cost**: per user-hour, per 1M output tokens, and per month (billed per use or kept on 24/7).
+- **Quality loss** for each quantization, labelled measured, estimated (shown as ~N%) or unknown.
 - **Compare** every GPU, quantization or context length side by side, with CSV export.
 - **Reports and sharing**: copy or download a full markdown fit report, copy a share link, save setups in your browser, and get a stable configuration ID for each setup.
 - **Import** any public Hugging Face model, pinned to its commit. Missing fields are rejected, never guessed.
 
-**Recommend**: set a budget, a minimum speed and a quality limit. OMEN removes every setup that breaks a limit, then shows the cheapest, fastest, best-quality and best-value setups that remain, each with a confidence level. There is no single blended score.
+### Recommend
 
-**Benchmarks**: every measured run next to what the calculator predicts for it, with its source, peak memory when recorded, and CSV export. A result checker validates your own run before you submit it.
+Not sure which GPU or quantization to choose? Tell OMEN your limits and it searches every combination for you.
 
-**Guide**: every term in plain English, including the ones the Recommend tab uses.
+![The Recommend tab: limits for Qwen3-8B and the cheapest, fastest, best-quality and best-value setups that pass](docs/recommend.png)
 
-**Methodology**: how each number is produced, what each label means, and where it stops being reliable.
+| Input | Meaning |
+|---|---|
+| Model | The model you want to run |
+| Number of GPUs | How many identical cards work together |
+| Context, Users | How much text per user, and how many people at once |
+| Max $ per hour | The most you will pay per hour for the whole setup (leave blank for no limit) |
+| Min tokens/s per user | The slowest speed you accept for one user |
+| Max quality loss (%) | The most quality you will give up to quantization |
+| Confidence | **Any**, or **High only** (75% or more), which keeps just the measured setups |
 
-Behind the page there is an optional [API](#the-api-backend) and a benchmark runner for measuring your own server.
+OMEN tries every GPU and quantization (42 GPUs x 17 formats = 714 combinations), removes each one that breaks a limit, and only then picks winners from what is left. There is no single blended score.
+
+- **Result card**: how many setups pass, with your limits restated. In the example above, 348 of 714 pass.
+- **High confidence and Removed**: how many passing setups are well-evidenced, and how many were dropped.
+- **Four pick cards**: **Cheapest** (lowest price per hour), **Fastest** (highest speed ceiling), **Best quality** (least quality loss) and **Best value** (lowest price per token of speed). Each shows the GPU, quantization, price, speed ceiling, quality loss and a confidence badge.
+- **How to read this**: which limits removed how many setups.
+
+Every pick carries a confidence level from a fixed ladder. It is not a probability, and it says nothing about memory unless the run recorded peak memory.
+
+| Confidence | Evidence |
+|---|---|
+| 90% | This exact model, quantization and GPU was measured at your number of users |
+| 70% | Measured, but at a different number of users |
+| 50% | Estimated from measured runs of other models on that GPU |
+| 30% | First-principles maths only |
+
+High confidence means 75% or more, so only a measured setup qualifies. Speeds are ceilings: benchmark before you buy.
+
+### Benchmarks
+
+Every published measured run, set next to what the calculator predicts for it.
+
+![The Benchmarks tab: five measured llama.cpp runs next to their predicted ceilings](docs/benchmarks.png)
+
+Each row links its source and shows peak memory when the run recorded it. The five published runs are Llama-2-7B in Q4_0 on llama.cpp, so the "mean gap" shown is not accuracy for other setups. **Download as CSV** exports the table, and **Check your own result** validates a run you paste in as JSON before you decide to submit it. Nothing is sent anywhere until you choose to.
+
+### Guide
+
+New to running models? The Guide explains every term OMEN uses in plain English, each with an example.
+
+![The Guide tab: a three-step intro and term cards](docs/guide.png)
+
+There are 25 terms. They cover the basics (GPU, VRAM, parameters, weights, tokens, context length, KV cache, users), quantization (fp16 / int8 / int4, quality loss and perplexity), speed (memory bandwidth, tokens per second, decode, MoE, headroom), the difference between estimated and measured, and the Recommend tab's own vocabulary (hard limits, number of GPUs, max $ per hour, min tokens/s, max quality loss, confidence, and the four picks). Buttons at the top open the calculator or Recommend.
+
+### Methodology
+
+How every number is produced, what each label means, and where it stops being reliable.
+
+![The Methodology tab: evidence categories, memory, speed, quality loss and known limits](docs/methodology.png)
+
+It covers the four evidence categories (memory measured, performance measured, calibrated estimate, estimated), the memory formulas and KV cache types, how an expected speed is calibrated from the most specific runs available, how quality loss and GPU specs are labelled, and the known limits.
+
+Behind the page there is also an optional [API](#the-api-backend) and a benchmark runner for measuring your own server.
 
 ## Try it
 
