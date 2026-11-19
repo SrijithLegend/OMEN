@@ -102,4 +102,28 @@ function calibrate(runs, ceilOf, o) { // ceilOf(run) = that run's bandwidth ceil
   return { tier, level, workloadMatch: match, runs: rs.length, runsInTier: inTier, conditionsMatched: match == "context_and_concurrency" ? rs.length : 0,
     utilization: median(xs), low: xs.length > 1 ? Math.min(...xs) : null, high: xs.length > 1 ? Math.max(...xs) : null, caveats };
 }
-if (typeof module !== 'undefined') module.exports = { confidence, HIGH_CONFIDENCE, cluster, workload, recommend, parseHF, validateRun, ttft, median, TP_EFF, KV_TYPES, effLayers, memoryMeasured, calibrate }; // for test.js
+// Benchmark comparison: which fields differ between runs, and can the difference in speed be put down to one of them?
+// Engine is compared by family (vllm, llama.cpp); a different build of the same engine is a separate, softer difference.
+const CMP_FIELDS = [["model", "model"], ["gpu", "GPU"], ["gpu_count", "GPU count"], ["quant", "quantization"], ["engine", "engine"], ["engine_build", "engine build"],
+  ["kv_dtype", "KV cache type"], ["context", "context length"], ["users", "concurrency"]];
+function compareRuns(runs) {
+  const val = (r, k) => k == "engine" ? family(r.engine) : k == "engine_build" ? (r.engine || "").split(" ").slice(1).join(" ") : k == "gpu_count" ? (r.gpu_count || 1) : k == "kv_dtype" ? (r.kv_dtype || "fp16") : r[k];
+  const found = CMP_FIELDS.filter(([k]) => new Set(runs.map(r => val(r, k))).size > 1).map(([key, label]) => ({ key, label }));
+  const familyDiffers = found.some(d => d.key == "engine"), differs = familyDiffers ? found.filter(d => d.key != "engine_build") : found; // another engine: its build is not a separate difference
+  const build = differs.some(d => d.key == "engine_build");
+  const main = differs.filter(d => d.key != "engine_build"), warnings = [];
+  let kind, compared = null;
+  if (!main.length && !build) kind = "identical";
+  else if (!main.length) { kind = "clean"; compared = "engine build"; }
+  else if (main.length == 1) { kind = build ? "caveat" : "clean"; compared = main[0].label; if (build) warnings.push("These are different builds of the same engine, which can move speed on its own: treat the gap as approximate."); }
+  else { kind = "not_comparable"; warnings.push(`${main.map(d => d.label).join(", ")} all differ at once, so the gap in speed cannot be put down to any one of them. Pick runs that differ in a single thing.`); }
+  if (kind == "identical") warnings.push("The configuration is identical: these are repeat measurements of the same setup, so the gap shows run-to-run noise.");
+  if (main.some(d => d.key == "users")) warnings.push("Per-user speed falls as users rise: compare the aggregate row as well.");
+  if (main.some(d => d.key == "context")) warnings.push("Longer context reads more KV cache per token, so a lower speed at a longer context is expected.");
+  if (main.some(d => d.key == "model") && main.length == 1) warnings.push("Different models: the gap reflects model size and architecture, not hardware or format.");
+  const methods = new Set(runs.map(r => r.token_count_method).filter(Boolean));
+  if (methods.has("chunks")) warnings.push(methods.size > 1 ? "Token counts were made in different ways, and one is an estimate from streamed chunks: tokens/s are not strictly comparable." : "Token counts are estimates from streamed chunks, so tokens/s may be off.");
+  if (runs.some(r => r.local)) warnings.push("Includes your own result: it is not independently verified and is not part of OMEN's reference data.");
+  return { kind, compared, differs, warnings };
+}
+if (typeof module !== 'undefined') module.exports = { confidence, HIGH_CONFIDENCE, cluster, workload, recommend, parseHF, validateRun, ttft, median, TP_EFF, KV_TYPES, effLayers, memoryMeasured, calibrate, compareRuns }; // for test.js

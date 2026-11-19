@@ -70,6 +70,16 @@ The published reference measurements, set next to what the calculator predicts f
 
 Each row shows model, GPU, quantization, engine, context length, users, tokens/s, time to first token, time per token, VRAM and the source link. A dash means the source did not report that figure (the five bundled llama.cpp runs report only tokens/s, so their TPOT is derived and marked `*`, and none recorded memory). You can filter by model, GPU, quantization and engine, and **Download as CSV** exports the table. The five runs are Llama-2-7B in Q4_0 on llama.cpp, so the "mean gap" shown is not accuracy for other setups.
 
+**Compare runs.** Pick two to four rows with **+**, or start from a suggested pair. OMEN lists exactly what differs between them and says whether the gap in speed can be put down to one thing:
+- **Clean comparison**: only one thing differs (GPU, quantization, engine, context length, concurrency, GPU count or model). Compared by engine family, so vLLM against llama.cpp counts as one difference.
+- **Comparable with a caveat**: one thing differs, but the runs are different builds of the same engine, which can move speed on its own.
+- **Not directly comparable**: several things differ at once, so the gap cannot be attributed. OMEN names them and asks you to pick runs that differ in a single thing.
+- Extra warnings when concurrency differs (compare the aggregate row too), when context differs (longer context is expected to be slower), when models differ, when token counts were estimated from chunks or counted in different ways, and when one run is yours.
+
+The comparison shows each run's settings with the differing cells highlighted, tokens/s per user and aggregate, the gap against the first run, TTFT, TPOT, VRAM, the predicted ceiling and how far off it was, and a bar chart.
+
+**Add your own result.** Paste or choose the JSON file written by the local runner. It is checked with the same rules, appears in the table marked as yours (local, unverified), and can be compared and exported. It stays in your browser: nothing is uploaded and it never joins OMEN's reference data.
+
 ### Guide
 
 New to running models? The Guide explains every term OMEN uses in plain English, each with an example.

@@ -125,4 +125,26 @@ assert.strictEqual(qt.qualityText("fp16 / bf16")[0], "none");
 assert.ok(Object.values(qt.QUALITY_LOSS).every(([v, k]) => ["measured", "estimated", "unknown"].includes(k) && (k == "unknown") == (v == null)));
 // measured figures reproduce from the cited perplexities (F16 5.9066)
 for (const [n, ppl] of [["Q4_0", 6.1565], ["Q5_0", 5.9862], ["Q8_0", 5.9070]]) assert.ok(Math.abs(qt.QUALITY_LOSS[n][0] - 100 * (ppl - 5.9066) / 5.9066) < 0.01, n);
+// Comparison: only a single differing thing can be blamed for a gap in speed
+const { compareRuns } = require("./intel.js"), R = (o = {}) => ({ model: "M", gpu: "G1", quant: "Q4", engine: "llama.cpp b1", context: 128, users: 1, tok_s: 100, ...o });
+let cc = compareRuns([R(), R({ gpu: "G2", tok_s: 60 })]);
+assert.deepStrictEqual([cc.kind, cc.compared, cc.differs.map(d => d.key)], ["clean", "GPU", ["gpu"]]); assert.deepStrictEqual(cc.warnings, []);
+cc = compareRuns([R(), R({ quant: "Q8" }), R({ quant: "fp16" })]);
+assert.deepStrictEqual([cc.kind, cc.compared], ["clean", "quantization"]);
+cc = compareRuns([R(), R({ gpu: "G2", engine: "llama.cpp b2" })]); // same engine family, other build: comparable with a caveat
+assert.deepStrictEqual([cc.kind, cc.compared], ["caveat", "GPU"]); assert.ok(cc.warnings.some(w => /different builds/.test(w)));
+cc = compareRuns([R({ engine: "llama.cpp b1" }), R({ engine: "llama.cpp b2" })]);
+assert.deepStrictEqual([cc.kind, cc.compared], ["clean", "engine build"]);
+cc = compareRuns([R({ engine: "llama.cpp b1" }), R({ engine: "vllm 0.6" })]); // another engine: the build is not a separate difference
+assert.deepStrictEqual([cc.kind, cc.compared, cc.differs.map(d => d.key)], ["clean", "engine", ["engine"]]);
+cc = compareRuns([R(), R({ gpu: "G2", quant: "Q8", context: 8192 })]);
+assert.strictEqual(cc.kind, "not_comparable"); assert.ok(/GPU, quantization, context length all differ/.test(cc.warnings[0]));
+cc = compareRuns([R({ users: 1 }), R({ users: 8, tok_s: 40 })]);
+assert.deepStrictEqual([cc.kind, cc.compared], ["clean", "concurrency"]); assert.ok(cc.warnings.some(w => /aggregate/.test(w)));
+cc = compareRuns([R({ context: 128 }), R({ context: 32768 })]); assert.ok(cc.warnings.some(w => /KV cache/.test(w)));
+cc = compareRuns([R({ model: "A" }), R({ model: "B" })]); assert.ok(cc.warnings.some(w => /Different models/.test(w)));
+cc = compareRuns([R(), R()]); assert.strictEqual(cc.kind, "identical"); assert.ok(cc.warnings.some(w => /repeat measurements/.test(w)));
+cc = compareRuns([R({ token_count_method: "usage" }), R({ gpu: "G2", token_count_method: "chunks" })]); assert.ok(cc.warnings.some(w => /different ways/.test(w)));
+cc = compareRuns([R(), R({ gpu: "G2", local: true })]); assert.ok(cc.warnings.some(w => /your own result/.test(w)));
+cc = compareRuns([R(), R({ gpu_count: 2 })]); assert.deepStrictEqual(cc.compared, "GPU count");
 console.log("all tests pass");

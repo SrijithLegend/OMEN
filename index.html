@@ -86,6 +86,10 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 .cta a{padding:10px 18px;border-radius:99px;background:var(--orange);color:var(--ink);text-decoration:none;white-space:nowrap}
 .cta a:hover{filter:brightness(1.08)}
 .conf{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.78rem;font-weight:700;background:#ececee;color:var(--ink)}.conf.high{background:var(--orange)}
+.sand textarea{background:#ececee;color:var(--ink)}.sand textarea:focus{background:#fff}.sand code{background:#ececee;padding:1px 6px;border-radius:6px}
+.pick2{width:1.7rem;height:1.7rem;border:0;border-radius:99px;background:var(--ink);color:#fff;font:700 .9rem Inter,system-ui;cursor:pointer;padding:0}.pick2.on{background:var(--orange);color:var(--ink)}
+tr.sel td{background:#ff6a2b14}.cmpv{margin:0 0 12px;padding:12px 14px;border-radius:14px;font-size:.9rem;line-height:1.45}.cmpv.ok{background:#ffffff14}.cmpv.warn{background:var(--orange);color:var(--ink)}.cmpv b{font-weight:900}
+.bar2{height:.7rem;border-radius:99px;background:#ffffff1f;min-width:5rem}.bar2 i{display:block;height:100%;border-radius:99px;background:var(--orange)}#cmpOut td,#cmpOut th{white-space:normal;vertical-align:top}#cmpOut td.d{color:var(--orange);font-weight:700}
 .filt{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.filt label{margin:0}#f_out b,#benchSrc b{color:var(--orange)}.sand #benchSrc b{color:#c2410c}
 #benchTable th,#benchTable td{padding:7px 6px;font-size:.8rem}
 .sand table th{color:#777}.sand td,.sand th{border-top:1px solid #0000001a}
@@ -108,6 +112,13 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
     </div>
     <div id=benchTable style="overflow:auto"></div><small id=benchSum></small>
     <button type=button class=sm id=benchcsv>Download as CSV</button></div>
+  <div class="card s4" id=cmpBench><span class=lab>Compare runs</span>
+    <p class=tag style="margin:0 0 4px">Pick 2 to 4 runs with <b>+</b> in the table, or start from a suggestion. OMEN checks whether the gap in speed can be put down to one thing, and warns when it cannot.</p>
+    <div class=pills id=cmpSuggest></div><div id=cmpOut style="margin-top:14px;overflow:auto"></div></div>
+  <div class="card sand s4"><span class=lab>Add your own result</span>
+    <p class=tag style="margin:0 0 10px;color:#777">Run <code>backend/omen_bench.py</code> on your hardware, then paste its JSON file here or choose it. It is used only in this browser to compare and report: nothing is uploaded, and it is never added to OMEN's reference data.</p>
+    <textarea id=localjson rows=6 placeholder='{"model": "Llama-3.1-8B", "quant": "Q4_K_M", "gpu": "RTX 4090 24GB", "engine": "vllm 0.6.3", "context_tokens": 8192, "users": 4, "tok_s_per_user": 95, ...}'></textarea>
+    <div class=acts><button type=button id=localadd>Add to the table</button><input id=localfile type=file accept=".json,application/json" style="width:auto;margin:0"><small id=localmsg></small></div></div>
 </div>
 <div class=grid id=method hidden>
   <div class="card s4"><h1>Methodology</h1><p class=tag>How every number is produced, what each label means, and where it stops being reliable. OMEN never shows an estimate as a measurement.</p></div>
@@ -474,33 +485,90 @@ $("wslist").onclick = e => { const l = wsGet(), d = e.target.dataset;
   else if (d.load !== undefined) { const P = new URLSearchParams(l[+d.load].qs); if (P.has("uc")) { $("uc").value = P.get("uc"); fillModels(); } for (const [k, v] of P) if (IDS.includes(k) && k != "uc") $(k).value = v; go(); } };
 wsRender();
 // Benchmarks tab: every measured run joined to what the calculator predicts for it.
-// ---- Benchmarks explorer: the published reference measurements in measured.js, nothing else.
+// ---- Benchmarks explorer: the published reference measurements in measured.js, plus any runner results you add locally (never uploaded).
 const esc = t => String(t ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const safeUrl = u => /^https?:\/\/\S+$/.test(u || "") ? esc(u) : "";
-const BENCH = RUNS, BF = { model: "All", gpu: "All", quant: "All", engine: "All" };
-(() => { // filter choices come from the data
-  const uniq = k => [...new Set(BENCH.map(x => x[k]))].sort();
-  for (const [k, id] of [["model", "bf_model"], ["gpu", "bf_gpu"], ["quant", "bf_quant"], ["engine", "bf_engine"]]) { $(id).innerHTML = BLANK + ["All", ...uniq(k)].map(v => `<option>${esc(v)}</option>`).join(""); $(id).value = "All"; }
-})();
+const LOCAL = [], BF = { model: "All", gpu: "All", quant: "All", engine: "All" }, SEL = [];
+const benchAll = () => [...RUNS.map((r, i) => ({ ...r, key: "s" + i })), ...LOCAL];
+function benchRow(x) { // one run with its derived figures: shared by the table, comparison, CSV and reports
+  let ceil = null; try { ceil = runCeil(x); } catch {}
+  return { ...x, gpu_count: x.gpu_count || 1, tpot: x.tpot_ms ?? 1000 / x.tok_s, tpot_derived: x.tpot_ms == null, ceil, vs_pred: ceil ? 100 * x.tok_s / ceil : null };
+}
 const ms = v => v == null ? "-" : v < 10 ? v.toFixed(1) + " ms" : Math.round(v) + " ms";
+function fillFilters() {
+  const all = benchAll(), uniq = k => [...new Set(all.map(x => x[k]))].sort();
+  for (const [k, id] of [["model", "bf_model"], ["gpu", "bf_gpu"], ["quant", "bf_quant"], ["engine", "bf_engine"]]) {
+    const keep = uniq(k).includes($(id).value) ? $(id).value : "All"; $(id).innerHTML = BLANK + ["All", ...uniq(k)].map(v => `<option>${esc(v)}</option>`).join(""); $(id).value = BF[k] = keep; }
+  dds.forEach(d => d.sync());
+}
+const visibleRuns = () => benchAll().filter(x => ["model", "gpu", "quant", "engine"].every(k => BF[k] == "All" || x[k] == BF[k])).map(benchRow);
 function renderBench() {
-  const rows = BENCH.filter(x => ["model", "gpu", "quant", "engine"].every(k => BF[k] == "All" || x[k] == BF[k]));
+  const rows = visibleRuns();
   let sum = 0, cnt = 0;
   const body = rows.map(x => {
-    let ceil = null; try { ceil = runCeil(x); } catch {}
-    const e = ceil ? 100 * x.tok_s / ceil : null; if (e != null) { sum += Math.abs(100 - e); cnt++; }
-    const tpot = x.tpot_ms ?? 1000 / x.tok_s, link = safeUrl(x.source);
-    return `<tr><td>${esc(x.model)}</td><td>${esc(x.gpu)}${x.gpu_count > 1 ? " x" + x.gpu_count : ""}</td><td>${esc(x.quant)}</td><td>${esc(x.engine)}</td><td>${esc(x.context)}</td><td>${esc(x.users)}</td><td>${+x.tok_s.toFixed(2)}</td>`
-      + `<td>${ms(x.ttft_ms)}</td><td title="${x.tpot_ms == null ? "Derived from tokens/s: 1000 / tok/s" : "Reported"}">${ms(tpot)}${x.tpot_ms == null ? "*" : ""}</td>`
+    if (x.vs_pred != null && !x.local) { sum += Math.abs(100 - x.vs_pred); cnt++; } // the summary describes the published runs, not yours
+    const link = safeUrl(x.source), on = SEL.includes(x.key);
+    return `<tr class="${on ? "sel" : ""}"><td><button type=button class="pick2${on ? " on" : ""}" data-k="${x.key}" title="${on ? "Remove from" : "Add to"} the comparison">${on ? "&#10003;" : "+"}</button></td><td>${esc(x.model)}</td><td>${esc(x.gpu)}${x.gpu_count > 1 ? " x" + x.gpu_count : ""}</td><td>${esc(x.quant)}</td><td>${esc(x.engine)}</td><td>${esc(x.context)}</td><td>${esc(x.users)}</td><td>${+x.tok_s.toFixed(2)}</td>`
+      + `<td>${ms(x.ttft_ms)}</td><td title="${x.tpot_derived ? "Derived from tokens/s: 1000 / tok/s" : "Reported"}">${ms(x.tpot)}${x.tpot_derived ? "*" : ""}</td>`
       + `<td title="${x.vram_gib > 0 ? "" : "Not reported by the source: says nothing about memory"}">${x.vram_gib > 0 ? esc(x.vram_gib) + " GiB" : "-"}</td>`
-      + `<td title="${ceil ? "Predicted ceiling " + Math.round(ceil) + " tok/s" : ""}">${e == null ? "-" : Math.round(e) + "%"}</td><td>${link ? `<a href="${link}" target=_blank rel=noopener>source</a>` : "-"}</td></tr>`; }).join("");
-  $("benchTable").innerHTML = rows.length ? "<table><tr><th>Model</th><th>GPU</th><th>Quantization</th><th>Engine</th><th>Context</th><th>Users</th><th>Tokens/s</th><th>TTFT</th><th>TPOT</th><th>VRAM</th><th>Measured / predicted</th><th>Source</th></tr>" + body + "</table>" : "<p>No runs match these filters.</p>";
-  const spread = k => new Set(rows.map(x => x[k])).size;
-  $("benchSum").textContent = !cnt ? "No measured runs to compare." : `Mean gap between prediction and measurement: ${Math.round(sum / cnt)}% over ${cnt} run(s) (${spread("model")} model(s), ${spread("engine")} engine build(s)). Do not read this as accuracy for other models, engines or workloads.` + (rows.some(x => x.tpot_ms == null) ? " * TPOT derived from tokens/s." : "");
+      + `<td title="${x.ceil ? "Predicted ceiling " + Math.round(x.ceil) + " tok/s" : ""}">${x.vs_pred == null ? "-" : Math.round(x.vs_pred) + "%"}</td><td>${x.local ? "<b>yours</b> (local, unverified)" : link ? `<a href="${link}" target=_blank rel=noopener>source</a>` : "-"}</td></tr>`; }).join("");
+  $("benchTable").innerHTML = rows.length ? "<table><tr><th></th><th>Model</th><th>GPU</th><th>Quantization</th><th>Engine</th><th>Context</th><th>Users</th><th>Tokens/s</th><th>TTFT</th><th>TPOT</th><th>VRAM</th><th>Measured / predicted</th><th>Source</th></tr>" + body + "</table>" : "<p>No runs match these filters.</p>";
+  const spread = k => new Set(rows.filter(x => !x.local).map(x => x[k])).size;
+  $("benchSum").textContent = !cnt ? "No measured runs to compare." : `Mean gap between prediction and measurement: ${Math.round(sum / cnt)}% over ${cnt} run(s) (${spread("model")} model(s), ${spread("engine")} engine build(s)). Do not read this as accuracy for other models, engines or workloads.` + (rows.some(x => x.tpot_derived) ? " * TPOT derived from tokens/s." : "");
+  renderSuggest(rows); renderCompare();
 }
+// Comparison: pick 2-4 runs; OMEN says whether one thing explains the gap.
+function renderSuggest(rows) { // pairs that differ in a single thing are the clean comparisons
+  const seen = new Map();
+  for (let i = 0; i < rows.length; i++) for (let j = i + 1; j < rows.length; j++) {
+    const c = compareRuns([rows[i], rows[j]]); if (c.kind != "clean" && c.kind != "caveat") continue;
+    const f = { GPU: "gpu", quantization: "quant", engine: "engine", "engine build": "engine", "context length": "context", concurrency: "users", model: "model", "GPU count": "gpu_count" }[c.compared] || "gpu";
+    const label = `${c.compared}: ${rows[i][f]} vs ${rows[j][f]}${c.kind == "caveat" ? " (builds differ)" : ""}`;
+    if (!seen.has(label)) seen.set(label, [rows[i].key, rows[j].key]);
+  }
+  $("cmpSuggest").innerHTML = seen.size ? [...seen].slice(0, 8).map(([l, k], i) => `<button type=button data-s="${i}">${esc(l)}</button>`).join("") : "";
+  $("cmpSuggest").onclick = e => { const b = e.target.closest("button[data-s]"); if (!b) return; SEL.length = 0; SEL.push(...[...seen.values()][+b.dataset.s]); renderBench(); };
+}
+function renderCompare() {
+  const runs = SEL.map(k => benchAll().find(r => r.key == k)).filter(Boolean).map(benchRow);
+  if (runs.length < 2) { $("cmpOut").innerHTML = `<small>${runs.length ? "Pick at least one more run." : "No runs picked yet."}</small>`; return; }
+  const c = compareRuns(runs), diff = new Set(c.differs.map(d => d.key)), first = runs[0], top = Math.max(...runs.map(r => r.tok_s));
+  const head = { clean: `<b>Clean comparison:</b> only ${esc(c.compared)} differs.`, caveat: `<b>Comparable with a caveat:</b> ${esc(c.compared)} differs, and so do the engine builds.`,
+    identical: "<b>Identical configuration.</b>", not_comparable: `<b>Not directly comparable.</b> ${esc(c.differs.map(d => d.label).join(", "))} differ.` }[c.kind];
+  const cell = (r, f, fmt = esc) => `<td${f && diff.has(f) ? " class=d" : ""}>${fmt(f ? (f == "gpu_count" ? r.gpu_count : r[f]) : "")}</td>`;
+  const row = (label, f, fmt) => `<tr><th>${label}</th>${runs.map(r => cell(r, f, fmt)).join("")}</tr>`, plain = (label, fn) => `<tr><th>${label}</th>${runs.map(r => `<td>${fn(r)}</td>`).join("")}</tr>`;
+  $("cmpOut").innerHTML = `<div class="cmpv ${c.kind == "clean" || c.kind == "identical" ? "ok" : "warn"}">${head}${c.warnings.map(w => `<br>&bull; ${esc(w)}`).join("")}</div>`
+    + `<table><tr><th></th>${runs.map((r, i) => `<th>${"ABCD"[i]}${r.local ? " (yours)" : ""}</th>`).join("")}</tr>`
+    + row("Model", "model") + row("GPU", "gpu") + row("GPU count", "gpu_count") + row("Quantization", "quant") + row("Engine", "engine") + row("KV cache", "kv_dtype", v => esc(v || "fp16")) + row("Context", "context") + row("Users", "users")
+    + plain("Tokens/s per user", r => `<b>${+r.tok_s.toFixed(2)}</b>`) + plain(`vs ${"A"}`, r => r == first ? "-" : `${r.tok_s >= first.tok_s ? "+" : ""}${Math.round(100 * (r.tok_s / first.tok_s - 1))}%`)
+    + plain("Aggregate tokens/s", r => Math.round(r.tok_s * r.users)) + plain("", r => `<div class=bar2><i style="width:${100 * r.tok_s / top}%"></i></div>`)
+    + plain("TTFT", r => ms(r.ttft_ms)) + plain("TPOT", r => ms(r.tpot) + (r.tpot_derived ? "*" : "")) + plain("VRAM", r => r.vram_gib > 0 ? esc(r.vram_gib) + " GiB" : "-")
+    + plain("Predicted ceiling", r => r.ceil ? Math.round(r.ceil) + " tok/s" : "-") + plain("Measured / predicted", r => r.vs_pred == null ? "-" : Math.round(r.vs_pred) + "%")
+    + plain("Source", r => r.local ? "yours (local)" : safeUrl(r.source) ? `<a href="${safeUrl(r.source)}" target=_blank rel=noopener>source</a>` : "-") + "</table>"
+    + `<small style="display:block;margin-top:8px">Orange cells are what differs. Tokens/s is per user; aggregate = per-user x users. * TPOT derived from tokens/s.</small>`;
+}
+$("benchTable").onclick = e => { const b = e.target.closest("button.pick2"); if (!b) return; const i = SEL.indexOf(b.dataset.k);
+  if (i >= 0) SEL.splice(i, 1); else if (SEL.length < 4) SEL.push(b.dataset.k); else { $("cmpOut").innerHTML = "<small>Four runs at most: remove one with its check mark first.</small>"; return; } renderBench(); };
 for (const k of ["model", "gpu", "quant", "engine"]) $("bf_" + k).addEventListener("input", () => { BF[k] = $("bf_" + k).value; renderBench(); });
-$("benchcsv").onclick = () => dl("omen-benchmarks.csv", [...$("benchTable").querySelectorAll("tr")].map(r => [...r.cells].map(c => `"${c.textContent.replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv");
-renderBench();
+const csvCell = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+$("benchcsv").onclick = () => dl("omen-benchmarks.csv", ["model,gpu,gpu_count,quantization,engine,context_tokens,users,tokens_per_s_per_user,ttft_ms,tpot_ms,tpot_derived,vram_gib,kv_dtype,token_count_method,predicted_ceiling_tok_s,measured_over_predicted_pct,source,origin",
+  ...visibleRuns().map(x => [x.model, x.gpu, x.gpu_count, x.quant, x.engine, x.context, x.users, x.tok_s, x.ttft_ms, x.tpot, x.tpot_derived, x.vram_gib, x.kv_dtype || "fp16", x.token_count_method, x.ceil && Math.round(x.ceil), x.vs_pred && +x.vs_pred.toFixed(1), x.source, x.local ? "local" : "reference"].map(csvCell).join(","))].join("\n"), "text/csv");
+// Your own runner result: validated with the same checks, kept in this browser only.
+function addLocal(text) {
+  let r; try { r = JSON.parse(text); } catch (e) { return "Not valid JSON: " + e.message; }
+  const list = Array.isArray(r) ? r : [r], added = [];
+  for (const o of list) {
+    const run = { model: o.model, quant: o.quant, gpu: o.gpu, engine: o.engine, context: o.context_tokens ?? o.context, users: o.users, tok_s: o.tok_s_per_user ?? o.tok_s, source: "local" };
+    const bad = validateRun(run, { model: Object.keys(MODELS), quant: Object.keys(QUANTS), gpu: Object.keys(GPUS) });
+    if (bad.length) return "Cannot use this result: " + bad.join("; ");
+    added.push({ ...run, key: "l" + LOCAL.length + added.length, local: true, gpu_count: o.gpu_count || 1, kv_dtype: o.kv_dtype || "fp16", ttft_ms: o.ttft_ms ?? null, tpot_ms: o.tpot_ms ?? null,
+      vram_gib: o.vram_gib ?? null, token_count_method: o.token_count_method ?? null });
+  }
+  LOCAL.push(...added); fillFilters(); renderBench(); return `Added ${added.length} result(s). They stay in this browser.`;
+}
+$("localadd").onclick = () => { $("localmsg").textContent = addLocal($("localjson").value); };
+$("localfile").onchange = async e => { const f = e.target.files[0]; if (f) { $("localjson").value = await f.text(); $("localmsg").textContent = addLocal($("localjson").value); } };
+fillFilters(); renderBench();
 const setPrice = () => $("pr").value = $("g").value ? GPUS[$("g").value][2] : "";
 const PRESETS = {c: [2048, 8192, 32768, 131072, 1048576], u: [1, 4, 8, 16, 32], n: [1, 2, 4, 8]};
 document.querySelectorAll(".pills[data-for]").forEach(p => { const id = p.dataset.for; p.innerHTML = PRESETS[id.slice(-1)].map(v => `<button type=button data-v=${v}>${id.slice(-1) == "c" ? (v >= 1048576 ? "1M" : v / 1024 + "K") : v}</button>`).join(""); });
