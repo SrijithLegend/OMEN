@@ -226,17 +226,6 @@ const TERMS = [
 ];
 const g = id => document.getElementById(id);
 g("learn").insertAdjacentHTML("beforeend", TERMS.map(([t, d, e, tag], i) => `<div class="card term s2 ${i % 2 ? "" : "sand"}"><span class=lab>Term ${i + 1}${tag ? " &middot; " + tag + " tab" : ""}</span><b>${t}</b><p>${d}</p><small>${e}</small></div>`).join(""));
-g("learn").insertAdjacentHTML("beforeend", `<div class="card s4"><span class=lab>Put the terms to work</span><b style="display:block;font-size:1.6rem;line-height:1.1;margin-bottom:6px">Know your limits? Let OMEN pick the setup.</b><p class=tag style="margin:0">Set your budget, minimum speed and quality limit, and Recommend returns the cheapest, fastest, best-quality and best-value setups that pass, each with a confidence level.</p><button class=go2 data-tab=api>Open Recommend &rarr;</button> <button class="go2 alt" data-tab=calc>Open the calculator &rarr;</button></div>`);
-// Knowledge check from the product spec: each entry is [question, options, index of the right answer].
-const QUIZ = [
-  ["A user enters a Hugging Face repository. Which module reads its architecture and parameter count?", ["Hardware Intelligence", "Model Intelligence", "Cost Intelligence", "Recommendation Engine"], 1],
-  ["What does Memory Intelligence mainly work out?", ["GPU rental prices", "Answer quality", "GPU memory needed and what is left", "User sign-in"], 2],
-  ["Why does OMEN need Benchmark Intelligence?", ["To collect real performance measurements", "To lay out the website", "To process subscriptions", "To train every model"], 0],
-  ["What does the backend API layer (FastAPI) do?", ["Builds GPUs", "Receives requests and routes them to the right module", "Measures GPU power", "Draws the page"], 1],
-  ["Why keep measured and estimated results separate?", ["It looks nicer", "Predictions are always faster", "They are different quality of evidence", "Databases cannot store estimates"], 2]];
-g("learn").insertAdjacentHTML("beforeend", `<div class="card s4" id=quiz><span class=lab>Test your understanding</span>` + QUIZ.map(([q, o], i) => `<fieldset style="border:0;padding:0;margin:0 0 14px"><legend><b>${i + 1}. ${q}</b></legend>${o.map((t, j) => `<label style="display:block;margin:6px 0"><input type=radio name=q${i} value=${j} style="display:inline;width:auto;margin:0 8px 0 0"> ${t}</label>`).join("")}</fieldset>`).join("") + `<button type=button class=go2 id=quizgo>Check answers</button> <b id=quizout></b></div>`);
-g("quizgo").onclick = () => { let ok = 0; QUIZ.forEach(([, , a], i) => { const v = document.querySelector(`input[name=q${i}]:checked`); ok += v && +v.value == a; });
-  g("quizout").textContent = `${ok} of ${QUIZ.length} correct` + (ok == QUIZ.length ? ". Nice." : ". Re-read the Guide terms above and try again."); };
 document.querySelectorAll("#learn .card,#bench .card,#method .card").forEach((e, i) => e.style.setProperty("--i", i));
 document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
   document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x.dataset.tab == b.dataset.tab));
