@@ -46,7 +46,7 @@ input:hover,.dd>button:hover{border-color:#ff6a2b66}input:focus,.dd>button:focus
 a{color:inherit;font-weight:700}
 table{width:100%;border-collapse:collapse;margin-top:12px;font-size:.85rem;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:7px 10px;white-space:nowrap}th{color:var(--mute);font-weight:500}tr.hit td{color:var(--orange);font-weight:700}tr.no td{color:#777}
 .sm,#share{margin-top:10px;padding:8px 16px;border:0;border-radius:99px;background:var(--field);color:#fff;font:700 .85rem Inter,system-ui;cursor:pointer}
-.tabs{max-width:72rem;margin:0 auto 12px;display:flex;gap:8px}
+.tabs{max-width:72rem;margin:0 auto 12px;display:flex;flex-wrap:wrap;gap:8px}.tabs .side{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
 .tabs button{border:0;border-radius:99px;padding:11px 20px;background:var(--white);color:var(--ink);font:700 .95rem Inter,system-ui;cursor:pointer;transition:filter .15s}
 .tabs button:hover{filter:brightness(.95)}.tabs button.on{background:var(--ink);color:#fff}
 .grid[hidden]{display:none}
@@ -83,7 +83,7 @@ details ul{margin:8px 0 0;padding-left:1.1rem;color:var(--mute);font-size:.8rem;
 .sand table th{color:#777}.sand td,.sand th{border-top:1px solid #0000001a}
 @media(max-width:760px){.steps{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.s4,.s3,.s2{grid-column:span 2}.two{grid-template-columns:1fr}.r2{grid-row:auto}}
 </style>
-<nav class=tabs><button class=on data-tab=calc>GPU calculator</button><button data-tab=learn>Guide</button><button data-tab=bench>Benchmarks</button><button data-tab=api>Recommend</button><button data-tab=method>Methodology</button></nav>
+<nav class=tabs><button class=on data-tab=calc>GPU calculator</button><button data-tab=api>Recommend</button><span class=side><button data-tab=learn>Guide</button><button data-tab=bench>Benchmarks</button><button data-tab=method>Methodology</button></span></nav>
 <div class=grid id=learn hidden>
   <div class="card s4"><h1>Plain English</h1><p class=tag>Never run an AI model yourself? Here is every term OMEN uses, with no jargon.</p>
     <div class=steps><div><em>1</em>Pick the AI model you want to run.</div><div><em>2</em>Pick the graphics card (GPU) you have or want to rent.</div><div><em>3</em>Say how much text and how many people, then press Calculate.</div></div>
