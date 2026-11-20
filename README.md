@@ -6,7 +6,7 @@ OMEN helps you decide how to run an open AI model. Pick a model, a graphics card
 
 What makes OMEN different is that it never passes off a guess as a fact. Every answer says whether it is **measured** (someone ran it and recorded the result) or **estimated** (worked out from the model's architecture and the GPU's specs), shows how much evidence stands behind it, and links the source. A speed benchmark never counts as proof that something fits in memory, and a GPU spec that has not been checked against the vendor says so.
 
-**Live demo: https://srijithlegend.github.io/OMEN/** (served by GitHub Pages from the `main` branch)
+**Live demo: https://srijithlegend.github.io/Oh-Memory-Exhausted-Noted/** (served by GitHub Pages from the `main` branch)
 
 ## A tour of OMEN
 
@@ -116,8 +116,8 @@ No install and no build step.
 3. Choose a model, quantization and GPU, set context and users, then press **Calculate**.
 
 ```bash
-git clone https://github.com/SrijithLegend/OMEN.git
-cd OMEN
+git clone https://github.com/SrijithLegend/Oh-Memory-Exhausted-Noted.git
+cd Oh-Memory-Exhausted-Noted
 # then open index.html in your browser
 ```
 
