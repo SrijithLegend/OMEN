@@ -1,4 +1,4 @@
-# OMEN
+# Oh, Memory Exhausted? Noted.
 
 **Will it fit? How fast? What does it cost? And how sure are we?**
 
