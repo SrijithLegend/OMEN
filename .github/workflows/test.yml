@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12" }
       - run: node test.js
       - name: backend catalog.json must match the page data
@@ -27,7 +27,7 @@ jobs:
         options: --health-cmd "pg_isready -U omen" --health-interval 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12" }
       - run: pip install -r backend/requirements.txt "psycopg[binary]>=3.1"
       - run: python -m pytest
