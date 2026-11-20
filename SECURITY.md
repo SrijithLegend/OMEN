@@ -6,7 +6,7 @@ Please report a vulnerability privately through GitHub: **Security tab, Report a
 
 ## What is and is not exposed
 
-- **The website** (`index.html` and the `.js` files) is static. It runs entirely in the visitor's browser, stores nothing on a server, and has no accounts or secrets. Results you add from the runner stay in your browser.
+- **The website** (`index.html` and the `.js` files) is static. It runs entirely in the visitor's browser, stores nothing on a server, and has no accounts or secrets. The one third-party script is the GoatCounter page-view counter (cookie-free, pinned with a Subresource Integrity hash, so a changed file is blocked). It never sees what you type. If GoatCounter ever updates `count.js`, the counter stops until the hash in `index.html` is refreshed. Results you add from the runner stay in your browser.
 - **The optional backend** (`backend/`) is self-hosted. The public read endpoints are open. Anything that changes data (importing a reference run, entering a price) needs `OMEN_ADMIN_KEY`; if it is not set, nobody can.
 - **Running it in production:** set `OMEN_ENV=production`, `OMEN_CORS` (your site's origin), `OMEN_ADMIN_KEY` and `POSTGRES_PASSWORD` as secrets on the host, never in the repository. Put a reverse proxy with TLS, request-size and rate limits in front of it.
 

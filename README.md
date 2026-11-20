@@ -171,6 +171,10 @@ GitHub Actions runs both on every push, and runs the API tests against PostgreSQ
 
 Treat results as a starting point, then measure. OMEN defaults to an fp16 KV cache, counts a flat 85% bandwidth scaling for multiple GPUs rather than modelling your interconnect, and does not model chunked attention (Llama 4), so those models are overestimated at long context. Time to first token assumes 40% of peak compute and is not calibrated. The benchmark dataset is small and covers one model on one engine, so expected speeds carry the caveats the calculator shows beside them.
 
+## Privacy
+
+The calculator runs in your browser. What you type (model, GPU, context, users, any runner result you paste) is never sent anywhere. The hosted page counts anonymous page views with [GoatCounter](https://www.goatcounter.com): no cookies, no account, no personal data, only the page, the referrer and the screen size. If you open `index.html` from your own disk, nothing is counted.
+
 ## License
 
 MIT, see `LICENSE`.
