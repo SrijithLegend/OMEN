@@ -156,44 +156,6 @@ So the ceiling reads about 1.5x too high on consumer cards and about 3x too high
 
 To turn the ceiling into an expected speed, the calculator averages only runs that match your workload: the same number of users and a context within 4x of yours, on this GPU and engine first. Runs at a different concurrency or context are never mixed in. When nothing matches it steps down (this GPU at your concurrency with a different context, then other GPUs, then the nearest hardware unmatched) and labels every step down "extrapolated". It shows how many of the runs on that hardware were used, their range, and what they covered. Only a matched same-GPU sample escapes "extrapolated", and with fewer than 3 runs it says "thin".
 
-## Reference measurements and the benchmark runner
-
-OMEN's benchmark data is a small set of **sourced reference measurements**: published results (`measured.js`, five llama.cpp runs for now), each with a link to where it came from. There is no public submission or moderation. To add a reference run, a maintainer adds a row to `measured.js` (format in `runs.schema.json`, example in `run-template.json`) and, for the API, imports it with `POST /api/v1/benchmarks/import`, which checks it and refuses it with the reasons if it is implausible or repeats a stored run.
-
-To measure your own hardware, use the local runner, `backend/omen_bench.py`. It works with any OpenAI-compatible server (vLLM, the llama.cpp server) and writes a JSON file; nothing is sent anywhere.
-
-```bash
-python backend/omen_bench.py --url http://localhost:8000 --served-model my-model --model Llama-3.1-8B --quant Q4_K_M \
-    --gpu "RTX 4090 24GB" --engine "llama.cpp b4567" --users 4 --requests 5 --output-tokens 256
-```
-
-- **Tokens are counted, best method first, and the result says which**: the server's own `usage` report (exact), your `--tokenizer` applied to the generated text (exact if it matches the model), or streamed chunks (an estimate, because a chunk can hold several tokens).
-- **Repeated measurements**: `--warmup` requests are discarded, each of `--users` concurrent users sends `--requests` requests back to back, and `--rounds` repeats that whole window. The result has the median, mean, p95, min, max, standard deviation and coefficient of variation for TTFT, TPOT and per-user tokens/s, the aggregate throughput of each round (output tokens of all users divided by the window's wall time), and every request's own numbers. It warns when the sample is small, when TPOT is noisy, or when rounds disagree.
-- **GPU memory is sampled every 0.5 s through the whole run** with `nvidia-smi`. The result carries the peak of the summed memory of the GPUs you name (`--gpu-ids 0,1`) and each GPU's own peak. It includes other processes and anything the engine pre-allocated, so it is the footprint, not the minimum. It is skipped when the server is not on this machine, and when nothing is in use on the named GPUs, because neither is a measurement.
-- **The JSON file is importable as it is** (add `--source-url` with the link that backs it): its top-level fields match `POST /api/v1/benchmarks/import`, and the extra detail (`stats`, `requests_detail`, `warnings`, `run`) sits alongside.
-
-## Contributing
-
-- **Fix or add a model**: add its Hugging Face repo to `scripts/gen-models.js` and run `node scripts/gen-models.js`. Do not edit `models.js` by hand. Models are only included when their `config.json` and parameter count can be read.
-- **Verify a GPU**: read its vendor datasheet, check VRAM, bandwidth and FP16 TFLOPS, update `gpus.js` / `gpu-compute.js`, and add an entry to `gpu-sources.js` with the source URL, date and the fields you checked.
-- **Add a reference measurement**: only from a published or reproducible source, with its link. Include `vram_gib` when the source reports peak memory: that is what allows a setup to be labelled "measured to fit".
-- Run `node test.js` and `cd backend && python -m pytest` before opening a pull request. After changing any data file, run `node scripts/export-catalog.js` so the API stays in sync.
-
-## Project layout
-
-| File | Purpose |
-|---|---|
-| `index.html` | The whole app (page, styles, logic) |
-| `fit.js`, `intel.js` | The fit, workload, recommendation, calibration and evidence maths |
-| `models.js`, `quants.js`, `gpus.js`, `gpu-compute.js`, `memtypes.js`, `usecases.js` | Data tables |
-| `gpu-sources.js` | Source URL, date and checked fields for each GPU whose specs were verified |
-| `measured.js` | Published measured runs |
-| `runs.schema.json`, `run-template.json` | Format for a measured run |
-| `scripts/gen-models.js` | Rebuilds `models.js` from each model's Hugging Face `config.json` |
-| `scripts/export-catalog.js` | Exports the data tables to `backend/app/catalog.json` |
-| `test.js` | Checks the page maths |
-| `backend/` | The optional API and benchmark runner |
-
 ## Tests
 
 ```bash
