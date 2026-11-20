@@ -32,14 +32,19 @@ if os.environ.get("OMEN_ENV") == "production" and not os.environ.get("OMEN_CORS"
     raise RuntimeError("OMEN_ENV=production needs OMEN_CORS set to your site's origin (comma-separated). '*' is only the default for local development.")
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("OMEN_CORS", "*").split(","), allow_methods=["*"], allow_headers=["*"])  # restrict with OMEN_CORS=https://your.site
 
-MAX_BODY_BYTES = 64_000  # ponytail: trusts Content-Length, so a chunked body without one is only bounded by field limits; put a proxy limit in front for hostile traffic
+MAX_BODY_BYTES = 64_000
 
 
 @app.middleware("http")
 async def limit_body(request: Request, call_next):
-    if int(request.headers.get("content-length") or 0) > MAX_BODY_BYTES:
-        return JSONResponse({"detail": f"payload larger than {MAX_BODY_BYTES} bytes"}, status_code=413)
-    return await call_next(request)
+    """Rejects oversized bodies, including chunked ones that carry no Content-Length, and adds basic security headers."""
+    if request.method in ("POST", "PUT", "PATCH"):
+        declared = request.headers.get("content-length")
+        if declared is not None and (not declared.isdigit() or int(declared) > MAX_BODY_BYTES) or declared is None and len(await request.body()) > MAX_BODY_BYTES:
+            return JSONResponse({"detail": f"payload larger than {MAX_BODY_BYTES} bytes"}, status_code=413)
+    response = await call_next(request)
+    response.headers.update({"X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY", "Cache-Control": "no-store"})
+    return response
 
 
 REQUESTS = Counter("omen_http_requests_total", "HTTP requests", ["method", "route", "status"])

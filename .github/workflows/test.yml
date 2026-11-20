@@ -1,5 +1,7 @@
 name: tests
 on: [push, pull_request]
+permissions:
+  contents: read  # the tests only need to read the repo
 jobs:
   sqlite:
     runs-on: ubuntu-latest

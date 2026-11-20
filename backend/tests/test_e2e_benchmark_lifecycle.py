@@ -87,6 +87,14 @@ def test_explorer_filters_and_the_seeded_reference_runs():
     assert any(r["gpu"] == GPU and r["model"] == "Llama-2-7B" for r in benchmarks.trusted_runs())  # the published 3090 run feeds calibration
 
 
+def test_chunked_and_malformed_bodies_are_bounded_and_headers_are_set():
+    chunks = (b"x" * 10_000 for _ in range(8))  # no Content-Length: sent chunked, 80 kB in total
+    assert c.post("/api/v1/benchmarks/import", content=chunks, headers={**ADMIN, "content-type": "application/json"}).status_code == 413
+    assert c.post("/api/v1/benchmarks/import", content="{}", headers={**ADMIN, "content-length": "abc", "content-type": "application/json"}).status_code in (400, 413)
+    h = c.get("/api/v1/benchmarks").headers
+    assert h["x-content-type-options"] == "nosniff" and h["x-frame-options"] == "DENY" and h["referrer-policy"] == "no-referrer"
+
+
 def test_payloads_are_bounded():
     assert c.post("/api/v1/benchmarks/import", content="x" * 70_000, headers={**ADMIN, "content-type": "application/json"}).status_code == 413
     for patch in ({"model": "x" * 101}, {"tok_s_per_user": 1e9}, {"users": 10**9}, {"token_count_method": "guess"}, {"kv_dtype": "fp4"}):

@@ -160,7 +160,7 @@ To turn the ceiling into an expected speed, the calculator averages only runs th
 
 ```bash
 node test.js                    # page maths
-cd backend && python -m pytest  # API, 37 tests
+cd backend && python -m pytest  # API, 38 tests
 ```
 
 GitHub Actions runs both on every push, and runs the API tests against PostgreSQL as well as SQLite.
@@ -182,7 +182,7 @@ The web page does not use this server: everything in it, including the **Recomme
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m pytest                                # 37 tests
+python -m pytest                                # 38 tests
 python -m uvicorn app.main:app --port 8787      # docs at http://localhost:8787/docs
 ```
 
@@ -205,4 +205,4 @@ The database is SQLite by default. `OMEN_DB=postgresql+psycopg://...` selects Po
 
 **Production.** Set `OMEN_ENV=production`: the server then refuses to start unless `OMEN_CORS` lists your site's origin (`*` is only the local default). Compose requires `OMEN_ADMIN_KEY` (the maintainer key), `POSTGRES_PASSWORD` and `OMEN_CORS`, restarts services, and keeps data in the `pgdata` volume; back it up with `docker compose exec db pg_dump -U omen omen > omen-backup.sql`. Behind a proxy, run uvicorn with `--proxy-headers` so the submission rate limit sees real client addresses (it is per process; use Redis if you run several workers).
 
-**Tested so far.** SQLite: 37 backend tests and all page tests. PostgreSQL: the same suite runs in GitHub Actions. Docker Compose and a real deployment have not been tested yet: do that before launch.
+**Tested so far.** SQLite: 38 backend tests and all page tests. PostgreSQL: the same suite runs in GitHub Actions. Docker Compose and a real deployment have not been tested yet: do that before launch.
