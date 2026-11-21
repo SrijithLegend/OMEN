@@ -66,6 +66,8 @@ High confidence means 75% or more, so only a measured setup qualifies. Speeds ar
 
 The published reference measurements, set next to what the calculator predicts for each.
 
+> **Coverage is small.** There are five published reference runs: one model (Llama-2-7B), one quantization (Q4_0), one engine (llama.cpp, four builds), five GPUs, a single user and a 128-token context. Every other combination in OMEN is an estimate, not a measurement, and is labelled that way. The reference data is a starting point, not a benchmark suite.
+
 ![The Benchmarks tab: the reference runs, the comparison, the report downloads and the local result box](docs/benchmarks.png)
 
 Each row shows model, GPU, quantization, engine, context length, users, tokens/s, time to first token, time per token, VRAM and the source link. A dash means the source did not report that figure (the five bundled llama.cpp runs report only tokens/s, so their TPOT is derived and marked `*`, and none recorded memory). You can filter by model, GPU, quantization and engine, and **Download as CSV** exports the table. The five runs are Llama-2-7B in Q4_0 on llama.cpp, so the "mean gap" shown is not accuracy for other setups.
@@ -138,7 +140,7 @@ These are estimates, not benchmarks. Real speed depends on the software you use,
 
 **Evidence.** "Measured to fit" needs a recorded peak-memory run of that exact model, quantization and GPU, at your context length or longer and your number of users or more. A speed benchmark alone never earns it.
 
-**GPU specs.** VRAM, bandwidth and TFLOPS are marked verified only for the GPUs listed in `gpu-sources.js` (7 of 42), which were read from a vendor page or datasheet, with the date. The rest are flagged unverified.
+**GPU specs.** VRAM, bandwidth and TFLOPS are marked fully verified for 6 of the 42 GPUs (T4, A100 40GB and 80GB, H100 SXM, H200, MI300X), each read from a vendor page or datasheet on a recorded date (`gpu-sources.js`). One more, the L4, is partly verified (VRAM and bandwidth only). The other 35 are written from memory and flagged unverified, so treat their figures with care.
 
 ## How far off is the speed ceiling?
 
@@ -173,7 +175,7 @@ Treat results as a starting point, then measure. OMEN defaults to an fp16 KV cac
 
 ## Privacy
 
-The calculator runs in your browser. What you type (model, GPU, context, users, any runner result you paste) is never sent anywhere. The hosted page counts anonymous page views with [GoatCounter](https://www.goatcounter.com): no cookies, no account, no personal data, only the page, the referrer and the screen size. If you open `index.html` from your own disk, nothing is counted.
+The calculator runs in your browser. What you type (model, GPU, context, users, any runner result you paste) is never sent anywhere. The hosted page counts anonymous page views with [GoatCounter](https://www.goatcounter.com): no cookies, no account, no personal data, only the page, the referrer and the screen size. It does not record which model, GPU or setting you choose, or which features you use, so there is no usage data beyond page views. If you open `index.html` from your own disk, nothing is counted.
 
 ## License
 
